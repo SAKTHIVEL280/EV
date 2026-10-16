@@ -1,0 +1,1 @@
+{"v": 1, "type": "chat.done", "id": "ad38bdce-dfe0-4bf2-9d7e-8f9a0b1c2d3e", "payload": {"turn_id": "36c14c5d-6e7f-4a8b-9c0d-1e2f3a4b5c6d", "text": "Here is your plan.", "effort": "max", "model": "Qwen3.5-4B-Q4_K_M.gguf", "timings": {"first_token_ms": 812, "total_ms": 4120, "prompt_tokens": 640, "generated_tokens": 48}, "cancelled": false}}

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Download and verify the pinned llama.cpp Windows builds into vendor/llama.cpp/<variant>/.
+# Download and verify pinned llama.cpp builds into vendor/llama.cpp/<variant>/.
+# Windows builds (win-*) are .zip; Linux builds (ubuntu-*) are .tar.gz and are
+# used for development on the Linux dev machine.
 # Usage: scripts/fetch-llama-cpp [variant...]   (default: every pinned variant)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -22,22 +24,31 @@ is_wanted() {
 grep -v '^#' "$PINS" | while read -r tag variant expected; do
   [ -z "$tag" ] && continue
   is_wanted "$variant" || continue
-  zip="llama-${tag}-bin-${variant}.zip"
-  url="https://github.com/ggml-org/llama.cpp/releases/download/${tag}/${zip}"
+  case "$variant" in
+    win-*) ext=zip ;;
+    *) ext=tar.gz ;;
+  esac
+  archive="llama-${tag}-bin-${variant}.${ext}"
+  url="https://github.com/ggml-org/llama.cpp/releases/download/${tag}/${archive}"
   out="$DEST/$variant"
   if [ -f "$out/.verified-$tag" ]; then echo "ok   $variant ($tag, cached)"; continue; fi
   mkdir -p "$DEST"
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' EXIT
   echo "get  $url"
-  curl -fsSL --retry 3 -o "$tmp/$zip" "$url"
-  actual="$(sha256 "$tmp/$zip")"
+  curl -fsSL --retry 3 -o "$tmp/$archive" "$url"
+  actual="$(sha256 "$tmp/$archive")"
   if [ "$actual" != "$expected" ]; then
-    echo "SHA-256 mismatch for $zip: expected $expected, got $actual" >&2
+    echo "SHA-256 mismatch for $archive: expected $expected, got $actual" >&2
     exit 1
   fi
   rm -rf "$out" && mkdir -p "$out"
-  unzip -q "$tmp/$zip" -d "$out"
+  if [ "$ext" = zip ]; then
+    unzip -q "$tmp/$archive" -d "$out"
+  else
+    # Linux archives wrap everything in one top-level folder.
+    tar -xzf "$tmp/$archive" -C "$out" --strip-components=1
+  fi
   touch "$out/.verified-$tag"
   echo "ok   $variant ($tag, sha256 verified)"
 done

@@ -13,6 +13,23 @@ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from ev_core.errors import EvError
 from ev_core.protocol.generated import (
+    ChatCancelMessage,
+    ChatCancelPayload,
+    ChatDeltaMessage,
+    ChatDeltaPayload,
+    ChatDoneMessage,
+    ChatDonePayload,
+    ChatFailedMessage,
+    ChatFailedPayload,
+    ChatSendMessage,
+    ChatSendPayload,
+    ChatStartedMessage,
+    ChatStartedPayload,
+    ChatTimings,
+    ChatToolMessage,
+    ChatToolPayload,
+    ChatToolState,
+    Effort,
     EmptyPayload,
     ErrorMessage,
     ErrorPayload,
@@ -20,6 +37,9 @@ from ev_core.protocol.generated import (
     HelloAckPayload,
     HelloMessage,
     HelloPayload,
+    LlmState,
+    LlmStatusMessage,
+    LlmStatusPayload,
     ModuleState,
     ModuleStatus,
     PingMessage,
@@ -33,7 +53,20 @@ PROTOCOL_VERSION: Final = 1
 """Must equal ``x-ev-protocol-version`` in the schema (enforced by a test)."""
 
 type AnyMessage = Annotated[
-    HelloMessage | HelloAckMessage | PingMessage | PongMessage | ErrorMessage | ShutdownMessage,
+    HelloMessage
+    | HelloAckMessage
+    | PingMessage
+    | PongMessage
+    | ErrorMessage
+    | ShutdownMessage
+    | ChatSendMessage
+    | ChatCancelMessage
+    | ChatStartedMessage
+    | ChatDeltaMessage
+    | ChatToolMessage
+    | ChatDoneMessage
+    | ChatFailedMessage
+    | LlmStatusMessage,
     Field(discriminator="type"),
 ]
 
@@ -115,6 +148,96 @@ def shutdown(reason: Reason) -> ShutdownMessage:
     )
 
 
+def chat_send(text: str, effort: Effort | None = None) -> ChatSendMessage:
+    return ChatSendMessage(
+        v=PROTOCOL_VERSION,
+        type="chat.send",
+        id=new_id(),
+        payload=ChatSendPayload(text=text, effort=effort),
+    )
+
+
+def chat_cancel(turn_id: str) -> ChatCancelMessage:
+    return ChatCancelMessage(
+        v=PROTOCOL_VERSION,
+        type="chat.cancel",
+        id=new_id(),
+        payload=ChatCancelPayload(turn_id=turn_id),
+    )
+
+
+def chat_started(turn_id: str, effort: Effort, model: str | None) -> ChatStartedMessage:
+    return ChatStartedMessage(
+        v=PROTOCOL_VERSION,
+        type="chat.started",
+        id=new_id(),
+        reply_to=turn_id,
+        payload=ChatStartedPayload(turn_id=turn_id, effort=effort, model=model),
+    )
+
+
+def chat_delta(turn_id: str, text: str) -> ChatDeltaMessage:
+    return ChatDeltaMessage(
+        v=PROTOCOL_VERSION,
+        type="chat.delta",
+        id=new_id(),
+        payload=ChatDeltaPayload(turn_id=turn_id, text=text),
+    )
+
+
+def chat_tool(turn_id: str, name: str, state: ChatToolState) -> ChatToolMessage:
+    return ChatToolMessage(
+        v=PROTOCOL_VERSION,
+        type="chat.tool",
+        id=new_id(),
+        payload=ChatToolPayload(turn_id=turn_id, name=name, state=state),
+    )
+
+
+def chat_done(
+    turn_id: str,
+    text: str,
+    effort: Effort,
+    model: str | None,
+    timings: ChatTimings,
+    *,
+    cancelled: bool,
+) -> ChatDoneMessage:
+    return ChatDoneMessage(
+        v=PROTOCOL_VERSION,
+        type="chat.done",
+        id=new_id(),
+        reply_to=turn_id,
+        payload=ChatDonePayload(
+            turn_id=turn_id,
+            text=text,
+            effort=effort,
+            model=model,
+            timings=timings,
+            cancelled=cancelled,
+        ),
+    )
+
+
+def chat_failed(turn_id: str, code: str, message: str) -> ChatFailedMessage:
+    return ChatFailedMessage(
+        v=PROTOCOL_VERSION,
+        type="chat.failed",
+        id=new_id(),
+        reply_to=turn_id,
+        payload=ChatFailedPayload(turn_id=turn_id, code=code, message=message),
+    )
+
+
+def llm_status(state: LlmState, model: str | None, detail: str | None = None) -> LlmStatusMessage:
+    return LlmStatusMessage(
+        v=PROTOCOL_VERSION,
+        type="llm.status",
+        id=new_id(),
+        payload=LlmStatusPayload(state=state, model=model, detail=detail),
+    )
+
+
 def _readable_id(raw: str | bytes) -> str | None:
     try:
         obj = json.loads(raw)
@@ -130,21 +253,41 @@ def _readable_id(raw: str | bytes) -> str | None:
 __all__ = [
     "PROTOCOL_VERSION",
     "AnyMessage",
+    "ChatCancelMessage",
+    "ChatDeltaMessage",
+    "ChatDoneMessage",
+    "ChatFailedMessage",
+    "ChatSendMessage",
+    "ChatStartedMessage",
+    "ChatTimings",
+    "ChatToolMessage",
+    "ChatToolState",
     "DecodeError",
+    "Effort",
     "ErrorMessage",
     "HelloAckMessage",
     "HelloMessage",
+    "LlmState",
+    "LlmStatusMessage",
     "ModuleState",
     "ModuleStatus",
     "PingMessage",
     "PongMessage",
     "Reason",
     "ShutdownMessage",
+    "chat_cancel",
+    "chat_delta",
+    "chat_done",
+    "chat_failed",
+    "chat_send",
+    "chat_started",
+    "chat_tool",
     "decode",
     "encode",
     "error",
     "hello",
     "hello_ack",
+    "llm_status",
     "new_id",
     "ping",
     "pong",

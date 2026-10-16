@@ -2,3 +2,4 @@
 # Digests from the GitHub release; see docs/decisions.md (Phase 0).
 b11696 win-cpu-x64 1e7c47dff58467540d53e6cf302d83951bcb165afb252c2952ed3872190fc60d
 b11696 win-vulkan-x64 f62bbf1ce154911ce37a381b9b308893b064301ecb7512f30c7c2abf7f812e75
+b11696 ubuntu-x64 6a04629ca5265eb4c5c7d6edec8d6fa429e7e7da2de1cd5d5e357a492fc8f802

@@ -1,0 +1,1 @@
+{"v": 1, "type": "llm.status", "id": "cf5adfe0-f102-4d14-9f9a-0b1c2d3e4f5a", "payload": {"state": "loading", "model": "Qwen3.5-4B-Q4_K_M.gguf"}}

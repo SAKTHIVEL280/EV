@@ -121,7 +121,7 @@ function Measure-Server {
 }
 
 $pins = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'llama-cpp.pins') |
-  Where-Object { $_.Trim() -and -not $_.StartsWith('#') }
+  Where-Object { $_.Trim() -and -not $_.StartsWith('#') -and ($_ -split '\s+')[1].StartsWith('win-') }
 $builds = @{}
 foreach ($line in $pins) {
   $parts = $line.Trim() -split '\s+'

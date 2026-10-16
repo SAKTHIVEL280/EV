@@ -1,0 +1,1 @@
+{"v": 1, "type": "chat.started", "id": "69f47f8a-9bac-4dbe-af3a-4b5c6d7e8f9a", "reply_to": "36c14c5d-6e7f-4a8b-9c0d-1e2f3a4b5c6d", "payload": {"turn_id": "36c14c5d-6e7f-4a8b-9c0d-1e2f3a4b5c6d", "effort": "max", "model": "Qwen3.5-4B-Q4_K_M.gguf"}}

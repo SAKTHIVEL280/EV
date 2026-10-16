@@ -27,9 +27,9 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 ### Core
 | ID | Feature | Phase | Status |
 |---|---|---|---|
-| F-001 | Typed chat in panel | 1 | index |
-| F-002 | Rule router (Instant commands) | 1 | index |
-| F-003 | Effort levels (setting + voice) | 1 | index |
+| F-001 | Typed chat in panel | 1 | draft |
+| F-002 | Rule router (Instant commands) | 1 | draft |
+| F-003 | Effort levels (setting + voice) | 1 | draft |
 | F-004 | Hotkey `Ctrl+Space` with IME conflict detection | 2 | index |
 | F-005 | Push-to-talk | 4 | index |
 | F-006 | Barge-in | 4 | index |
@@ -90,4 +90,60 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 
 ## Specs
 
-(none yet — Phase 1 specs F-001 to F-003 are written at the start of Phase 1)
+### F-001 Typed chat in panel
+- Phase / status: 1 / draft (written 2026-10-17, before the Phase 0 gate; see decisions.md).
+- Behavior: the user opens the panel (click or, from Phase 2, the hotkey), types a message and
+  presses Enter. The island shows `thinking` until the first token, then streams the reply into
+  the panel. A new message while a reply is streaming cancels that reply and starts the new one.
+  Esc closes the panel; an unfinished reply keeps streaming and is there when the panel reopens.
+- Effort level: the request's effort (F-003); default Normal.
+- Permissions & risk: no tools beyond those registered (Phase 1: `current_time`, safe). Tools with
+  risk `confirm` or `dangerous` are refused until the confirmation UI exists (Phase 3), and the
+  model is told so.
+- Settings: `agent.default_effort`, `llm.*` (models, threads, context, idle unload).
+- Island states used: panel (input, reply), thinking, error text in the reply area.
+- Edge cases: empty or whitespace-only input is ignored. Input over 8,000 characters is refused
+  with a message. The model is still loading: the reply waits and the panel shows "Waking up".
+  No model installed: a failure message. Core restarts mid-reply: the reply ends with an error line.
+- Failure messages: "No model installed. Add one in Settings." · "The model stopped responding.
+  Try again." · "That message is too long." · "Couldn't load the model. Details are in the log."
+- Performance: Normal first token measured and recorded (spoken-word budget is Phase 4);
+  prompt static prefix ≤ 1,000 tokens.
+- Tests: fake-LLM agent tests (streaming, cancel, tool step, max steps, history window);
+  protocol contract fixtures; manual run against Qwen3.5-4B.
+
+### F-002 Rule router (Instant commands)
+- Phase / status: 1 / draft.
+- Behavior: before any model call, a rule table (regular expressions, no LLM) matches the
+  request. A match runs its tool directly and answers from a template. Phase 1 rules:
+  current time and date ("what time is it", "what's the date", "what day is it"). Phase 3 adds
+  volume, open app, timers, media and brightness to the same table.
+- Effort level: Instant. A router match always wins, whatever effort was requested.
+- Permissions & risk: router rules may only call `safe` tools.
+- Settings: none in Phase 1.
+- Edge cases: a match that is part of a longer request ("what time is it in Tokyo") does not
+  match (rules are anchored); it goes to the model.
+- Failure messages: tool failure → "Couldn't do that." plus the tool's own message.
+- Performance: input → reply ≤ 300 ms (budget §4).
+- Tests: table-driven positive and negative phrases; latency test with the real tool.
+
+### F-003 Effort levels
+- Phase / status: 1 / draft.
+- Behavior: four levels (CLAUDE.md §5.5). Set by `agent.default_effort` or per request by a
+  spoken or typed prefix: "instant/quick", "normal", "deep", "max effort" followed by a comma or
+  colon ("max effort, plan my week"). The prefix is removed before the model sees the text.
+  | Level | Model | Thinking | Max steps |
+  |---|---|---|---|
+  | Instant | router; else smallest installed | off | 1 |
+  | Normal | default | off | 5 |
+  | Deep | largest installed | on | 15 |
+  | Max | largest installed | on | 40, cancellable |
+  Web search (auto for Normal, 2–3 searches for Deep, iterative for Max) is added in Phase 6.
+- Model mapping: `llm.model_small`, `llm.model_default`, `llm.model_large` are filenames in
+  `llm.models_dir`. Empty means not installed. Each level falls back to the nearest installed
+  model (small → default → large; large → default → small). Switching models reloads llama-server
+  (status `loading`).
+- Settings: `agent.default_effort` (default `normal`).
+- Edge cases: prefix with nothing after it → ignored as empty input. Unknown level word → not a
+  prefix (text passes through unchanged).
+- Tests: prefix parsing table; model fallback table; step limit enforced per level.

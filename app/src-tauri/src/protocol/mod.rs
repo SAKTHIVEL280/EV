@@ -22,8 +22,8 @@ pub mod generated {
 use std::num::NonZeroU64;
 
 use generated::{
-    EmptyPayload, ErrorMessage, HelloAckMessage, HelloMessage, HelloPayload, PingMessage,
-    PongMessage, ProtocolVersion, ShutdownMessage, ShutdownPayload, ShutdownPayloadReason,
+    ChatCancelPayload, ChatSendPayload, Effort, EmptyPayload, HelloPayload, ProtocolVersion,
+    ShutdownPayload, ShutdownPayloadReason,
 };
 use serde_json::Value;
 use thiserror::Error;
@@ -34,14 +34,79 @@ use crate::secrets::uuid_v4;
 /// Must equal `x-ev-protocol-version` in the schema (enforced by a test).
 pub const PROTOCOL_VERSION: u64 = 1;
 
-#[derive(Clone, Debug)]
-pub enum Message {
-    Hello(HelloMessage),
-    HelloAck(HelloAckMessage),
-    Ping(PingMessage),
-    Pong(PongMessage),
-    Error(ErrorMessage),
-    Shutdown(ShutdownMessage),
+/// One table drives the enum, decoding, encoding and version access, so a
+/// message type cannot be added to one and forgotten in another.
+macro_rules! messages {
+    ($($variant:ident($ty:ident) = $wire:literal,)+) => {
+        #[derive(Clone, Debug)]
+        pub enum Message {
+            $($variant(generated::$ty),)+
+        }
+
+        impl Message {
+            /// Protocol version declared by the sender in the envelope.
+            #[must_use]
+            pub fn version(&self) -> u64 {
+                match self {
+                    $(Self::$variant(m) => m.v.0.get(),)+
+                }
+            }
+
+            /// The wire `type` of this message.
+            #[must_use]
+            pub fn kind(&self) -> &'static str {
+                match self {
+                    $(Self::$variant(_) => $wire,)+
+                }
+            }
+        }
+
+        /// Parse one WebSocket text frame.
+        ///
+        /// # Errors
+        /// When the frame is not a valid protocol message.
+        pub fn decode(text: &str) -> Result<Message, DecodeError> {
+            let value: Value = serde_json::from_str(text)?;
+            let kind = value
+                .get("type")
+                .and_then(Value::as_str)
+                .ok_or(DecodeError::MissingType)?
+                .to_owned();
+            match kind.as_str() {
+                $($wire => serde_json::from_value(value)
+                    .map(Message::$variant)
+                    .map_err(|source| DecodeError::Invalid { kind: $wire, source }),)+
+                _ => Err(DecodeError::UnknownType(kind)),
+            }
+        }
+
+        /// Serialize one message to a WebSocket text frame.
+        ///
+        /// # Errors
+        /// Never in practice: every generated type serializes to JSON.
+        pub fn encode(message: &Message) -> Result<String, serde_json::Error> {
+            match message {
+                $(Message::$variant(m) => serde_json::to_string(m),)+
+            }
+        }
+    };
+}
+
+messages! {
+    Hello(HelloMessage) = "hello",
+    HelloAck(HelloAckMessage) = "hello.ack",
+    Ping(PingMessage) = "ping",
+    Pong(PongMessage) = "pong",
+    Error(ErrorMessage) = "error",
+    Shutdown(ShutdownMessage) = "shutdown",
+    ChatSend(ChatSendMessage) = "chat.send",
+    ChatCancel(ChatCancelMessage) = "chat.cancel",
+    ChatStarted(ChatStartedMessage) = "chat.started",
+    ChatDelta(ChatDeltaMessage) = "chat.delta",
+    ChatTool(ChatToolMessage) = "chat.tool",
+    ChatDone(ChatDoneMessage) = "chat.done",
+    ChatFailed(ChatFailedMessage) = "chat.failed",
+    LlmStatus(LlmStatusMessage) = "llm.status",
 }
 
 #[derive(Debug, Error)]
@@ -57,64 +122,6 @@ pub enum DecodeError {
         kind: &'static str,
         source: serde_json::Error,
     },
-}
-
-impl Message {
-    /// Protocol version declared by the sender in the envelope.
-    #[must_use]
-    pub fn version(&self) -> u64 {
-        let v = match self {
-            Self::Hello(m) => &m.v,
-            Self::HelloAck(m) => &m.v,
-            Self::Ping(m) => &m.v,
-            Self::Pong(m) => &m.v,
-            Self::Error(m) => &m.v,
-            Self::Shutdown(m) => &m.v,
-        };
-        v.0.get()
-    }
-}
-
-/// Parse one WebSocket text frame.
-///
-/// # Errors
-/// When the frame is not a valid protocol message.
-pub fn decode(text: &str) -> Result<Message, DecodeError> {
-    let value: Value = serde_json::from_str(text)?;
-    let kind = value
-        .get("type")
-        .and_then(Value::as_str)
-        .ok_or(DecodeError::MissingType)?
-        .to_owned();
-    let invalid = |kind| move |source| DecodeError::Invalid { kind, source };
-    Ok(match kind.as_str() {
-        "hello" => Message::Hello(serde_json::from_value(value).map_err(invalid("hello"))?),
-        "hello.ack" => {
-            Message::HelloAck(serde_json::from_value(value).map_err(invalid("hello.ack"))?)
-        }
-        "ping" => Message::Ping(serde_json::from_value(value).map_err(invalid("ping"))?),
-        "pong" => Message::Pong(serde_json::from_value(value).map_err(invalid("pong"))?),
-        "error" => Message::Error(serde_json::from_value(value).map_err(invalid("error"))?),
-        "shutdown" => {
-            Message::Shutdown(serde_json::from_value(value).map_err(invalid("shutdown"))?)
-        }
-        _ => return Err(DecodeError::UnknownType(kind)),
-    })
-}
-
-/// Serialize one message to a WebSocket text frame.
-///
-/// # Errors
-/// Never in practice: every generated type serializes to JSON.
-pub fn encode(message: &Message) -> Result<String, serde_json::Error> {
-    match message {
-        Message::Hello(m) => serde_json::to_string(m),
-        Message::HelloAck(m) => serde_json::to_string(m),
-        Message::Ping(m) => serde_json::to_string(m),
-        Message::Pong(m) => serde_json::to_string(m),
-        Message::Error(m) => serde_json::to_string(m),
-        Message::Shutdown(m) => serde_json::to_string(m),
-    }
 }
 
 fn version() -> ProtocolVersion {
@@ -136,7 +143,7 @@ pub fn hello(app_version: &str) -> Result<Message, AppError> {
         .map_err(|e: generated::error::ConversionError| {
             AppError::ProtocolMismatch(e.to_string())
         })?;
-    Ok(Message::Hello(HelloMessage {
+    Ok(Message::Hello(generated::HelloMessage {
         id: id()?,
         payload: HelloPayload {
             app_version,
@@ -151,7 +158,7 @@ pub fn hello(app_version: &str) -> Result<Message, AppError> {
 /// # Errors
 /// When the OS random source fails.
 pub fn ping() -> Result<Message, AppError> {
-    Ok(Message::Ping(PingMessage {
+    Ok(Message::Ping(generated::PingMessage {
         id: id()?,
         payload: EmptyPayload(serde_json::Map::new()),
         reply_to: None,
@@ -163,11 +170,47 @@ pub fn ping() -> Result<Message, AppError> {
 /// # Errors
 /// When the OS random source fails.
 pub fn shutdown(reason: ShutdownPayloadReason) -> Result<Message, AppError> {
-    Ok(Message::Shutdown(ShutdownMessage {
+    Ok(Message::Shutdown(generated::ShutdownMessage {
         id: id()?,
         payload: ShutdownPayload { reason },
         reply_to: None,
         type_: "shutdown".into(),
+        v: version(),
+    }))
+}
+
+/// # Errors
+/// When the OS random source fails or the text exceeds the schema limit.
+pub fn chat_send(text: &str, effort: Option<Effort>) -> Result<Message, AppError> {
+    let text = text
+        .parse()
+        .map_err(|e: generated::error::ConversionError| {
+            AppError::ProtocolMismatch(e.to_string())
+        })?;
+    Ok(Message::ChatSend(generated::ChatSendMessage {
+        id: id()?,
+        payload: ChatSendPayload { effort, text },
+        reply_to: None,
+        type_: "chat.send".into(),
+        v: version(),
+    }))
+}
+
+/// # Errors
+/// When the OS random source fails or `turn_id` is not a message id.
+pub fn chat_cancel(turn_id: &str) -> Result<Message, AppError> {
+    let turn_id = turn_id
+        .parse()
+        .map_err(|e: generated::error::ConversionError| {
+            AppError::ProtocolMismatch(e.to_string())
+        })?;
+    Ok(Message::ChatCancel(generated::ChatCancelMessage {
+        id: id()?,
+        payload: ChatCancelPayload {
+            turn_id: generated::TurnId(turn_id),
+        },
+        reply_to: None,
+        type_: "chat.cancel".into(),
         v: version(),
     }))
 }
