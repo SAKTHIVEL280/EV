@@ -12,18 +12,21 @@ Guarantees:
 import json
 import logging
 import shutil
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, MutableMapping
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Any, Final
 
 import tomlkit
 from pydantic import BaseModel, ValidationError
+from pydantic.fields import FieldInfo
 from tomlkit.exceptions import TOMLKitError
 from tomlkit.items import Table
 from tomlkit.toml_document import TOMLDocument
 
 from ev_core.config.schema import CURRENT_CONFIG_VERSION, EvConfig
+from ev_core.errors import EvError
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +35,10 @@ FILE_HEADER: Final = (
     "EV configuration. Changes apply instantly.",
     "Invalid values fall back to their defaults and show a warning in Settings > Diagnostics.",
 )
+
+SYNTAX_REFUSAL: Final = "config.toml has a syntax error. Fix it or reset it first."
+UNKNOWN_SETTING: Final = "That setting doesn't exist."
+NOT_ALLOWED: Final = "That value isn't allowed."
 
 type Migration = Callable[[TOMLDocument], None]
 """Mutates a document from version N to N + 1 in place (do not set config_version)."""
@@ -44,6 +51,10 @@ MIGRATIONS: Final[Mapping[int, Migration]] = {}
 class ConfigWarning:
     key: str
     message: str
+
+
+class ConfigEditError(EvError):
+    """A settings change was refused; the file is unchanged."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +109,47 @@ class ConfigStore:
 
         config = validate(doc.unwrap(), warnings)
         return LoadedConfig(config, tuple(warnings))
+
+    def set_value(self, section: str, key: str, value: object) -> LoadedConfig:
+        """Validate and store one value, keeping comments and unknown keys.
+
+        Raises ``ConfigEditError`` (unknown key, invalid value, unreadable file).
+        """
+        section_cls, field = lookup(section, key)
+        warnings: list[ConfigWarning] = []
+        validated = _validate_section(section, section_cls, {key: value}, warnings)
+        if warnings:
+            rule = rule_text(field)
+            raise ConfigEditError(f"{NOT_ALLOWED} {rule}".strip(), f"{section}.{key}={value!r}")
+        stored = getattr(validated, key)
+        doc = self._editable()
+        table = doc.get(section)
+        if not isinstance(table, MutableMapping):
+            table = tomlkit.table()
+            doc[section] = table
+        table[key] = stored.value if isinstance(stored, Enum) else stored
+        self._write(doc)
+        logger.info("setting changed", extra={"fields": {"key": f"{section}.{key}"}})
+        return self.load()
+
+    def reset_value(self, section: str, key: str) -> LoadedConfig:
+        """Remove one value from the file so its default applies."""
+        lookup(section, key)
+        doc = self._editable()
+        table = doc.get(section)
+        if isinstance(table, MutableMapping) and key in table:
+            del table[key]
+            self._write(doc)
+            logger.info("setting reset", extra={"fields": {"key": f"{section}.{key}"}})
+        return self.load()
+
+    def _editable(self) -> TOMLDocument:
+        if not self.path.exists():
+            return default_document(self._current_version)
+        try:
+            return tomlkit.parse(self.path.read_text(encoding="utf-8"))
+        except (TOMLKitError, UnicodeDecodeError) as exc:
+            raise ConfigEditError(SYNTAX_REFUSAL, str(exc)) from exc
 
     def _read_version(self, doc: TOMLDocument, warnings: list[ConfigWarning]) -> int:
         raw = doc.get(VERSION_KEY)
@@ -177,6 +229,42 @@ def _validate_section(
                 )
             )
     return section_cls.model_validate(values)
+
+
+def lookup(section: str, key: str) -> tuple[type[BaseModel], FieldInfo]:
+    """The section model and field for ``section.key``; ``ConfigEditError`` if unknown."""
+    section_field = EvConfig.model_fields.get(section)
+    section_cls = section_field.annotation if section_field else None
+    if not (isinstance(section_cls, type) and issubclass(section_cls, BaseModel)):
+        raise ConfigEditError(UNKNOWN_SETTING, f"unknown section {section!r}")
+    field = section_cls.model_fields.get(key)
+    if field is None:
+        raise ConfigEditError(UNKNOWN_SETTING, f"unknown key {section}.{key}")
+    return section_cls, field
+
+
+def bounds(field: FieldInfo) -> tuple[int | None, int | None]:
+    """(minimum, maximum) from ``ge`` / ``le`` constraints."""
+    low = high = None
+    for item in field.metadata:
+        low = getattr(item, "ge", low)
+        high = getattr(item, "le", high)
+    return low, high
+
+
+def rule_text(field: FieldInfo) -> str:
+    """The allowed values, in plain words ("Use 2048 to 131072.")."""
+    annotation = field.annotation
+    if annotation is bool:
+        return "Use on or off."
+    if isinstance(annotation, type) and issubclass(annotation, Enum):
+        return "Use one of: " + ", ".join(str(m.value) for m in annotation) + "."
+    low, high = bounds(field)
+    if low is not None and high is not None:
+        return f"Use {low} to {high}."
+    if annotation is int:
+        return "Use a whole number."
+    return ""
 
 
 def default_document(version: int = CURRENT_CONFIG_VERSION) -> TOMLDocument:

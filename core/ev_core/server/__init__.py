@@ -34,6 +34,11 @@ from ev_core.interfaces.events import (
     ChatRequested,
     ChatStarted,
     ChatToolChanged,
+    ConfigGetRequested,
+    ConfigRejected,
+    ConfigResetRequested,
+    ConfigSetRequested,
+    ConfigStateChanged,
     LlmStatusChanged,
 )
 from ev_core.modules import ModuleStatus
@@ -88,6 +93,29 @@ def to_message(event: Event) -> protocol.AnyMessage | None:
             return protocol.chat_failed(event.turn_id, event.code, event.message)
         case LlmStatusChanged():
             return protocol.llm_status(protocol.LlmState(event.state), event.model, event.detail)
+        case ConfigStateChanged():
+            items = [
+                protocol.SettingItem(
+                    section=i.section,
+                    key=i.key,
+                    nav=protocol.SettingNav(i.nav.value),
+                    label=i.label,
+                    description=i.description,
+                    kind=protocol.SettingKind(i.kind),
+                    default=i.default,
+                    value=i.value,
+                    options=list(i.options) or None,
+                    minimum=i.minimum,
+                    maximum=i.maximum,
+                )
+                for i in event.items
+            ]
+            warnings = [
+                protocol.ConfigWarningItem(key=w.key, message=w.message) for w in event.warnings
+            ]
+            return protocol.config_state(event.path, items, warnings, event.reply_to)
+        case ConfigRejected():
+            return protocol.config_rejected(event.section, event.key, event.message, event.reply_to)
     return None
 
 
@@ -98,6 +126,8 @@ OUTBOUND_EVENTS: tuple[type[Event], ...] = (
     ChatDone,
     ChatFailed,
     LlmStatusChanged,
+    ConfigStateChanged,
+    ConfigRejected,
 )
 
 
@@ -269,6 +299,16 @@ class CoreServer:
                     )
                 case protocol.ChatCancelMessage():
                     self._bus.publish(ChatCancelRequested(message.payload.turn_id))
+                case protocol.ConfigGetMessage():
+                    self._bus.publish(ConfigGetRequested(message.id))
+                case protocol.ConfigSetMessage():
+                    edit = message.payload
+                    self._bus.publish(
+                        ConfigSetRequested(message.id, edit.section, edit.key, edit.value)
+                    )
+                case protocol.ConfigResetMessage():
+                    reset = message.payload
+                    self._bus.publish(ConfigResetRequested(message.id, reset.section, reset.key))
                 case (
                     protocol.HelloAckMessage()
                     | protocol.PongMessage()
@@ -278,6 +318,8 @@ class CoreServer:
                     | protocol.ChatDoneMessage()
                     | protocol.ChatFailedMessage()
                     | protocol.LlmStatusMessage()
+                    | protocol.ConfigStateMessage()
+                    | protocol.ConfigRejectedMessage()
                 ):
                     await self._send_error(
                         connection,

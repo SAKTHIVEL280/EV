@@ -28,6 +28,7 @@ from ev_core import __version__, protocol
 from ev_core.agent import AgentModule
 from ev_core.bus import EventBus
 from ev_core.config import ConfigChanged, ConfigStore, ConfigWatcher
+from ev_core.config.service import SettingsService
 from ev_core.errors import EvError
 from ev_core.llm import LlmModule
 from ev_core.log import set_level, setup_logging
@@ -87,6 +88,8 @@ async def run(env: Mapping[str, str], stdout: TextIO, stdin: TextIO | None) -> i
             set_level(event.config.logging.level.value)
 
     bus.subscribe(ConfigChanged, on_config_changed)
+    watcher = ConfigWatcher(store, bus, loaded)
+    SettingsService(store, watcher, bus)
 
     server = CoreServer(
         bus=bus,
@@ -104,7 +107,6 @@ async def run(env: Mapping[str, str], stdout: TextIO, stdin: TextIO | None) -> i
         return EXIT_STARTUP_FAILED
 
     _install_stop_triggers(loop, stop, stdin)
-    watcher = ConfigWatcher(store, bus, loaded)
     watcher_task = asyncio.create_task(watcher.run())
 
     stdout.write(

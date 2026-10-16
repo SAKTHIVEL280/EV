@@ -1,0 +1,1 @@
+{"v": 1, "type": "config.state", "id": "befad0e1-f203-4e1f-8a8b-9cadbecfd0e1", "payload": {"path": "x", "items": [{"section": "a", "key": "b", "nav": "elsewhere", "label": "L", "description": "D", "kind": "text", "default": "", "value": ""}], "warnings": []}}

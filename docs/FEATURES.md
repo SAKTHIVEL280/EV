@@ -85,7 +85,7 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 | F-407 | Plugin tools folder (declared permissions) | 8 | index |
 | F-408 | Update check (GitHub Releases, user approves) | 8 | index |
 | F-409 | Local crash log + "Report issue" | 8 | index |
-| F-410 | Settings window (all §6.5 sections, §6.5.1 customization) | 2 | index |
+| F-410 | Settings window (all §6.5 sections, §6.5.1 customization) | 2 | draft |
 | F-411 | Auto-hide in fullscreen / screen share | 2 | index |
 
 ## Specs
@@ -147,3 +147,31 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 - Edge cases: prefix with nothing after it → ignored as empty input. Unknown level word → not a
   prefix (text passes through unchanged).
 - Tests: prefix parsing table; model fallback table; step limit enforced per level.
+
+### F-410 Settings window
+- Phase / status: 2 / draft (written 2026-10-17, before the Phase 0 gate; see decisions.md).
+  Phase 2 delivers the window, every section and the settings that exist so far. Later phases add
+  their settings to the same mechanism (§6.5.1 list is complete only at beta).
+- Behavior: opened from the island panel (Settings) and, from the tray (Phase 2, Windows). A
+  normal, focusable window: left navigation with the 13 sections of CLAUDE.md §6.5, right content.
+  Each setting shows a label, a one-line description and its default; a change applies at once
+  (no Save button); a Reset control returns it to the default and is hidden while the value is
+  the default. Editing `config.toml` by hand updates the open window within a second.
+- Effort level: n/a.
+- Permissions & risk: settings change only `config.toml` through core. Core validates every
+  value with the same rules as loading; an invalid value is refused and the file is unchanged.
+- Settings: the settings themselves. Each config key declares its section in the schema
+  (`nav`), its label (`title`) and its description.
+- Sections without settings yet (Voice, Personality, Hotkeys, Permissions, Memory & History,
+  Routines, Web & Privacy) show one plain line saying which feature brings them.
+- Advanced: "Open config file" and the file path. Diagnostics: module states with their
+  messages, config warnings, versions, "Open logs folder". About: versions, license, third-party
+  notices.
+- Edge cases: core not running → the window shows "EV's core isn't running." and controls are
+  disabled; `config.toml` has a syntax error → values show defaults, the warning is shown and
+  changes are refused with "config.toml has a syntax error. Fix it or reset it first."
+- Failure messages: "That value isn't allowed." (with the rule, e.g. "Use 2048 to 131072.") ·
+  "Couldn't save the setting. Details are in the log."
+- Performance: change → applied and confirmed ≤ 300 ms (local file write + reload).
+- Tests: core store set/reset (preserves comments and unknown keys, refuses invalid values,
+  refuses on syntax error), descriptors from the schema, protocol fixtures, UI state functions.

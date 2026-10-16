@@ -46,6 +46,21 @@
     },
     {
       "$ref": "#/$defs/LlmStatusMessage"
+    },
+    {
+      "$ref": "#/$defs/ConfigGetMessage"
+    },
+    {
+      "$ref": "#/$defs/ConfigSetMessage"
+    },
+    {
+      "$ref": "#/$defs/ConfigResetMessage"
+    },
+    {
+      "$ref": "#/$defs/ConfigStateMessage"
+    },
+    {
+      "$ref": "#/$defs/ConfigRejectedMessage"
     }
   ],
   "$defs": {
@@ -802,6 +817,346 @@
         },
         "payload": {
           "$ref": "#/$defs/LlmStatusPayload"
+        }
+      }
+    },
+    "SettingNav": {
+      "description": "Settings section (CLAUDE.md §6.5).",
+      "type": "string",
+      "enum": [
+        "general",
+        "voice",
+        "models",
+        "personality",
+        "appearance",
+        "hotkeys",
+        "permissions",
+        "memory",
+        "routines",
+        "web",
+        "advanced",
+        "diagnostics",
+        "about"
+      ]
+    },
+    "SettingValue": {
+      "type": [
+        "boolean",
+        "integer",
+        "string"
+      ]
+    },
+    "SettingName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+    },
+    "SettingItem": {
+      "type": "object",
+      "required": [
+        "section",
+        "key",
+        "nav",
+        "label",
+        "description",
+        "kind",
+        "default",
+        "value"
+      ],
+      "properties": {
+        "section": {
+          "$ref": "#/$defs/SettingName"
+        },
+        "key": {
+          "$ref": "#/$defs/SettingName"
+        },
+        "nav": {
+          "$ref": "#/$defs/SettingNav"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "boolean",
+            "choice",
+            "integer",
+            "text"
+          ]
+        },
+        "default": {
+          "$ref": "#/$defs/SettingValue"
+        },
+        "value": {
+          "$ref": "#/$defs/SettingValue"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 64
+          }
+        },
+        "minimum": {
+          "type": "integer"
+        },
+        "maximum": {
+          "type": "integer"
+        }
+      }
+    },
+    "ConfigWarningItem": {
+      "type": "object",
+      "required": [
+        "key",
+        "message"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 300
+        }
+      }
+    },
+    "ConfigGetPayload": {
+      "type": "object"
+    },
+    "ConfigSetPayload": {
+      "type": "object",
+      "required": [
+        "section",
+        "key",
+        "value"
+      ],
+      "properties": {
+        "section": {
+          "$ref": "#/$defs/SettingName"
+        },
+        "key": {
+          "$ref": "#/$defs/SettingName"
+        },
+        "value": {
+          "$ref": "#/$defs/SettingValue"
+        }
+      }
+    },
+    "ConfigResetPayload": {
+      "type": "object",
+      "required": [
+        "section",
+        "key"
+      ],
+      "properties": {
+        "section": {
+          "$ref": "#/$defs/SettingName"
+        },
+        "key": {
+          "$ref": "#/$defs/SettingName"
+        }
+      }
+    },
+    "ConfigStatePayload": {
+      "type": "object",
+      "required": [
+        "path",
+        "items",
+        "warnings"
+      ],
+      "properties": {
+        "path": {
+          "description": "Absolute path of config.toml.",
+          "type": "string",
+          "maxLength": 4096
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SettingItem"
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConfigWarningItem"
+          }
+        }
+      }
+    },
+    "ConfigRejectedPayload": {
+      "type": "object",
+      "required": [
+        "section",
+        "key",
+        "message"
+      ],
+      "properties": {
+        "section": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "key": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "message": {
+          "description": "Short, plain, user-facing text.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        }
+      }
+    },
+    "ConfigGetMessage": {
+      "description": "Rust -> core. Ask for the current settings; core answers config.state.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "config.get"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ConfigGetPayload"
+        }
+      }
+    },
+    "ConfigSetMessage": {
+      "description": "Rust -> core. Change one setting; core answers config.state or config.rejected.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "config.set"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ConfigSetPayload"
+        }
+      }
+    },
+    "ConfigResetMessage": {
+      "description": "Rust -> core. Return one setting to its default; core answers config.state.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "config.reset"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ConfigResetPayload"
+        }
+      }
+    },
+    "ConfigStateMessage": {
+      "description": "core -> Rust. Every setting with its value; also sent when config.toml changes on disk.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "config.state"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ConfigStatePayload"
+        }
+      }
+    },
+    "ConfigRejectedMessage": {
+      "description": "core -> Rust. A change was refused; config.toml is unchanged.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "config.rejected"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ConfigRejectedPayload"
         }
       }
     }

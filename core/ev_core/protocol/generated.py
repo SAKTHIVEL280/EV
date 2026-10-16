@@ -690,6 +690,250 @@ class LlmStatusMessage(BaseModel):
     payload: LlmStatusPayload
 
 
+class SettingNav(StrEnum):
+    """
+    Settings section (CLAUDE.md §6.5).
+    """
+
+    general = "general"
+    voice = "voice"
+    models = "models"
+    personality = "personality"
+    appearance = "appearance"
+    hotkeys = "hotkeys"
+    permissions = "permissions"
+    memory = "memory"
+    routines = "routines"
+    web = "web"
+    advanced = "advanced"
+    diagnostics = "diagnostics"
+    about = "about"
+
+
+class Kind(StrEnum):
+    boolean = "boolean"
+    choice = "choice"
+    integer = "integer"
+    text = "text"
+
+
+class Option(RootModel[str]):
+    root: Annotated[str, Field(max_length=64)]
+
+
+class SettingItem(BaseModel):
+    section: Annotated[str, Field(pattern="^[a-z][a-z0-9_]{0,63}$")]
+    key: Annotated[str, Field(pattern="^[a-z][a-z0-9_]{0,63}$")]
+    nav: SettingNav
+    label: Annotated[str, Field(max_length=80)]
+    description: Annotated[str, Field(max_length=300)]
+    kind: Kind
+    default: bool | int | str
+    value: bool | int | str
+    options: list[Option] | None = None
+    minimum: int | None = None
+    maximum: int | None = None
+
+
+class ConfigWarningItem(BaseModel):
+    key: Annotated[str, Field(max_length=128)]
+    message: Annotated[str, Field(max_length=300)]
+
+
+class ConfigGetPayload(BaseModel):
+    pass
+
+
+class ConfigSetPayload(BaseModel):
+    section: Annotated[str, Field(pattern="^[a-z][a-z0-9_]{0,63}$")]
+    key: Annotated[str, Field(pattern="^[a-z][a-z0-9_]{0,63}$")]
+    value: bool | int | str
+
+
+class ConfigResetPayload(BaseModel):
+    section: Annotated[str, Field(pattern="^[a-z][a-z0-9_]{0,63}$")]
+    key: Annotated[str, Field(pattern="^[a-z][a-z0-9_]{0,63}$")]
+
+
+class ConfigStatePayload(BaseModel):
+    path: Annotated[str, Field(description="Absolute path of config.toml.", max_length=4096)]
+    items: list[SettingItem]
+    warnings: list[ConfigWarningItem]
+
+
+class ConfigRejectedPayload(BaseModel):
+    section: Annotated[str, Field(max_length=64)]
+    key: Annotated[str, Field(max_length=64)]
+    message: Annotated[
+        str, Field(description="Short, plain, user-facing text.", max_length=300, min_length=1)
+    ]
+
+
+class ConfigGetMessage(BaseModel):
+    """
+    Rust -> core. Ask for the current settings; core answers config.state.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["config.get"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ConfigGetPayload
+
+
+class ConfigSetMessage(BaseModel):
+    """
+    Rust -> core. Change one setting; core answers config.state or config.rejected.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["config.set"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ConfigSetPayload
+
+
+class ConfigResetMessage(BaseModel):
+    """
+    Rust -> core. Return one setting to its default; core answers config.state.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["config.reset"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ConfigResetPayload
+
+
+class ConfigStateMessage(BaseModel):
+    """
+    core -> Rust. Every setting with its value; also sent when config.toml changes on disk.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["config.state"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ConfigStatePayload
+
+
+class ConfigRejectedMessage(BaseModel):
+    """
+    core -> Rust. A change was refused; config.toml is unchanged.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["config.rejected"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ConfigRejectedPayload
+
+
 class EvMessage(
     RootModel[
         HelloMessage
@@ -706,6 +950,11 @@ class EvMessage(
         | ChatDoneMessage
         | ChatFailedMessage
         | LlmStatusMessage
+        | ConfigGetMessage
+        | ConfigSetMessage
+        | ConfigResetMessage
+        | ConfigStateMessage
+        | ConfigRejectedMessage
     ]
 ):
     root: Annotated[
@@ -722,7 +971,12 @@ class EvMessage(
         | ChatToolMessage
         | ChatDoneMessage
         | ChatFailedMessage
-        | LlmStatusMessage,
+        | LlmStatusMessage
+        | ConfigGetMessage
+        | ConfigSetMessage
+        | ConfigResetMessage
+        | ConfigStateMessage
+        | ConfigRejectedMessage,
         Field(
             description="EV wire protocol between the Tauri app (Rust) and ev-core (Python). One JSON object per WebSocket text frame. Changes are additive; removing or renaming a field requires a protocol version bump.",
             title="EvMessage",

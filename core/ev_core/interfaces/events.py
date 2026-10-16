@@ -1,15 +1,18 @@
 """Bus events shared by the server, agent and llm modules.
 
-Inbound (from the app): ChatRequested, ChatCancelRequested.
+Inbound (from the app): ChatRequested, ChatCancelRequested, ConfigGetRequested,
+ConfigSetRequested, ConfigResetRequested.
 Outbound (to the app): ChatStarted, ChatDelta, ChatToolChanged, ChatDone,
-ChatFailed, LlmStatusChanged. The server forwards outbound events in publish
-order (the bus starts handlers in publish order).
+ChatFailed, LlmStatusChanged, ConfigStateChanged, ConfigRejected.
+The server forwards outbound events in publish order (the bus starts
+handlers in publish order).
 """
 
 from dataclasses import dataclass
 
 from ev_core.bus import Event
-from ev_core.config import EffortLevel
+from ev_core.config import ConfigWarning, EffortLevel
+from ev_core.config.settings import SettingItem
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,3 +74,41 @@ class LlmStatusChanged(Event):
     """unloaded | loading | ready | failed"""
     model: str | None
     detail: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ConfigGetRequested(Event):
+    request_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class ConfigSetRequested(Event):
+    request_id: str
+    section: str
+    key: str
+    value: bool | int | str
+
+
+@dataclass(frozen=True, slots=True)
+class ConfigResetRequested(Event):
+    request_id: str
+    section: str
+    key: str
+
+
+@dataclass(frozen=True, slots=True)
+class ConfigStateChanged(Event):
+    """Every setting with its value (docs/FEATURES.md F-410)."""
+
+    path: str
+    items: tuple[SettingItem, ...]
+    warnings: tuple[ConfigWarning, ...]
+    reply_to: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ConfigRejected(Event):
+    section: str
+    key: str
+    message: str
+    reply_to: str | None = None

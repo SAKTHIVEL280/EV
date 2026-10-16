@@ -1,0 +1,1 @@
+{"v": 1, "type": "config.rejected", "id": "8bc7adbe-cfd0-4bec-9d5e-6f7a8b9cadbe", "reply_to": "47e36f7a-8b9c-4dae-9f1a-2b3c4d5e6f7a", "payload": {"section": "llm", "key": "context", "message": "That value is not allowed. Use 2048 to 131072."}}

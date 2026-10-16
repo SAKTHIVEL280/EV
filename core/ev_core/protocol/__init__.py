@@ -29,6 +29,17 @@ from ev_core.protocol.generated import (
     ChatToolMessage,
     ChatToolPayload,
     ChatToolState,
+    ConfigGetMessage,
+    ConfigGetPayload,
+    ConfigRejectedMessage,
+    ConfigRejectedPayload,
+    ConfigResetMessage,
+    ConfigResetPayload,
+    ConfigSetMessage,
+    ConfigSetPayload,
+    ConfigStateMessage,
+    ConfigStatePayload,
+    ConfigWarningItem,
     Effort,
     EmptyPayload,
     ErrorMessage,
@@ -45,8 +56,13 @@ from ev_core.protocol.generated import (
     PingMessage,
     PongMessage,
     Reason,
+    SettingItem,
+    SettingNav,
     ShutdownMessage,
     ShutdownPayload,
+)
+from ev_core.protocol.generated import (
+    Kind as SettingKind,
 )
 
 PROTOCOL_VERSION: Final = 1
@@ -66,7 +82,12 @@ type AnyMessage = Annotated[
     | ChatToolMessage
     | ChatDoneMessage
     | ChatFailedMessage
-    | LlmStatusMessage,
+    | LlmStatusMessage
+    | ConfigGetMessage
+    | ConfigSetMessage
+    | ConfigResetMessage
+    | ConfigStateMessage
+    | ConfigRejectedMessage,
     Field(discriminator="type"),
 ]
 
@@ -238,6 +259,57 @@ def llm_status(state: LlmState, model: str | None, detail: str | None = None) ->
     )
 
 
+def config_get() -> ConfigGetMessage:
+    return ConfigGetMessage(
+        v=PROTOCOL_VERSION, type="config.get", id=new_id(), payload=ConfigGetPayload()
+    )
+
+
+def config_set(section: str, key: str, value: bool | int | str) -> ConfigSetMessage:
+    return ConfigSetMessage(
+        v=PROTOCOL_VERSION,
+        type="config.set",
+        id=new_id(),
+        payload=ConfigSetPayload(section=section, key=key, value=value),
+    )
+
+
+def config_reset(section: str, key: str) -> ConfigResetMessage:
+    return ConfigResetMessage(
+        v=PROTOCOL_VERSION,
+        type="config.reset",
+        id=new_id(),
+        payload=ConfigResetPayload(section=section, key=key),
+    )
+
+
+def config_state(
+    path: str,
+    items: list[SettingItem],
+    warnings: list[ConfigWarningItem],
+    reply_to: str | None = None,
+) -> ConfigStateMessage:
+    return ConfigStateMessage(
+        v=PROTOCOL_VERSION,
+        type="config.state",
+        id=new_id(),
+        reply_to=reply_to,
+        payload=ConfigStatePayload(path=path, items=items, warnings=warnings),
+    )
+
+
+def config_rejected(
+    section: str, key: str, message: str, reply_to: str | None = None
+) -> ConfigRejectedMessage:
+    return ConfigRejectedMessage(
+        v=PROTOCOL_VERSION,
+        type="config.rejected",
+        id=new_id(),
+        reply_to=reply_to,
+        payload=ConfigRejectedPayload(section=section, key=key, message=message),
+    )
+
+
 def _readable_id(raw: str | bytes) -> str | None:
     try:
         obj = json.loads(raw)
@@ -262,6 +334,12 @@ __all__ = [
     "ChatTimings",
     "ChatToolMessage",
     "ChatToolState",
+    "ConfigGetMessage",
+    "ConfigRejectedMessage",
+    "ConfigResetMessage",
+    "ConfigSetMessage",
+    "ConfigStateMessage",
+    "ConfigWarningItem",
     "DecodeError",
     "Effort",
     "ErrorMessage",
@@ -274,6 +352,9 @@ __all__ = [
     "PingMessage",
     "PongMessage",
     "Reason",
+    "SettingItem",
+    "SettingKind",
+    "SettingNav",
     "ShutdownMessage",
     "chat_cancel",
     "chat_delta",
@@ -282,6 +363,11 @@ __all__ = [
     "chat_send",
     "chat_started",
     "chat_tool",
+    "config_get",
+    "config_rejected",
+    "config_reset",
+    "config_set",
+    "config_state",
     "decode",
     "encode",
     "error",

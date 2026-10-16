@@ -1,0 +1,1 @@
+{"v": 1, "type": "config.set", "id": "58f47a8b-9cad-4ebf-8a2b-3c4d5e6f7a8b", "payload": {"section": "llm", "key": "enabled", "value": false}}
