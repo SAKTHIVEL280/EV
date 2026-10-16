@@ -1,0 +1,180 @@
+#!/usr/bin/env python3
+"""Generate THIRD_PARTY_NOTICES.md and enforce the license policy (CLAUDE.md §2).
+
+Covers everything shipped in the Windows installer:
+- Rust crates: normal (non-build, non-dev) dependencies of the `ev` crate for
+  x86_64-pc-windows-msvc, from `cargo metadata`.
+- Python packages: runtime dependencies of ev-core (`uv export`), licenses
+  read from installed metadata.
+- JavaScript packages: production dependencies of the app (`pnpm licenses`).
+- Bundled assets and runtimes listed in EXTRA below.
+
+Policy: no GPL/AGPL/SSPL/non-commercial license unless an OR-alternative is
+allowed or the entry is an explicitly reviewed exception. LGPL is allowed
+(the contract accepts an LGPL ffmpeg build).
+
+Run inside the core environment so Python metadata is available:
+    cd core && uv run python ../scripts/third-party-notices          # write
+    cd core && uv run python ../scripts/third-party-notices --check  # CI
+"""
+
+import json
+import re
+import subprocess
+import sys
+from dataclasses import dataclass
+from importlib import metadata
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+OUTPUT = ROOT / "THIRD_PARTY_NOTICES.md"
+TARGET = "x86_64-pc-windows-msvc"
+
+DENIED = re.compile(r"\b(A?GPL|SSPL|BUSL|CC-BY-NC|Commons-Clause|Elastic)", re.IGNORECASE)
+
+
+@dataclass(frozen=True, order=True)
+class Entry:
+    name: str
+    version: str
+    license: str
+    source: str = ""
+
+
+# Shipped items that no package manager reports. Each was reviewed by hand.
+EXTRA = [
+    Entry("CPython runtime", "3.12", "PSF-2.0", "https://www.python.org/"),
+    Entry(
+        "PyInstaller bootloader",
+        "6.22.3",
+        "GPL-2.0-or-later WITH Bootloader-exception",
+        "https://pyinstaller.org/ (exception permits any license for bundled apps)",
+    ),
+    Entry("Instrument Sans (font)", "2022", "OFL-1.1", "https://github.com/Instrument/instrument-sans"),
+]
+REVIEWED_EXCEPTIONS = {"PyInstaller bootloader"}
+
+
+def run(cmd: list[str], cwd: Path) -> str:
+    return subprocess.run(cmd, cwd=cwd, check=True, capture_output=True, text=True).stdout  # noqa: S603
+
+
+def rust() -> list[Entry]:
+    meta = json.loads(
+        run(
+            ["cargo", "metadata", "--format-version", "1", "--locked", "--filter-platform", TARGET],
+            ROOT / "app" / "src-tauri",
+        )
+    )
+    packages = {p["id"]: p for p in meta["packages"]}
+    nodes = {n["id"]: n for n in meta["resolve"]["nodes"]}
+    root = meta["resolve"]["root"]
+    seen: set[str] = set()
+    stack = [root]
+    while stack:
+        node = nodes[stack.pop()]
+        for dep in node["deps"]:
+            normal = any(k["kind"] is None for k in dep["dep_kinds"])
+            if normal and dep["pkg"] not in seen:
+                seen.add(dep["pkg"])
+                stack.append(dep["pkg"])
+    return [
+        Entry(packages[i]["name"], packages[i]["version"], packages[i]["license"] or "UNKNOWN",
+              packages[i].get("repository") or "")
+        for i in seen
+    ]
+
+
+def python() -> list[Entry]:
+    out = run(
+        ["uv", "export", "--frozen", "--no-default-groups", "--no-hashes", "--no-emit-project",
+         "--format", "requirements-txt"],
+        ROOT / "core",
+    )
+    entries = []
+    for line in out.splitlines():
+        match = re.match(r"^([A-Za-z0-9_.-]+)==([^\s;]+)", line)
+        if not match:
+            continue
+        name, version = match.groups()
+        md = metadata.metadata(name)
+        license_ = md.get("License-Expression") or _classifier_license(md) or (md.get("License") or "UNKNOWN")
+        entries.append(Entry(name, version, license_.strip().splitlines()[0], _home(md)))
+    return entries
+
+
+def _home(md: metadata.PackageMetadata) -> str:
+    if md.get("Home-page"):
+        return md["Home-page"]
+    urls = [u.split(",", 1) for u in md.get_all("Project-URL") or [] if "," in u]
+    labelled = {label.strip().lower(): url.strip() for label, url in urls}
+    for label in ("source", "source code", "repository", "homepage", "github"):
+        if label in labelled:
+            return labelled[label]
+    return urls[0][1].strip() if urls else ""
+
+
+def _classifier_license(md: metadata.PackageMetadata) -> str | None:
+    found = [c.split("::")[-1].strip() for c in md.get_all("Classifier") or [] if c.startswith("License ::")]
+    return " OR ".join(found) if found else None
+
+
+def javascript() -> list[Entry]:
+    data = json.loads(run(["pnpm", "licenses", "list", "--prod", "--json"], ROOT / "app"))
+    return [
+        Entry(pkg["name"], ", ".join(pkg["versions"]), license_, pkg.get("homepage") or "")
+        for license_, pkgs in data.items()
+        for pkg in pkgs
+    ]
+
+
+def allowed(expression: str) -> bool:
+    """True when at least one OR-alternative contains no denied license."""
+    alternatives = re.split(r"\s+OR\s+|\s*/\s*", expression.replace("(", "").replace(")", ""))
+    return any(not DENIED.search(alt) for alt in alternatives)
+
+
+def render(sections: dict[str, list[Entry]]) -> str:
+    lines = [
+        "# Third-party notices",
+        "",
+        "EV is licensed under Apache-2.0 (see LICENSE). The installer ships the",
+        "components below under their own licenses. Generated by",
+        "`scripts/third-party-notices`; do not edit by hand.",
+        "",
+        "Not bundled: AI models (downloaded on first run, attributions added with the",
+        "model downloader) and the Microsoft Edge WebView2 runtime (part of Windows 11).",
+    ]
+    for title, entries in sections.items():
+        lines += ["", f"## {title}", "", "| Component | Version | License | Source |", "|---|---|---|---|"]
+        lines += [f"| {e.name} | {e.version} | {e.license} | {e.source} |" for e in sorted(set(entries))]
+    return "\n".join(lines) + "\n"
+
+
+def main() -> int:
+    sections = {
+        "Rust crates": rust(),
+        "Python packages": python(),
+        "JavaScript packages": javascript(),
+        "Runtimes and assets": EXTRA,
+    }
+    violations = [
+        e for entries in sections.values() for e in entries
+        if e.name not in REVIEWED_EXCEPTIONS and (e.license == "UNKNOWN" or not allowed(e.license))
+    ]
+    for e in violations:
+        print(f"license policy violation: {e.name} {e.version}: {e.license}", file=sys.stderr)
+
+    text = render(sections)
+    if "--check" in sys.argv:
+        if OUTPUT.read_text(encoding="utf-8") != text:
+            print("THIRD_PARTY_NOTICES.md is stale; run scripts/third-party-notices", file=sys.stderr)
+            return 1
+    else:
+        OUTPUT.write_text(text, encoding="utf-8")
+        print(f"Wrote {OUTPUT.name}: {sum(len(v) for v in sections.values())} components")
+    return 1 if violations else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Build the ev-core sidecar as a PyInstaller onedir folder: core/dist/ev-core/.
+# Uses a separate environment (core/.venv-package) holding only runtime
+# dependencies plus PyInstaller, so no dev tool can leak into the bundle and
+# the dev environment (core/.venv) is left untouched.
+# The Tauri Windows bundle ships the folder as resources (tauri.windows.conf.json).
+set -euo pipefail
+cd "$(dirname "$0")/../core"
+export UV_PROJECT_ENVIRONMENT=.venv-package
+uv sync --frozen --no-default-groups --group package
+rm -rf build dist
+uv run --frozen --no-default-groups --group package \
+  pyinstaller --noconfirm --clean --distpath dist --workpath build packaging/ev-core.spec
+echo "Built core/dist/ev-core/"

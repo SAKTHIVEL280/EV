@@ -1,0 +1,5 @@
+# LF everywhere: generated-code checks compare bytes, and Windows CI checks out with CRLF otherwise.
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.ttf binary

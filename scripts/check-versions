@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+"""Fail when component versions disagree (CLAUDE.md §10.6).
+
+The single source of truth is app/src-tauri/tauri.conf.json `version`;
+Cargo.toml, app/package.json and core/pyproject.toml must match it exactly.
+"""
+
+import json
+import sys
+import tomllib
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def main() -> int:
+    source = json.loads((ROOT / "app/src-tauri/tauri.conf.json").read_text())["version"]
+    others = {
+        "app/src-tauri/Cargo.toml": tomllib.loads((ROOT / "app/src-tauri/Cargo.toml").read_text())["package"]["version"],
+        "app/package.json": json.loads((ROOT / "app/package.json").read_text())["version"],
+        "core/pyproject.toml": tomllib.loads((ROOT / "core/pyproject.toml").read_text())["project"]["version"],
+    }
+    mismatched = {path: v for path, v in others.items() if v != source}
+    if mismatched:
+        print(f"Version source tauri.conf.json = {source}", file=sys.stderr)
+        for path, version in mismatched.items():
+            print(f"  mismatch: {path} = {version}", file=sys.stderr)
+        return 1
+    print(f"All versions = {source}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
