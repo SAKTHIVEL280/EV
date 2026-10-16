@@ -2,13 +2,15 @@
   Island spike (Phase 0, S1). Shapes: idle pill, hover, panel. One black
   surface morphs through a squircle clip-path driven by springs; content
   cross-fades on top. Only clip-path and opacity animate (CLAUDE.md §6.2).
-  Exact geometry and the full state set arrive in Phase 2.
+  Exact geometry and the full state set arrive in Phase 2. The panel holds
+  typed chat (Phase 1) and the spike controls (morph test, quit).
 -->
 <script lang="ts">
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { onMount } from "svelte";
 
   import { commands, events, type CoreStatus, type HitRect } from "../bindings";
+  import ChatPanel from "../chat/ChatPanel.svelte";
   import { FrameRecorder, type FrameSummary } from "./frames";
   import { Spring, type SpringConfig } from "./spring";
   import { squirclePath } from "./squircle";
@@ -34,6 +36,7 @@
   let lastTest = $state<MorphResult[]>([]);
 
   let surface: HTMLDivElement | undefined = $state();
+  let chatPanel: { focus: () => void } | undefined = $state();
 
   const statusText = $derived.by(() => {
     switch (status.state) {
@@ -192,7 +195,7 @@
 
   function openPanel(): void {
     setMode("panel");
-    void commands.islandSetPanelOpen(true);
+    void commands.islandSetPanelOpen(true).then(() => chatPanel?.focus());
   }
 
   function closePanel(): void {
@@ -272,18 +275,17 @@
     <div class="panel" class:testing role="dialog" aria-label="EV">
       <header>
         <span class="title">EV</span>
-        {#if coreVersion}<span class="meta">core {coreVersion}</span>{/if}
+        <span class="meta" aria-live="polite"
+          >{coreVersion ? `core ${coreVersion}` : statusText}</span
+        >
       </header>
-      <p class="status-line" aria-live="polite">{statusText}</p>
-      <section class="spike" aria-label="Island spike">
+      <ChatPanel bind:this={chatPanel} />
+      <footer aria-label="Island spike">
         <button type="button" onclick={() => void runMorphTest()} disabled={testing}>
-          {testing ? "Testing" : "Run morph test"}
+          {testing ? "Testing" : "Morph test"}
         </button>
         {#if testSummary}<p class="result">{testSummary}</p>{/if}
-      </section>
-      <footer>
-        <button type="button" onclick={closePanel}>Close</button>
-        <button type="button" onclick={() => void commands.appQuit()}>Quit EV</button>
+        <button class="quit" type="button" onclick={() => void commands.appQuit()}>Quit EV</button>
       </footer>
     </div>
   {/if}
@@ -369,36 +371,31 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .status-line {
+  .result {
     margin: 0;
-    font-size: var(--ev-text-13);
-    color: var(--ev-island-fg-2);
+    font-size: var(--ev-text-11);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
 
-  .spike {
+  footer {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--ev-space-1);
+    align-items: center;
+    gap: var(--ev-space-2);
     padding-top: var(--ev-space-2);
     border-top: 1px solid var(--ev-island-hairline);
   }
 
-  .result {
-    margin: 0;
+  .quit {
+    margin-left: auto;
   }
 
-  footer {
-    margin-top: auto;
-    display: flex;
-    gap: var(--ev-space-2);
-    justify-content: flex-end;
-  }
-
-  .spike button,
   footer button {
+    flex-shrink: 0;
     font: inherit;
-    font-size: var(--ev-text-13);
+    font-size: var(--ev-text-11);
     font-weight: var(--ev-weight-medium);
     color: var(--ev-island-fg-1);
     background: var(--ev-island-control-bg);
@@ -408,7 +405,6 @@
     cursor: pointer;
   }
 
-  .spike button:hover,
   footer button:hover {
     background: var(--ev-island-control-bg-hover);
   }

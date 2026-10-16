@@ -27,16 +27,37 @@ export const commands = {
 	 *  (budget: cold start -> island visible <= 1.5 s). Logged once.
 	 */
 	spikeIslandPainted: () => __TAURI_INVOKE<void>("spike_island_painted"),
+	/**
+	 *  Send a chat message; returns the turn id that every `ChatUpdate` of this
+	 *  turn carries. A new message cancels a reply that is still streaming.
+	 * 
+	 *  # Errors
+	 *  When core is not connected or the text exceeds the protocol limit.
+	 */
+	chatSend: (text: string, effort: "instant" | "normal" | "deep" | "max" | null) => typedError<string, CommandError>(__TAURI_INVOKE("chat_send", { text, effort })),
+	/**
+	 *  # Errors
+	 *  When core is not connected or `turn_id` is not a turn id.
+	 */
+	chatCancel: (turnId: string) => typedError<null, CommandError>(__TAURI_INVOKE("chat_cancel", { turnId })),
+	llmStatus: () => __TAURI_INVOKE<LlmStatus>("llm_status"),
 };
 
 /** Events */
 export const events = {
+	chatUpdate: makeEvent<ChatUpdate>("chat-update"),
 	coreStatusChanged: makeEvent<CoreStatusChanged>("core-status-changed"),
 	islandPointer: makeEvent<IslandPointer>("island-pointer"),
 	islandVisibility: makeEvent<IslandVisibility>("island-visibility"),
+	llmStatusChanged: makeEvent<LlmStatusChanged>("llm-status-changed"),
 };
 
 /* Types */
+export type ChatUpdate = ChatUpdateKind;
+
+/**  One step of a chat turn, in order. */
+export type ChatUpdateKind = { kind: "started"; turn_id: string; effort: Effort; model: string | null } | { kind: "delta"; turn_id: string; text: string } | { kind: "tool"; turn_id: string; name: string; state: string } | { kind: "done"; turn_id: string; text: string; effort: Effort; model: string | null; first_token_ms: number | null; total_ms: number; cancelled: boolean } | { kind: "failed"; turn_id: string; code: string; message: string };
+
 export type CommandError = {
 	message: string,
 };
@@ -44,6 +65,8 @@ export type CommandError = {
 export type CoreStatus = { state: "starting" } | { state: "running"; core_version: string; modules: ModuleInfo[] } | { state: "restarting"; attempt: number; delay_ms: number } | { state: "failed"; message: string };
 
 export type CoreStatusChanged = CoreStatus;
+
+export type Effort = "instant" | "normal" | "deep" | "max";
 
 /**  Spike S1: frame-time statistics for one island morph, written to app.log. */
 export type FrameStats = {
@@ -84,6 +107,15 @@ export type IslandPointer = {
 export type IslandVisibility = {
 	hidden: boolean,
 };
+
+export type LlmStatus = {
+	/**  unloaded | loading | ready | failed */
+	state: string,
+	model: string | null,
+	detail: string | null,
+};
+
+export type LlmStatusChanged = LlmStatus;
 
 export type ModuleInfo = {
 	name: string,

@@ -2,6 +2,7 @@
 //! (CLAUDE.md §5.1, docs/ARCHITECTURE.md §1–2).
 
 pub mod launch;
+pub mod link;
 pub mod policy;
 pub mod session;
 pub mod status;
@@ -12,24 +13,35 @@ use tokio::sync::watch;
 use tokio::time::sleep;
 
 use crate::error::AppError;
+use crate::protocol::Message;
 use crate::protocol::generated::HelloAckMessage;
 use launch::LaunchSpec;
+use link::CoreLink;
 use policy::RestartPolicy;
-use session::{SessionEnd, Timing};
+use session::{Hooks, SessionEnd, Timing};
 pub use status::{CoreStatus, CoreStatusChanged, ModuleInfo};
 
 pub const CORE_STOPPED: &str = "EV's core stopped and couldn't restart. Details are in the log.";
 
+/// Receives everything the supervisor learns about core.
+pub trait CoreObserver: Send + Sync {
+    fn status(&self, status: CoreStatus);
+    /// A chat or model-status message from core.
+    fn message(&self, message: Message);
+}
+
 /// Run until shutdown is signalled or the restart policy gives up.
-/// Every state change is passed to `report`.
 pub async fn supervise(
     spec: Result<LaunchSpec, AppError>,
     app_version: &str,
     timing: &Timing,
     mut policy: RestartPolicy,
     mut shutdown: watch::Receiver<bool>,
-    report: impl Fn(CoreStatus),
+    observer: &dyn CoreObserver,
+    link: &CoreLink,
 ) {
+    let report = |status: CoreStatus| observer.status(status);
+    let on_message = |message: Message| observer.message(message);
     let spec = match spec {
         Ok(spec) => spec,
         Err(e) => {
@@ -46,14 +58,12 @@ pub async fn supervise(
         }
         report(CoreStatus::Starting);
         let started = Instant::now();
-        let end = session::run(
-            &spec,
-            app_version,
-            timing,
-            |ack| report(running(&ack)),
-            &mut shutdown,
-        )
-        .await;
+        let hooks = Hooks {
+            on_ready: |ack: HelloAckMessage| report(running(&ack)),
+            on_message: &on_message,
+            link,
+        };
+        let end = session::run(&spec, app_version, timing, hooks, &mut shutdown).await;
         match end {
             SessionEnd::Shutdown => {
                 tracing::info!("core stopped on request");
@@ -113,10 +123,24 @@ mod tests {
 
     use super::*;
 
-    fn recorder() -> (Arc<Mutex<Vec<CoreStatus>>>, impl Fn(CoreStatus) + Clone) {
-        let log = Arc::new(Mutex::new(Vec::new()));
-        let sink = log.clone();
-        (log, move |s| sink.lock().unwrap().push(s))
+    #[derive(Clone, Default)]
+    struct Recorder {
+        statuses: Arc<Mutex<Vec<CoreStatus>>>,
+        messages: Arc<Mutex<Vec<Message>>>,
+    }
+
+    impl CoreObserver for Recorder {
+        fn status(&self, status: CoreStatus) {
+            self.statuses.lock().unwrap().push(status);
+        }
+        fn message(&self, message: Message) {
+            self.messages.lock().unwrap().push(message);
+        }
+    }
+
+    fn recorder() -> (Arc<Mutex<Vec<CoreStatus>>>, Recorder) {
+        let rec = Recorder::default();
+        (rec.statuses.clone(), rec)
     }
 
     fn fast_policy() -> RestartPolicy {
@@ -152,7 +176,8 @@ mod tests {
                 &fast_timing(),
                 fast_policy(),
                 rx,
-                report,
+                &report,
+                &CoreLink::default(),
             )
             .await;
         });
@@ -192,6 +217,91 @@ mod tests {
         );
     }
 
+    /// The rule router answers without a model, so this runs in CI too.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn real_core_answers_chat_through_link() {
+        let dir = tempfile::tempdir().unwrap();
+        let rec = Recorder::default();
+        let link = Arc::new(CoreLink::default());
+        let (tx, rx) = watch::channel(false);
+        let spec = real_core(dir.path());
+        let (task_rec, task_link) = (rec.clone(), link.clone());
+        let task = tokio::spawn(async move {
+            supervise(
+                Ok(spec),
+                "0.1.0-beta.1",
+                &fast_timing(),
+                fast_policy(),
+                rx,
+                &task_rec,
+                &task_link,
+            )
+            .await;
+        });
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while !rec
+            .statuses
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|s| matches!(s, CoreStatus::Running { .. }))
+        {
+            assert!(Instant::now() < deadline, "core never became ready");
+            sleep(Duration::from_millis(20)).await;
+        }
+        link.send(crate::protocol::chat_send("What time is it?", None).unwrap())
+            .unwrap();
+        while !rec
+            .messages
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|m| matches!(m, Message::ChatDone(_)))
+        {
+            assert!(
+                Instant::now() < deadline,
+                "no chat.done: {:?}",
+                rec.messages.lock().unwrap()
+            );
+            sleep(Duration::from_millis(20)).await;
+        }
+        tx.send(true).unwrap();
+        tokio::time::timeout(Duration::from_secs(10), task)
+            .await
+            .unwrap()
+            .unwrap();
+
+        let kinds: Vec<&str> = rec
+            .messages
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|m| !matches!(m, Message::LlmStatus(_)))
+            .map(Message::kind)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .collect();
+        assert_eq!(
+            kinds,
+            [
+                "chat.started",
+                "chat.tool",
+                "chat.tool",
+                "chat.delta",
+                "chat.done"
+            ]
+        );
+        let done = rec.messages.lock().unwrap().iter().find_map(|m| match m {
+            Message::ChatDone(d) => Some(d.payload.text.clone()),
+            _ => None,
+        });
+        assert!(done.is_some_and(|t| t.starts_with("It's ")));
+        assert!(matches!(
+            link.send(crate::protocol::ping().unwrap()),
+            Err(link::NotConnected)
+        ));
+    }
+
     #[tokio::test]
     async fn missing_executable_fails_without_retry() {
         let (log, report) = recorder();
@@ -202,7 +312,8 @@ mod tests {
             &fast_timing(),
             fast_policy(),
             rx,
-            report,
+            &report,
+            &CoreLink::default(),
         )
         .await;
         assert_eq!(
@@ -216,6 +327,7 @@ mod tests {
     #[cfg(unix)]
     fn shell(script: &str, data_dir: &Path) -> LaunchSpec {
         LaunchSpec {
+            llama_dir: None,
             program: "/bin/sh".into(),
             args: vec!["-c".into(), script.into()],
             data_dir: data_dir.into(),
@@ -234,7 +346,8 @@ mod tests {
             &fast_timing(),
             fast_policy(),
             rx,
-            report,
+            &report,
+            &CoreLink::default(),
         )
         .await;
         let restarting = |attempt| CoreStatus::Restarting {
@@ -270,7 +383,8 @@ mod tests {
             &fast_timing(),
             fast_policy(),
             rx,
-            report,
+            &report,
+            &CoreLink::default(),
         )
         .await;
         let log = log.lock().unwrap();
@@ -291,7 +405,8 @@ mod tests {
             &fast_timing(),
             fast_policy(),
             rx,
-            report,
+            &report,
+            &CoreLink::default(),
         )
         .await;
         let log = log.lock().unwrap();
@@ -313,7 +428,8 @@ mod tests {
             &fast_timing(),
             fast_policy(),
             rx,
-            report,
+            &report,
+            &CoreLink::default(),
         )
         .await;
         let log = log.lock().unwrap();
@@ -333,7 +449,16 @@ mod tests {
         let slow = RestartPolicy::new(vec![Duration::from_mins(1)], Duration::from_mins(1));
         let spec = shell("exit 1", dir.path());
         let task = tokio::spawn(async move {
-            supervise(Ok(spec), "0.1.0", &fast_timing(), slow, rx, report).await;
+            supervise(
+                Ok(spec),
+                "0.1.0",
+                &fast_timing(),
+                slow,
+                rx,
+                &report,
+                &CoreLink::default(),
+            )
+            .await;
         });
         let deadline = Instant::now() + Duration::from_secs(10);
         while !log

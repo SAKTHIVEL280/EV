@@ -5,8 +5,12 @@
   compare) and no ``Origin`` header (browsers always send one).
 - One authenticated client at a time.
 - The first message must be ``hello``; everything else is refused until then.
+- Chat requests become bus events; turn and model events from the bus are
+  forwarded through one ordered outbox per connection.
 """
 
+import asyncio
+import contextlib
 import hmac
 import logging
 from collections.abc import Callable
@@ -15,11 +19,23 @@ from http import HTTPStatus
 from typing import Final
 
 from websockets.asyncio.server import Server, ServerConnection, serve
-from websockets.exceptions import ConnectionClosedError
+from websockets.exceptions import ConnectionClosed, ConnectionClosedError
 from websockets.http11 import Request, Response
 
 from ev_core import protocol
+from ev_core.bus import Event, EventBus
+from ev_core.config import EffortLevel
 from ev_core.errors import StartupError
+from ev_core.interfaces.events import (
+    ChatCancelRequested,
+    ChatDelta,
+    ChatDone,
+    ChatFailed,
+    ChatRequested,
+    ChatStarted,
+    ChatToolChanged,
+    LlmStatusChanged,
+)
 from ev_core.modules import ModuleStatus
 
 logger = logging.getLogger(__name__)
@@ -40,10 +56,56 @@ BAD_MESSAGE_TEXT: Final = "EV received a message it doesn't understand."
 INTERNAL_ORDER_TEXT: Final = "EV's parts are talking out of order."
 
 
+def to_message(event: Event) -> protocol.AnyMessage | None:
+    """Wire message for an outbound bus event; None for events that stay in core."""
+    match event:
+        case ChatStarted():
+            return protocol.chat_started(
+                event.turn_id, protocol.Effort(event.effort.value), event.model
+            )
+        case ChatDelta():
+            return protocol.chat_delta(event.turn_id, event.text)
+        case ChatToolChanged():
+            return protocol.chat_tool(
+                event.turn_id, event.name, protocol.ChatToolState(event.state)
+            )
+        case ChatDone():
+            timings = protocol.ChatTimings(
+                first_token_ms=event.first_token_ms,
+                total_ms=event.total_ms,
+                prompt_tokens=event.prompt_tokens,
+                generated_tokens=event.generated_tokens,
+            )
+            return protocol.chat_done(
+                event.turn_id,
+                event.text,
+                protocol.Effort(event.effort.value),
+                event.model,
+                timings,
+                cancelled=event.cancelled,
+            )
+        case ChatFailed():
+            return protocol.chat_failed(event.turn_id, event.code, event.message)
+        case LlmStatusChanged():
+            return protocol.llm_status(protocol.LlmState(event.state), event.model, event.detail)
+    return None
+
+
+OUTBOUND_EVENTS: tuple[type[Event], ...] = (
+    ChatStarted,
+    ChatDelta,
+    ChatToolChanged,
+    ChatDone,
+    ChatFailed,
+    LlmStatusChanged,
+)
+
+
 class CoreServer:
     def __init__(
         self,
         *,
+        bus: EventBus,
         token: str,
         core_version: str,
         module_statuses: Callable[[], list[ModuleStatus]],
@@ -53,8 +115,13 @@ class CoreServer:
         self._core_version = core_version
         self._module_statuses = module_statuses
         self._on_shutdown = on_shutdown
+        self._bus = bus
         self._server: Server | None = None
         self._active: ServerConnection | None = None
+        self._outbox: asyncio.Queue[str] | None = None
+        self._llm_status: LlmStatusChanged | None = None
+        for event_type in OUTBOUND_EVENTS:
+            bus.subscribe(event_type, self._on_outbound)
 
     async def start(self) -> int:
         """Start listening; returns the bound port."""
@@ -98,16 +165,37 @@ class CoreServer:
             await connection.close(1008, "another client is connected")
             return
         self._active = connection
+        outbox: asyncio.Queue[str] = asyncio.Queue()
+        writer = asyncio.create_task(self._write(connection, outbox))
         logger.info("client connected")
         try:
-            await self._session(connection)
+            await self._session(connection, outbox)
         except ConnectionClosedError as exc:
             logger.info("client disconnected abnormally", extra={"fields": {"code": exc.code}})
         finally:
             self._active = None
+            self._outbox = None
+            writer.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await writer
             logger.info("client disconnected")
 
-    async def _session(self, connection: ServerConnection) -> None:
+    async def _on_outbound(self, event: Event) -> None:
+        # Runs synchronously up to put_nowait: handlers start in publish order,
+        # so the outbox keeps the bus order (deltas never reorder).
+        if isinstance(event, LlmStatusChanged):
+            self._llm_status = event
+        message = to_message(event)
+        if message is not None and self._outbox is not None:
+            self._outbox.put_nowait(protocol.encode(message))
+
+    @staticmethod
+    async def _write(connection: ServerConnection, outbox: asyncio.Queue[str]) -> None:
+        with contextlib.suppress(ConnectionClosed):
+            while True:
+                await connection.send(await outbox.get())
+
+    async def _session(self, connection: ServerConnection, outbox: asyncio.Queue[str]) -> None:
         greeted = False
         async for frame in connection:
             try:
@@ -142,6 +230,10 @@ class CoreServer:
                         "hello", extra={"fields": {"app_version": message.payload.app_version}}
                     )
                     await connection.send(protocol.encode(self._hello_ack(message.id)))
+                    # Outbound events flow only after the handshake.
+                    self._outbox = outbox
+                    if self._llm_status is not None and (status := to_message(self._llm_status)):
+                        outbox.put_nowait(protocol.encode(status))
                 case _ if not greeted:
                     await self._send_error(
                         connection,
@@ -166,7 +258,27 @@ class CoreServer:
                     logger.debug(
                         "app error detail", extra={"fields": {"detail": message.payload.detail}}
                     )
-                case protocol.HelloAckMessage() | protocol.PongMessage():
+                case protocol.ChatSendMessage():
+                    effort = message.payload.effort
+                    self._bus.publish(
+                        ChatRequested(
+                            message.id,
+                            message.payload.text,
+                            EffortLevel(effort.value) if effort is not None else None,
+                        )
+                    )
+                case protocol.ChatCancelMessage():
+                    self._bus.publish(ChatCancelRequested(message.payload.turn_id))
+                case (
+                    protocol.HelloAckMessage()
+                    | protocol.PongMessage()
+                    | protocol.ChatStartedMessage()
+                    | protocol.ChatDeltaMessage()
+                    | protocol.ChatToolMessage()
+                    | protocol.ChatDoneMessage()
+                    | protocol.ChatFailedMessage()
+                    | protocol.LlmStatusMessage()
+                ):
                     await self._send_error(
                         connection,
                         ErrorCode.UNEXPECTED_MESSAGE,

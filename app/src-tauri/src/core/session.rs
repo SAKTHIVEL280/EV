@@ -19,6 +19,7 @@ use tokio_tungstenite::tungstenite::{self, Message as Frame};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 use crate::core::launch::LaunchSpec;
+use crate::core::link::CoreLink;
 use crate::error::AppError;
 use crate::protocol::generated::{HelloAckMessage, ShutdownPayloadReason};
 use crate::protocol::{self, Message, PROTOCOL_VERSION};
@@ -68,12 +69,28 @@ struct Listening {
     protocol: u64,
 }
 
-/// Run one core process until it ends. `on_ready` is called once after the handshake.
-pub async fn run(
+/// What a session reports back: the handshake once, then every chat or model
+/// message core sends.
+pub struct Hooks<'a, F: FnOnce(HelloAckMessage)> {
+    pub on_ready: F,
+    pub on_message: &'a (dyn Fn(Message) + Sync),
+    pub link: &'a CoreLink,
+}
+
+impl<F: FnOnce(HelloAckMessage)> std::fmt::Debug for Hooks<'_, F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Hooks")
+            .field("link", &self.link)
+            .finish_non_exhaustive()
+    }
+}
+
+/// Run one core process until it ends.
+pub async fn run<F: FnOnce(HelloAckMessage)>(
     spec: &LaunchSpec,
     app_version: &str,
     timing: &Timing,
-    on_ready: impl FnOnce(HelloAckMessage),
+    hooks: Hooks<'_, F>,
     shutdown: &mut watch::Receiver<bool>,
 ) -> SessionEnd {
     if *shutdown.borrow() {
@@ -93,6 +110,9 @@ pub async fn run(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
+    if let Some(llama_dir) = &spec.llama_dir {
+        command.env("EV_LLAMA_DIR", llama_dir);
+    }
     #[cfg(windows)]
     command.creation_flags(CREATE_NO_WINDOW);
 
@@ -108,17 +128,19 @@ pub async fn run(
     };
     tokio::spawn(forward_lines(BufReader::new(stderr).lines(), "core stderr"));
 
+    let link = hooks.link;
     let end = drive(
         &mut child,
         BufReader::new(stdout).lines(),
         &token,
         app_version,
         timing,
-        on_ready,
+        hooks,
         shutdown,
     )
     .await;
 
+    link.detach();
     drop(stdin);
     if matches!(end, SessionEnd::Shutdown)
         && matches!(
@@ -140,13 +162,13 @@ async fn drive(
     token: &str,
     app_version: &str,
     timing: &Timing,
-    on_ready: impl FnOnce(HelloAckMessage),
+    hooks: Hooks<'_, impl FnOnce(HelloAckMessage)>,
     shutdown: &mut watch::Receiver<bool>,
 ) -> SessionEnd {
-    let line = match timeout(timing.listen, stdout.next_line()).await {
+    let first_line = match timeout(timing.listen, stdout.next_line()).await {
         Err(_) => return SessionEnd::Crashed("no listening line in time".into()),
         Ok(Err(e)) => return SessionEnd::Crashed(format!("reading stdout: {e}")),
-        Ok(Ok(Some(line))) => line,
+        Ok(Ok(Some(text))) => text,
         Ok(Ok(None)) => {
             return match child.wait().await {
                 Ok(status) if status.code() == Some(EXIT_BAD_ENV) => {
@@ -157,7 +179,7 @@ async fn drive(
             };
         }
     };
-    let listening: Listening = match serde_json::from_str(&line) {
+    let listening: Listening = match serde_json::from_str(&first_line) {
         Ok(l) => l,
         Err(e) => return SessionEnd::Crashed(format!("bad listening line: {e}")),
     };
@@ -177,9 +199,10 @@ async fn drive(
         Err(reason) => return SessionEnd::Crashed(reason),
     };
     match handshake(&mut ws, app_version, timing.handshake).await {
-        Ok(ack) => on_ready(ack),
+        Ok(ack) => (hooks.on_ready)(ack),
         Err(end) => return end,
     }
+    let mut outbound = hooks.link.attach();
 
     let mut ticker = interval(timing.ping_interval);
     ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
@@ -205,11 +228,24 @@ async fn drive(
                     Ok(Message::Error(e)) => {
                         tracing::warn!(code = %*e.payload.code, "core reported error");
                     }
-                    Ok(_) => tracing::warn!("unexpected message from core"),
+                    Ok(
+                        m @ (Message::ChatStarted(_)
+                        | Message::ChatDelta(_)
+                        | Message::ChatTool(_)
+                        | Message::ChatDone(_)
+                        | Message::ChatFailed(_)
+                        | Message::LlmStatus(_)),
+                    ) => (hooks.on_message)(m),
+                    Ok(m) => tracing::warn!(kind = m.kind(), "unexpected message from core"),
                     Err(e) => tracing::warn!(error = %e, "undecodable message from core"),
                 },
                 Some(Ok(_)) => {}
             },
+            Some(message) = outbound.recv() => {
+                if let Err(reason) = send(&mut ws, Ok(message)).await {
+                    return SessionEnd::Crashed(reason);
+                }
+            }
             status = child.wait() => {
                 return SessionEnd::Crashed(match status {
                     Ok(status) => format!("exited: {status}"),

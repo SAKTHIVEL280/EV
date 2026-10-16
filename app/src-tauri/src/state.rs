@@ -1,15 +1,19 @@
 //! Shared app state managed by Tauri.
 
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 use tokio::sync::watch;
 
+use crate::chat::LlmStatus;
 use crate::core::CoreStatus;
+use crate::core::link::CoreLink;
 
 #[derive(Debug)]
 pub struct AppState {
     core_status: Mutex<CoreStatus>,
+    llm_status: Mutex<LlmStatus>,
+    pub link: Arc<CoreLink>,
     pub shutdown: watch::Sender<bool>,
     pub supervisor: Mutex<Option<tauri::async_runtime::JoinHandle<()>>>,
     painted: AtomicBool,
@@ -20,6 +24,8 @@ impl AppState {
     pub fn new(shutdown: watch::Sender<bool>) -> Self {
         Self {
             core_status: Mutex::new(CoreStatus::Starting),
+            llm_status: Mutex::new(LlmStatus::unloaded()),
+            link: Arc::new(CoreLink::default()),
             shutdown,
             supervisor: Mutex::new(None),
             painted: AtomicBool::new(false),
@@ -32,6 +38,21 @@ impl AppState {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
+    }
+
+    #[must_use]
+    pub fn llm_status(&self) -> LlmStatus {
+        self.llm_status
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    pub fn set_llm_status(&self, status: LlmStatus) {
+        *self
+            .llm_status
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = status;
     }
 
     /// True only on the first call.

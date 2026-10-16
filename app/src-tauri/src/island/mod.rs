@@ -24,7 +24,7 @@ use geometry::{HitRect, PhysRect, cursor_inside, cursor_near, top_center};
 pub const LABEL: &str = "island";
 /// Largest panel plus room for spring overshoot, logical px.
 pub const WINDOW_WIDTH: f64 = 420.0;
-pub const WINDOW_HEIGHT: f64 = 260.0;
+pub const WINDOW_HEIGHT: f64 = 300.0;
 
 const NEAR_MARGIN_LOGICAL: f64 = 64.0;
 const POLL_NEAR: Duration = Duration::from_millis(16);

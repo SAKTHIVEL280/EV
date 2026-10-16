@@ -1,9 +1,11 @@
 //! How to start core.
 //!
 //! - Release: the `PyInstaller` onedir build shipped as a bundle resource,
-//!   `<resources>/ev-core/ev-core(.exe)` (docs/ARCHITECTURE.md §5.2).
+//!   `<resources>/ev-core/ev-core(.exe)` (docs/ARCHITECTURE.md §5.2), with
+//!   llama.cpp in `<resources>/llama/`.
 //! - Debug: the developer's `core/.venv` interpreter running `-m ev_core`
-//!   (run `uv sync` in `core/` first).
+//!   (run `uv sync` in `core/` first), with llama.cpp from
+//!   `vendor/llama.cpp/<platform>/` (`scripts/fetch-llama-cpp`).
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -15,7 +17,16 @@ pub struct LaunchSpec {
     pub program: PathBuf,
     pub args: Vec<OsString>,
     pub data_dir: PathBuf,
+    /// Folder with llama-server, passed to core as `EV_LLAMA_DIR`.
+    pub llama_dir: Option<PathBuf>,
 }
+
+/// Pinned llama.cpp build used in development (`scripts/llama-cpp.pins`).
+const DEV_LLAMA_VARIANT: &str = if cfg!(windows) {
+    "win-cpu-x64"
+} else {
+    "ubuntu-x64"
+};
 
 const EXE: &str = if cfg!(windows) {
     "ev-core.exe"
@@ -26,7 +37,11 @@ const EXE: &str = if cfg!(windows) {
 /// # Errors
 /// When the executable does not exist.
 pub fn packaged(resource_dir: &Path, data_dir: PathBuf) -> Result<LaunchSpec, AppError> {
-    existing(resource_dir.join("ev-core").join(EXE), Vec::new(), data_dir)
+    let spec = existing(resource_dir.join("ev-core").join(EXE), Vec::new(), data_dir)?;
+    Ok(LaunchSpec {
+        llama_dir: Some(resource_dir.join("llama")),
+        ..spec
+    })
 }
 
 /// # Errors
@@ -37,7 +52,16 @@ pub fn development(core_dir: &Path, data_dir: PathBuf) -> Result<LaunchSpec, App
     } else {
         core_dir.join(".venv").join("bin").join("python")
     };
-    existing(python, vec!["-m".into(), "ev_core".into()], data_dir)
+    let spec = existing(python, vec!["-m".into(), "ev_core".into()], data_dir)?;
+    let llama = core_dir
+        .join("..")
+        .join("vendor")
+        .join("llama.cpp")
+        .join(DEV_LLAMA_VARIANT);
+    Ok(LaunchSpec {
+        llama_dir: llama.is_dir().then_some(llama),
+        ..spec
+    })
 }
 
 fn existing(
@@ -50,6 +74,7 @@ fn existing(
             program,
             args,
             data_dir,
+            llama_dir: None,
         })
     } else {
         Err(AppError::CoreMissing(program.display().to_string()))

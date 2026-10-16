@@ -9,9 +9,11 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::{AppHandle, Runtime, State, WebviewWindow};
 
+use crate::chat::{Effort, LlmStatus};
 use crate::core::CoreStatus;
 use crate::island::IslandState;
 use crate::island::geometry::HitRect;
+use crate::protocol::{self, Message};
 use crate::started_at;
 use crate::state::AppState;
 
@@ -116,4 +118,52 @@ pub fn spike_island_painted(state: State<'_, AppState>) {
         let elapsed_ms = u64::try_from(started_at().elapsed().as_millis()).unwrap_or(u64::MAX);
         tracing::info!(elapsed_ms, "spike s2 island painted");
     }
+}
+
+const CORE_DOWN_TEXT: &str = "EV's core isn't running yet. Try again in a moment.";
+
+/// Send a chat message; returns the turn id that every `ChatUpdate` of this
+/// turn carries. A new message cancels a reply that is still streaming.
+///
+/// # Errors
+/// When core is not connected or the text exceeds the protocol limit.
+#[tauri::command]
+#[specta::specta]
+pub fn chat_send(
+    state: State<'_, AppState>,
+    text: String,
+    effort: Option<Effort>,
+) -> Result<String, CommandError> {
+    let message = protocol::chat_send(&text, effort.map(Into::into)).map_err(|_| CommandError {
+        message: "That message is too long.".into(),
+    })?;
+    let Message::ChatSend(send) = &message else {
+        return Err(CommandError {
+            message: "EV couldn't do that.".into(),
+        });
+    };
+    let turn_id = send.id.to_string();
+    state.link.send(message).map_err(|_| CommandError {
+        message: CORE_DOWN_TEXT.into(),
+    })?;
+    Ok(turn_id)
+}
+
+/// # Errors
+/// When core is not connected or `turn_id` is not a turn id.
+#[tauri::command]
+#[specta::specta]
+pub fn chat_cancel(state: State<'_, AppState>, turn_id: String) -> Result<(), CommandError> {
+    let message = protocol::chat_cancel(&turn_id).map_err(|_| CommandError {
+        message: "EV couldn't do that.".into(),
+    })?;
+    state.link.send(message).map_err(|_| CommandError {
+        message: CORE_DOWN_TEXT.into(),
+    })
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn llm_status(state: State<'_, AppState>) -> LlmStatus {
+    state.llm_status()
 }

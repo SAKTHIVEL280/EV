@@ -7,6 +7,7 @@ from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import InvalidStatus
 
 from ev_core import protocol
+from ev_core.bus import EventBus
 from ev_core.modules import ModuleState, ModuleStatus
 from ev_core.server import CoreServer
 from tests.conftest import TOKEN
@@ -17,7 +18,9 @@ AUTH = {"Authorization": f"Bearer {TOKEN}"}
 class Harness:
     def __init__(self) -> None:
         self.shutdowns: list[protocol.Reason] = []
+        self.bus = EventBus()
         self.server = CoreServer(
+            bus=self.bus,
             token=TOKEN,
             core_version="0.1.0b1",
             module_statuses=lambda: [ModuleStatus("voice", ModuleState.DISABLED, "Off.")],

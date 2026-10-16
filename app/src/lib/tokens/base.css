@@ -59,7 +59,7 @@
   --ev-island-hover-width: 200px;
   --ev-island-hover-height: 32px;
   --ev-island-panel-width: 360px;
-  --ev-island-panel-height: 200px;
+  --ev-island-panel-height: 240px;
   /* Idle pill is a few px tall; the hover target is a bit larger. */
   --ev-island-hit-slop: 6px;
 }

@@ -1,6 +1,7 @@
 //! EV desktop app: island window and supervisor of `ev-core`
 //! (docs/ARCHITECTURE.md §5).
 
+pub mod chat;
 pub mod commands;
 pub mod core;
 pub mod error;
@@ -21,12 +22,14 @@ use tauri_specta::{Event, collect_commands, collect_events};
 use tokio::sync::watch;
 use tracing_subscriber::filter::LevelFilter;
 
+use crate::chat::{ChatUpdate, LlmStatus, LlmStatusChanged, Update};
 use crate::core::launch::{self, LaunchSpec};
 use crate::core::policy::RestartPolicy;
 use crate::core::session::Timing;
-use crate::core::{CoreStatus, CoreStatusChanged, supervise};
+use crate::core::{CoreObserver, CoreStatus, CoreStatusChanged, supervise};
 use crate::error::AppError;
 use crate::island::{IslandPointer, IslandState, IslandVisibility};
+use crate::protocol::Message;
 use crate::state::AppState;
 
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -51,11 +54,16 @@ pub fn specta_builder<R: Runtime>() -> tauri_specta::Builder<R> {
             commands::app_quit::<tauri::Wry>,
             commands::spike_report_frames,
             commands::spike_island_painted,
+            commands::chat_send,
+            commands::chat_cancel,
+            commands::llm_status,
         ])
         .events(collect_events![
             CoreStatusChanged,
             IslandPointer,
-            IslandVisibility
+            IslandVisibility,
+            ChatUpdate,
+            LlmStatusChanged
         ])
 }
 
@@ -113,19 +121,53 @@ fn launch_spec<R: Runtime>(app: &AppHandle<R>, data_dir: PathBuf) -> Result<Laun
     }
 }
 
+/// Forwards core state to app state and UI events.
+struct AppObserver<R: Runtime> {
+    app: AppHandle<R>,
+}
+
+impl<R: Runtime> AppObserver<R> {
+    fn set_llm(&self, status: LlmStatus) {
+        self.app.state::<AppState>().set_llm_status(status.clone());
+        if let Err(e) = LlmStatusChanged(status).emit(&self.app) {
+            tracing::warn!(error = %e, "emit LlmStatusChanged failed");
+        }
+    }
+}
+
+impl<R: Runtime> CoreObserver for AppObserver<R> {
+    fn status(&self, status: CoreStatus) {
+        // A core that is not running has no model loaded.
+        if !matches!(status, CoreStatus::Running { .. }) {
+            self.set_llm(LlmStatus::unloaded());
+        }
+        self.app.state::<AppState>().set_core_status(status.clone());
+        if let Err(e) = CoreStatusChanged(status).emit(&self.app) {
+            tracing::warn!(error = %e, "emit CoreStatusChanged failed");
+        }
+    }
+
+    fn message(&self, message: Message) {
+        match chat::update(message) {
+            Some(Update::Chat(update)) => {
+                if let Err(e) = ChatUpdate(update).emit(&self.app) {
+                    tracing::warn!(error = %e, "emit ChatUpdate failed");
+                }
+            }
+            Some(Update::Llm(status)) => self.set_llm(status),
+            None => {}
+        }
+    }
+}
+
 fn start_supervisor<R: Runtime>(
     app: &AppHandle<R>,
     data_dir: PathBuf,
     shutdown: watch::Receiver<bool>,
 ) {
     let spec = launch_spec(app, data_dir);
-    let reporter = app.clone();
-    let report = move |status: CoreStatus| {
-        reporter.state::<AppState>().set_core_status(status.clone());
-        if let Err(e) = CoreStatusChanged(status).emit(&reporter) {
-            tracing::warn!(error = %e, "emit CoreStatusChanged failed");
-        }
-    };
+    let observer = AppObserver { app: app.clone() };
+    let link = app.state::<AppState>().link.clone();
     let handle = tauri::async_runtime::spawn(async move {
         supervise(
             spec,
@@ -133,7 +175,8 @@ fn start_supervisor<R: Runtime>(
             &Timing::default(),
             RestartPolicy::default(),
             shutdown,
-            report,
+            &observer,
+            &link,
         )
         .await;
     });

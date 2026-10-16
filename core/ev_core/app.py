@@ -3,6 +3,7 @@
 Startup contract with the Rust supervisor (docs/ARCHITECTURE.md §2):
 - ``EV_CORE_TOKEN``: 64 lowercase hex chars, required.
 - ``EV_DATA_DIR``: optional data directory override.
+- ``EV_LLAMA_DIR``: folder containing llama-server (bundled runtime).
 - Exactly one line on stdout once listening:
   ``{"event": "listening", "port": <int>, "protocol": <int>}``.
 - Exit when the app sends ``shutdown``, on SIGTERM/SIGINT, or when stdin
@@ -20,19 +21,24 @@ import signal
 import sys
 import threading
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Final, TextIO
 
 from ev_core import __version__, protocol
+from ev_core.agent import AgentModule
 from ev_core.bus import EventBus
 from ev_core.config import ConfigChanged, ConfigStore, ConfigWatcher
 from ev_core.errors import EvError
+from ev_core.llm import LlmModule
 from ev_core.log import set_level, setup_logging
 from ev_core.modules import ModuleRegistry
 from ev_core.paths import data_dir
 from ev_core.server import CoreServer
+from ev_core.tools.clock import CurrentTimeTool
 
 logger = logging.getLogger(__name__)
 
+LLAMA_DIR_ENV: Final = "EV_LLAMA_DIR"
 TOKEN_ENV: Final = "EV_CORE_TOKEN"  # noqa: S105 -- variable name, not a secret
 _TOKEN_RE: Final = re.compile(r"^[0-9a-f]{64}$")
 
@@ -67,6 +73,14 @@ async def run(env: Mapping[str, str], stdout: TextIO, stdin: TextIO | None) -> i
     stop = asyncio.Event()
     bus = EventBus()
     registry = ModuleRegistry(bus)
+    config = loaded.config
+    llama_dir = env.get(LLAMA_DIR_ENV)
+    llm = LlmModule(config.llm, root, Path(llama_dir) if llama_dir else None)
+    registry.register(llm, enabled=config.llm.enabled)
+    registry.register(
+        AgentModule(config.agent, config.llm, provider=llm, tools=[CurrentTimeTool()]),
+        enabled=True,
+    )
 
     async def on_config_changed(event: ConfigChanged) -> None:
         if "logging" in event.sections:
@@ -75,6 +89,7 @@ async def run(env: Mapping[str, str], stdout: TextIO, stdin: TextIO | None) -> i
     bus.subscribe(ConfigChanged, on_config_changed)
 
     server = CoreServer(
+        bus=bus,
         token=token,
         core_version=__version__,
         module_statuses=registry.statuses,
