@@ -27,7 +27,9 @@ model downloader) and the Microsoft Edge WebView2 runtime (part of Windows 11).
 | brotli | 9.0.0 | BSD-3-Clause AND MIT | https://github.com/dropbox/rust-brotli |
 | brotli-decompressor | 6.0.1 | BSD-3-Clause/MIT | https://github.com/dropbox/rust-brotli-decompressor |
 | bs58 | 0.5.1 | MIT/Apache-2.0 | https://github.com/Nullus157/bs58-rs |
+| bytemuck | 1.25.2 | Zlib OR Apache-2.0 OR MIT | https://github.com/Lokathor/bytemuck |
 | byteorder | 1.5.0 | Unlicense OR MIT | https://github.com/BurntSushi/byteorder |
+| byteorder-lite | 0.1.0 | Unlicense OR MIT | https://github.com/image-rs/byteorder-lite |
 | bytes | 1.12.1 | MIT | https://github.com/tokio-rs/bytes |
 | camino | 1.2.6 | MIT OR Apache-2.0 | https://github.com/camino-rs/camino |
 | cargo-platform | 0.1.9 | MIT OR Apache-2.0 | https://github.com/rust-lang/cargo |
@@ -90,6 +92,7 @@ model downloader) and the Microsoft Edge WebView2 runtime (part of Windows 11).
 | getrandom | 0.3.4 | MIT OR Apache-2.0 | https://github.com/rust-random/getrandom |
 | getrandom | 0.4.3 | MIT OR Apache-2.0 | https://github.com/rust-random/getrandom |
 | glob | 0.3.4 | MIT OR Apache-2.0 | https://github.com/rust-lang/glob |
+| global-hotkey | 0.8.0 | Apache-2.0 OR MIT | https://github.com/tauri-apps/global-hotkey |
 | hashbrown | 0.12.3 | MIT OR Apache-2.0 | https://github.com/rust-lang/hashbrown |
 | hashbrown | 0.17.1 | MIT OR Apache-2.0 | https://github.com/rust-lang/hashbrown |
 | heck | 0.5.0 | MIT OR Apache-2.0 | https://github.com/withoutboats/heck |
@@ -109,6 +112,7 @@ model downloader) and the Microsoft Edge WebView2 runtime (part of Windows 11).
 | ident_case | 1.0.1 | MIT/Apache-2.0 | https://github.com/TedDriggs/ident_case |
 | idna | 1.1.0 | MIT OR Apache-2.0 | https://github.com/servo/rust-url/ |
 | idna_adapter | 1.2.2 | Apache-2.0 OR MIT | https://github.com/hsivonen/idna_adapter |
+| image | 0.25.10 | MIT OR Apache-2.0 | https://github.com/image-rs/image |
 | indexmap | 1.9.3 | Apache-2.0 OR MIT | https://github.com/bluss/indexmap |
 | indexmap | 2.14.2 | Apache-2.0 OR MIT | https://github.com/indexmap-rs/indexmap |
 | infer | 0.22.0 | MIT | https://github.com/bojand/infer |
@@ -119,6 +123,7 @@ model downloader) and the Microsoft Edge WebView2 runtime (part of Windows 11).
 | jiff-tzdb-platform | 0.1.3 | Unlicense OR MIT | https://github.com/BurntSushi/jiff |
 | json-patch | 4.2.0 | MIT/Apache-2.0 | https://github.com/idubrov/json-patch |
 | jsonptr | 0.7.1 | MIT OR Apache-2.0 | https://github.com/chanced/jsonptr |
+| keyboard-types | 0.7.0 | MIT OR Apache-2.0 | https://github.com/pyfisch/keyboard-types |
 | keyboard-types | 0.8.3 | MIT OR Apache-2.0 | https://github.com/rust-windowing/keyboard-types |
 | lazy_static | 1.5.1 | MIT OR Apache-2.0 | https://github.com/rust-lang-nursery/lazy-static.rs |
 | libc | 0.2.190 | MIT OR Apache-2.0 | https://github.com/rust-lang/libc |
@@ -131,6 +136,7 @@ model downloader) and the Microsoft Edge WebView2 runtime (part of Windows 11).
 | miniz_oxide | 0.8.9 | MIT OR Zlib OR Apache-2.0 | https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide |
 | miniz_oxide | 0.9.1 | MIT OR Zlib OR Apache-2.0 | https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide |
 | mio | 1.2.4 | MIT | https://github.com/tokio-rs/mio |
+| moxcms | 0.8.1 | BSD-3-Clause OR Apache-2.0 | https://github.com/awxkee/moxcms.git |
 | muda | 0.20.0 | Apache-2.0 OR MIT | https://github.com/tauri-apps/muda |
 | new_debug_unreachable | 1.0.6 | MIT | https://github.com/mbrubeck/rust-debug-unreachable |
 | num-conv | 0.2.2 | MIT OR Apache-2.0 | https://github.com/jhpratt/num-conv |
@@ -154,6 +160,7 @@ model downloader) and the Microsoft Edge WebView2 runtime (part of Windows 11).
 | powerfmt | 0.2.1 | MIT OR Apache-2.0 | https://github.com/jhpratt/powerfmt |
 | precomputed-hash | 0.1.1 | MIT | https://github.com/emilio/precomputed-hash |
 | proc-macro2 | 1.0.107 | MIT OR Apache-2.0 | https://github.com/dtolnay/proc-macro2 |
+| pxfm | 0.1.30 | BSD-3-Clause OR Apache-2.0 | https://github.com/awxkee/pxfm |
 | quick-xml | 0.42.0 | MIT | https://github.com/tafia/quick-xml |
 | quote | 1.0.47 | MIT OR Apache-2.0 | https://github.com/dtolnay/quote |
 | rand | 0.10.3 | MIT OR Apache-2.0 | https://github.com/rust-random/rand |
@@ -211,6 +218,7 @@ model downloader) and the Microsoft Edge WebView2 runtime (part of Windows 11).
 | tauri | 2.12.4 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
 | tauri-codegen | 2.7.3 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
 | tauri-macros | 2.7.3 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
+| tauri-plugin-global-shortcut | 2.4.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
 | tauri-plugin-opener | 2.7.2 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
 | tauri-runtime | 2.12.2 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
 | tauri-runtime-wry | 2.12.2 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
@@ -265,9 +273,12 @@ model downloader) and the Microsoft Edge WebView2 runtime (part of Windows 11).
 | windows-numerics | 0.3.1 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
 | windows-result | 0.4.1 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
 | windows-strings | 0.5.1 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
+| windows-sys | 0.59.0 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
 | windows-sys | 0.61.2 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
+| windows-targets | 0.52.6 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
 | windows-threading | 0.2.1 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
 | windows-version | 0.1.7 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
+| windows_x86_64_msvc | 0.52.6 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
 | winnow | 1.0.4 | MIT | https://github.com/winnow-rs/winnow |
 | writeable | 0.6.4 | Unicode-3.0 | https://github.com/unicode-org/icu4x |
 | wry | 0.57.0 | Apache-2.0 OR MIT | https://github.com/tauri-apps/wry |

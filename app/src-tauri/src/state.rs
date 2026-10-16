@@ -9,6 +9,7 @@ use tokio::sync::watch;
 use crate::chat::LlmStatus;
 use crate::core::CoreStatus;
 use crate::core::link::CoreLink;
+use crate::hotkey::HotkeyStatus;
 use crate::settings::SettingsState;
 
 #[derive(Debug)]
@@ -17,6 +18,7 @@ pub struct AppState {
     llm_status: Mutex<LlmStatus>,
     pub link: Arc<CoreLink>,
     settings: Mutex<Option<SettingsState>>,
+    hotkey: Mutex<Option<HotkeyStatus>>,
     pub data_dir: PathBuf,
     pub shutdown: watch::Sender<bool>,
     pub supervisor: Mutex<Option<tauri::async_runtime::JoinHandle<()>>>,
@@ -31,6 +33,7 @@ impl AppState {
             llm_status: Mutex::new(LlmStatus::unloaded()),
             link: Arc::new(CoreLink::default()),
             settings: Mutex::new(None),
+            hotkey: Mutex::new(None),
             data_dir,
             shutdown,
             supervisor: Mutex::new(None),
@@ -74,6 +77,21 @@ impl AppState {
             .settings
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(state);
+    }
+
+    #[must_use]
+    pub fn hotkey(&self) -> Option<HotkeyStatus> {
+        self.hotkey
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    pub fn set_hotkey(&self, status: HotkeyStatus) {
+        *self
+            .hotkey
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(status);
     }
 
     /// True only on the first call.

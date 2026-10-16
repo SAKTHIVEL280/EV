@@ -75,6 +75,18 @@ Only if the installer was built from the `feat/phase-1-brain` branch.
    and "Is it morning or evening right now?". Note the `first word` / `total` times shown.
 4. Check Task Manager: `llama-server.exe` memory, and that it disappears when you quit EV.
 
+## Optional — Phase 2 checks on Windows
+
+Only if the installer was built from the `feat/phase-2-island` branch.
+
+| # | Check | Pass when |
+|---|---|---|
+| H1 | Hotkey | In any app, press Ctrl+Space: the panel opens with the cursor in the message box. Press it again: it closes and typing goes back to the app. |
+| H2 | Hotkey change | Settings → Hotkeys: set `Ctrl+Shift+Space`. The new shortcut works at once; the old one does nothing. |
+| H3 | Tray | The EV icon is in the tray and visible on the taskbar (light and dark mode). Left click toggles the panel; right click shows Open EV, Settings, Quit EV and each works. |
+| H4 | Settings | Panel → Settings opens the window. Change "Default effort": `%APPDATA%\EV\config.toml` shows the new value. Type 99 in "Context window": a message shows the allowed range. "Reset to default" restores it. |
+| H5 | Settings live | Edit `config.toml` in Notepad and save: the open Settings window shows the new value within a second. |
+
 ## Share the results
 
 ```powershell

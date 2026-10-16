@@ -244,6 +244,11 @@
         if (pointerInside && mode === "idle") setMode("hover");
         if (!pointerInside && mode === "hover") setMode("idle");
       }),
+      // Hotkey and tray (F-004, F-412): open with focus, or close if open.
+      events.islandToggleRequested.listen(() => {
+        if (mode === "panel") closePanel();
+        else openPanel();
+      }),
       getCurrentWindow().onFocusChanged((event) => {
         if (!event.payload) closePanel();
       }),

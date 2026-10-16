@@ -122,6 +122,25 @@ class AgentSection(BaseModel):
     )
 
 
+SHORTCUT_PATTERN: Final = (
+    r"^$|^((?i:ctrl|alt|shift|super)\+){1,3}(?i:space|[a-z0-9]|f([1-9]|1[0-2]))$"
+)
+
+
+class HotkeysSection(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    open_panel: str = Field(
+        default="Ctrl+Space",
+        pattern=SHORTCUT_PATTERN,
+        title="Open EV",
+        description="Opens the island panel from anywhere. Empty: no shortcut.",
+        json_schema_extra={
+            "rule": "Use one to three of Ctrl, Alt, Shift, Super and a key, like Ctrl+Space."
+        },
+    )
+
+
 class EvConfig(BaseModel):
     """Root of config.toml. Each field is one [section]."""
 
@@ -141,4 +160,9 @@ class EvConfig(BaseModel):
         default_factory=AgentSection,
         description="How EV answers.",
         json_schema_extra=_nav(Nav.GENERAL),
+    )
+    hotkeys: HotkeysSection = Field(
+        default_factory=HotkeysSection,
+        description="Keyboard shortcuts.",
+        json_schema_extra=_nav(Nav.HOTKEYS),
     )

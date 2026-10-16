@@ -98,6 +98,7 @@ def test_descriptors_cover_every_key_with_metadata(tmp_path: Path) -> None:
         "llm.context",
         "llm.idle_unload_minutes",
         "agent.default_effort",
+        "hotkeys.open_panel",
     }
     context = items["llm.context"]
     assert (context.kind, context.minimum, context.maximum) == ("integer", 2048, 131072)
@@ -110,3 +111,24 @@ def test_descriptors_cover_every_key_with_metadata(tmp_path: Path) -> None:
         assert item.label
         assert item.description
         assert item.label != item.key
+
+
+@pytest.mark.parametrize(
+    "value", ["Ctrl+Space", "ctrl+shift+space", "Alt+F12", "Ctrl+Alt+K", "Super+1", ""]
+)
+def test_valid_shortcuts(tmp_path: Path, value: str) -> None:
+    assert (
+        store(tmp_path).set_value("hotkeys", "open_panel", value).config.hotkeys.open_panel == value
+    )
+
+
+@pytest.mark.parametrize(
+    "value", ["Space", "Ctrl+", "Ctrl+Space+X", "Ctrl+Shift+Alt+Super+A", "Ctrl+F13", "Hyper+A"]
+)
+def test_invalid_shortcuts(tmp_path: Path, value: str) -> None:
+    with pytest.raises(ConfigEditError) as caught:
+        store(tmp_path).set_value("hotkeys", "open_panel", value)
+    assert caught.value.user_message == (
+        "That value isn't allowed. "
+        "Use one to three of Ctrl, Alt, Shift, Super and a key, like Ctrl+Space."
+    )

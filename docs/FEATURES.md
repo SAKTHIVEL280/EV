@@ -30,7 +30,7 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 | F-001 | Typed chat in panel | 1 | built (Linux-verified) |
 | F-002 | Rule router (Instant commands) | 1 | built (Linux-verified) |
 | F-003 | Effort levels (setting + voice) | 1 | built (Linux-verified) |
-| F-004 | Hotkey `Ctrl+Space` with IME conflict detection | 2 | index |
+| F-004 | Hotkey `Ctrl+Space` with IME conflict detection | 2 | built (Windows check pending) |
 | F-005 | Push-to-talk | 4 | index |
 | F-006 | Barge-in | 4 | index |
 | F-007 | Wake word (Hey / Yo / Bro / Hello EV) | 4 | index |
@@ -87,6 +87,7 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 | F-409 | Local crash log + "Report issue" | 8 | index |
 | F-410 | Settings window (all §6.5 sections, §6.5.1 customization) | 2 | built (skeleton; Linux-verified) |
 | F-411 | Auto-hide in fullscreen / screen share | 2 | index |
+| F-412 | Tray icon and menu | 2 | built (Windows check pending) |
 
 ## Specs
 
@@ -177,3 +178,32 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 - Performance: change → applied and confirmed ≤ 300 ms (local file write + reload).
 - Tests: core store set/reset (preserves comments and unknown keys, refuses invalid values,
   refuses on syntax error), descriptors from the schema, protocol fixtures, UI state functions.
+
+### F-004 Global hotkey
+- Phase / status: 2 / draft (written 2026-10-17, before the Phase 0 gate; see decisions.md).
+- Behavior: the configured shortcut (default `Ctrl+Space`) opens the island panel with the cursor
+  in the message box from anywhere; pressing it again while the panel is open closes it and
+  returns focus to the previous app. It is registered at app start (before core is ready), and
+  re-registered when the setting changes.
+- Effort level: n/a.
+- Permissions & risk: system-wide shortcut only; no key logging (only this combination reaches EV).
+- Settings: `hotkeys.open_panel` (Hotkeys section), default `Ctrl+Space`. Format: one to three
+  of Ctrl, Alt, Shift, Super, then a key (A–Z, 0–9, F1–F12, Space), joined by `+`. Empty turns
+  the shortcut off. Never suggest `Win+Shift+T` (PowerToys Text Extractor).
+- Status shown under the setting: active · off · "Another app uses this shortcut. Choose a
+  different one." · IME conflict (Windows): when the shortcut is Ctrl+Space and a Chinese,
+  Japanese or Korean keyboard layout is installed: "Ctrl+Space may also switch your input
+  method. If typing is affected, choose Ctrl+Shift+Space."
+- Edge cases: the shortcut is taken by another app → status as above, the island still opens by
+  click; invalid text → refused by core's validation.
+- Performance: hotkey → panel focused ≤ 150 ms (budget §4), measured on Windows.
+- Tests: config validation table; Rust parsing and IME language detection; manual Windows check.
+
+### F-412 Tray icon and menu
+- Phase / status: 2 / draft.
+- Behavior: EV shows a tray icon with the tooltip "EV". Left click opens the island panel. The
+  menu (right click) has: Open EV, Settings, Quit EV.
+- Edge cases: tray unavailable (some Linux desktops) → logged once; the island and hotkey still
+  work.
+- Tests: manual on Windows (light and dark taskbar: the icon must be visible on both; tracked for
+  the Phase 2 design pass).

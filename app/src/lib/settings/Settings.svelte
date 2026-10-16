@@ -10,6 +10,7 @@
     commands,
     events,
     type CoreStatus,
+    type HotkeyStatus,
     type SettingItem,
     type SettingsState,
     type SettingValue,
@@ -30,6 +31,18 @@
   let current = $state<SectionId>("general");
   let errors = $state<Record<string, string>>({});
   let appVersion = $state("");
+  let hotkey = $state<HotkeyStatus | null>(null);
+
+  const hotkeyText = $derived.by(() => {
+    if (!hotkey) return null;
+    const base =
+      hotkey.state === "active"
+        ? `${hotkey.shortcut} is active.`
+        : hotkey.state === "off"
+          ? "No shortcut is set."
+          : (hotkey.detail ?? "This shortcut can't be used.");
+    return hotkey.state === "active" && hotkey.detail ? `${base} ${hotkey.detail}` : base;
+  });
 
   const section = $derived(sectionById(current));
   const items = $derived(itemsFor(settings, current));
@@ -80,6 +93,9 @@
         const { section: s, key, message } = event.payload;
         errors = { ...errors, [`${s}.${key}`]: message };
       }),
+      events.hotkeyStatusChanged.listen((event) => {
+        hotkey = event.payload;
+      }),
       events.coreStatusChanged.listen((event) => {
         core = event.payload;
         if (event.payload.state === "running") void commands.settingsRefresh();
@@ -92,6 +108,9 @@
       core = status;
     });
     void commands.settingsRefresh();
+    void commands.hotkeyStatus().then((status) => {
+      hotkey = status;
+    });
     void getVersion().then((version) => {
       appVersion = version;
     });
@@ -196,6 +215,10 @@
       </ul>
     {:else if section.empty}
       <p class="empty">{section.empty}</p>
+    {/if}
+
+    {#if current === "hotkeys" && hotkeyText}
+      <p class="status-line" role="status">{hotkeyText}</p>
     {/if}
 
     {#if current === "advanced"}
@@ -499,6 +522,11 @@
   input:focus-visible {
     outline: 2px solid var(--ev-theme-focus-ring);
     outline-offset: 2px;
+  }
+
+  .status-line {
+    margin-top: var(--ev-space-4);
+    color: var(--ev-fg-2);
   }
 
   .block {

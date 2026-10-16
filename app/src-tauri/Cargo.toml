@@ -26,11 +26,12 @@ syn = { version = "=3.0.9", features = ["full"] }
 prettyplease = "=0.3.0"
 
 [dependencies]
-tauri = { version = "=2.12.4", features = [] }
+tauri = { version = "=2.12.4", features = ["tray-icon", "image-png"] }
 tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 specta = { version = "=2.0.0-rc.25", features = ["derive"] }
 specta-typescript = "=0.0.12"
 tauri-plugin-opener = "=2.7.2"
+tauri-plugin-global-shortcut = "=2.4.1"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.154"
 tokio = { version = "=1.53.3", features = ["rt-multi-thread", "macros", "process", "time", "sync", "io-util"] }
@@ -46,6 +47,7 @@ regress = "=0.12.0"
 windows-sys = { version = "=0.61.2", features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
+  "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
 ] }

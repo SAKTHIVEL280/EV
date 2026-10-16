@@ -5,6 +5,7 @@ pub mod chat;
 pub mod commands;
 pub mod core;
 pub mod error;
+pub mod hotkey;
 pub mod island;
 pub mod logging;
 pub mod paths;
@@ -14,6 +15,7 @@ pub mod secrets;
 pub mod settings;
 pub mod settings_window;
 pub mod state;
+pub mod tray;
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -66,6 +68,7 @@ pub fn specta_builder<R: Runtime>() -> tauri_specta::Builder<R> {
             commands::settings_open::<tauri::Wry>,
             commands::open_config_file::<tauri::Wry>,
             commands::open_logs_folder::<tauri::Wry>,
+            commands::hotkey_status,
         ])
         .events(collect_events![
             CoreStatusChanged,
@@ -74,7 +77,9 @@ pub fn specta_builder<R: Runtime>() -> tauri_specta::Builder<R> {
             ChatUpdate,
             LlmStatusChanged,
             settings::SettingsChanged,
-            settings::SettingRejected
+            settings::SettingRejected,
+            hotkey::HotkeyStatusChanged,
+            hotkey::IslandToggleRequested
         ])
 }
 
@@ -96,6 +101,7 @@ pub fn run() -> Result<(), AppError> {
     let builder = specta_builder::<tauri::Wry>();
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
             builder.mount_events(app);
@@ -103,6 +109,11 @@ pub fn run() -> Result<(), AppError> {
             app.manage(AppState::new(shutdown_tx, data_dir.clone()));
             app.manage(IslandState::default());
             island::create(app.handle())?;
+            // Registered before core is ready; reconciled with the setting later.
+            hotkey::apply(app.handle(), hotkey::DEFAULT_SHORTCUT);
+            if let Err(e) = tray::create(app.handle()) {
+                tracing::warn!(error = %e, "tray unavailable");
+            }
             start_supervisor(app.handle(), data_dir.clone(), shutdown_rx);
             Ok(())
         })
@@ -142,7 +153,9 @@ impl<R: Runtime> AppObserver<R> {
     fn settings_message(&self, message: Message) {
         match settings::update(message) {
             Some(settings::Update::State(state)) => {
+                tracing::debug!(items = state.items.len(), "settings received");
                 self.app.state::<AppState>().set_settings(state.clone());
+                self.reconcile_hotkey(&state);
                 if let Err(e) = settings::SettingsChanged(state).emit(&self.app) {
                     tracing::warn!(error = %e, "emit SettingsChanged failed");
                 }
@@ -153,6 +166,33 @@ impl<R: Runtime> AppObserver<R> {
                 }
             }
             None => {}
+        }
+    }
+
+    fn reconcile_hotkey(&self, state: &settings::SettingsState) {
+        let Some(wanted) =
+            state
+                .items
+                .iter()
+                .find_map(|i| match (&*i.section, &*i.key, &i.value) {
+                    ("hotkeys", "open_panel", settings::SettingValue::Text(spec)) => {
+                        Some(spec.trim().to_owned())
+                    }
+                    _ => None,
+                })
+        else {
+            return;
+        };
+        let current = self.app.state::<AppState>().hotkey().map(|h| h.shortcut);
+        if current.as_deref() == Some(wanted.as_str()) {
+            return;
+        }
+        // Shortcut registration belongs on the main (event loop) thread.
+        let app = self.app.clone();
+        if let Err(e) = self.app.run_on_main_thread(move || {
+            hotkey::apply(&app, &wanted);
+        }) {
+            tracing::warn!(error = %e, "hotkey update not scheduled");
         }
     }
 
@@ -167,7 +207,18 @@ impl<R: Runtime> AppObserver<R> {
 impl<R: Runtime> CoreObserver for AppObserver<R> {
     fn status(&self, status: CoreStatus) {
         // A core that is not running has no model loaded.
-        if !matches!(status, CoreStatus::Running { .. }) {
+        if matches!(status, CoreStatus::Running { .. }) {
+            // Settings drive app-side behavior (hotkey); fetch them on every connect.
+            let link = self.app.state::<AppState>().link.clone();
+            match protocol::config_get() {
+                Ok(message) => {
+                    if let Err(e) = link.send(message) {
+                        tracing::warn!(error = %e, "config request not sent");
+                    }
+                }
+                Err(e) => tracing::warn!(error = %e, "config request not built"),
+            }
+        } else {
             self.set_llm(LlmStatus::unloaded());
         }
         self.app.state::<AppState>().set_core_status(status.clone());

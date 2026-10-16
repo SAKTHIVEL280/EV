@@ -12,6 +12,7 @@ use windows_sys::Win32::Foundation::{HWND, RECT};
 use windows_sys::Win32::Graphics::Gdi::{
     GetMonitorInfoW, MONITOR_DEFAULTTONULL, MONITORINFO, MonitorFromWindow,
 };
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetKeyboardLayoutList, HKL};
 use windows_sys::Win32::UI::Shell::{
     QUERY_USER_NOTIFICATION_STATE, QUNS_BUSY, QUNS_PRESENTATION_MODE, QUNS_RUNNING_D3D_FULL_SCREEN,
     SHQueryUserNotificationState,
@@ -97,4 +98,21 @@ fn is_desktop_class(hwnd: HWND) -> bool {
     };
     let name = String::from_utf16_lossy(&buf[..len.min(buf.len())]);
     name == "Progman" || name == "WorkerW"
+}
+
+/// Language ids (low word of each HKL) of the installed keyboard layouts.
+pub fn installed_layout_languages() -> Vec<u16> {
+    // SAFETY: a null buffer with size 0 asks only for the count.
+    let count = unsafe { GetKeyboardLayoutList(0, std::ptr::null_mut()) };
+    let Ok(len) = usize::try_from(count) else {
+        return Vec::new();
+    };
+    let mut layouts: Vec<HKL> = vec![std::ptr::null_mut(); len];
+    // SAFETY: `layouts` has room for `count` handles.
+    let written = unsafe { GetKeyboardLayoutList(count, layouts.as_mut_ptr()) };
+    let written = usize::try_from(written).unwrap_or(0).min(len);
+    layouts[..written]
+        .iter()
+        .map(|hkl| u16::try_from((*hkl as usize) & 0xffff).unwrap_or(0))
+        .collect()
 }

@@ -254,6 +254,9 @@ def bounds(field: FieldInfo) -> tuple[int | None, int | None]:
 
 def rule_text(field: FieldInfo) -> str:
     """The allowed values, in plain words ("Use 2048 to 131072.")."""
+    extra = field.json_schema_extra
+    if isinstance(extra, dict) and isinstance(rule := extra.get("rule"), str):
+        return rule
     annotation = field.annotation
     if annotation is bool:
         return "Use on or off."

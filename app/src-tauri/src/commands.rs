@@ -278,3 +278,10 @@ pub fn open_logs_folder<R: Runtime>(
             }
         })
 }
+
+/// The current global shortcut and whether it is registered.
+#[tauri::command]
+#[specta::specta]
+pub fn hotkey_status(state: State<'_, AppState>) -> Option<crate::hotkey::HotkeyStatus> {
+    state.hotkey()
+}

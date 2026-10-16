@@ -198,11 +198,13 @@ async fn drive(
         Ok(ws) => ws,
         Err(reason) => return SessionEnd::Crashed(reason),
     };
-    match handshake(&mut ws, app_version, timing.handshake).await {
-        Ok(ack) => (hooks.on_ready)(ack),
+    let ack = match handshake(&mut ws, app_version, timing.handshake).await {
+        Ok(ack) => ack,
         Err(end) => return end,
-    }
+    };
+    // Attach before reporting ready: observers may send right away.
     let mut outbound = hooks.link.attach();
+    (hooks.on_ready)(ack);
 
     let mut ticker = interval(timing.ping_interval);
     ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);

@@ -21,3 +21,4 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   levels ("max effort, ..."), tool calling (`current_time`), prompt-prefix caching.
 - Settings window (provisional): all 13 sections, instant apply through core with validation and
   reset to default, live update on hand edits of `config.toml`; Minimal light/dark theme.
+- Global shortcut (default Ctrl+Space, configurable, IME conflict note) and tray menu (provisional).

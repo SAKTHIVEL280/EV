@@ -87,13 +87,22 @@ export const commands = {
 	 *  When no application can open it.
 	 */
 	openLogsFolder: () => typedError<null, CommandError>(__TAURI_INVOKE("open_logs_folder")),
+	/**  The current global shortcut and whether it is registered. */
+	hotkeyStatus: () => __TAURI_INVOKE<{
+	shortcut: string,
+	/**  active | off | unavailable | invalid */
+	state: string,
+	detail: string | null,
+} | null>("hotkey_status"),
 };
 
 /** Events */
 export const events = {
 	chatUpdate: makeEvent<ChatUpdate>("chat-update"),
 	coreStatusChanged: makeEvent<CoreStatusChanged>("core-status-changed"),
+	hotkeyStatusChanged: makeEvent<HotkeyStatusChanged>("hotkey-status-changed"),
 	islandPointer: makeEvent<IslandPointer>("island-pointer"),
+	islandToggleRequested: makeEvent<IslandToggleRequested>("island-toggle-requested"),
 	islandVisibility: makeEvent<IslandVisibility>("island-visibility"),
 	llmStatusChanged: makeEvent<LlmStatusChanged>("llm-status-changed"),
 	settingRejected: makeEvent<SettingRejected>("setting-rejected"),
@@ -148,6 +157,15 @@ export type HitRect = {
 	height: number,
 };
 
+export type HotkeyStatus = {
+	shortcut: string,
+	/**  active | off | unavailable | invalid */
+	state: string,
+	detail: string | null,
+};
+
+export type HotkeyStatusChanged = HotkeyStatus;
+
 /**
  *  The cursor entered or left the interactive area (the UI cannot see this
  *  itself while the window ignores cursor events).
@@ -155,6 +173,9 @@ export type HitRect = {
 export type IslandPointer = {
 	inside: boolean,
 };
+
+/**  Ask the island to open the panel, or close it if it is open (hotkey, tray). */
+export type IslandToggleRequested = null;
 
 /**  The island was hidden or shown because a fullscreen app started or stopped. */
 export type IslandVisibility = {
