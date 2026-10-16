@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Regenerate protocol types from protocol/ev-protocol.schema.json.
+# Python: core/ev_core/protocol/generated.py (committed; a test fails when stale).
+# Rust types are generated at build time by app/src-tauri/build.rs (typify).
+set -euo pipefail
+cd "$(dirname "$0")/../core"
+uv run datamodel-codegen
+echo "Regenerated core/ev_core/protocol/generated.py"
