@@ -1,0 +1,75 @@
+[package]
+name = "ev"
+version = "0.1.0-beta.1"
+description = "EV (Edge Voice): a local AI companion for Windows 11"
+authors = ["EV contributors"]
+license = "Apache-2.0"
+repository = "https://github.com/SAKTHIVEL280/EV"
+edition = "2024"
+rust-version = "1.99"
+publish = false
+
+[lib]
+name = "ev_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ev"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "=2.7.3", features = [] }
+typify = "=0.8.0"
+schemars = "=0.8.22"
+serde_json = "=1.0.154"
+syn = { version = "=3.0.9", features = ["full"] }
+prettyplease = "=0.3.0"
+
+[dependencies]
+tauri = { version = "=2.12.4", features = [] }
+tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
+specta = { version = "=2.0.0-rc.25", features = ["derive"] }
+specta-typescript = "=0.0.12"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+tokio = { version = "=1.53.3", features = ["rt-multi-thread", "macros", "process", "time", "sync", "io-util"] }
+tokio-tungstenite = "=0.30.0"
+futures-util = { version = "=0.3.34", default-features = false, features = ["sink", "std"] }
+thiserror = "=2.0.21"
+tracing = "=0.1.44"
+tracing-subscriber = { version = "=0.3.23", default-features = false, features = ["std", "registry"] }
+getrandom = "=0.4.3"
+regress = "=0.12.0"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+tempfile = "=3.27.0"
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+missing_debug_implementations = "warn"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+undocumented_unsafe_blocks = "deny"
+dbg_macro = "deny"
+print_stdout = "deny"
+module_name_repetitions = "allow"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

@@ -30,3 +30,5 @@ logs/
 Thumbs.db
 .idea/
 .vscode/
+# Tauri-generated capability schemas (rebuilt on every build)
+app/src-tauri/gen/

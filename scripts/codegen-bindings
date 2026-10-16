@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Regenerate app/src/lib/bindings.ts (TypeScript types for Tauri commands and
+# events) from the Rust code via tauri-specta. A Rust test fails when stale.
+set -euo pipefail
+cd "$(dirname "$0")/../app/src-tauri"
+EV_UPDATE_BINDINGS=1 cargo test --lib bindings_are_up_to_date --quiet
+echo "Regenerated app/src/lib/bindings.ts"

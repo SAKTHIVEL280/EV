@@ -1,0 +1,65 @@
+/*
+ * EV design tokens: the only source of visual values (CLAUDE.md §6.3,
+ * docs/DESIGN.md §2). Values marked (tune P2) are locked in Phase 2.
+ */
+
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("../fonts/InstrumentSans.ttf") format("truetype");
+  font-weight: 400 700;
+  font-stretch: 75% 100%;
+  font-style: normal;
+  font-display: block;
+}
+
+:root {
+  /* Island: pure black in every theme; content is white at three opacities. */
+  --ev-island-bg: #000;
+  --ev-island-fg-1: rgb(255 255 255 / 1);
+  --ev-island-fg-2: rgb(255 255 255 / 0.64);
+  --ev-island-fg-3: rgb(255 255 255 / 0.4);
+  --ev-island-hairline: rgb(255 255 255 / 0.08);
+  --ev-island-control-bg: rgb(255 255 255 / 0.08);
+  --ev-island-control-bg-hover: rgb(255 255 255 / 0.14);
+  --ev-focus-ring: rgb(255 255 255 / 0.64);
+
+  /* Typography. Weights 400 / 500 / 600 only. */
+  --ev-font-sans: "Instrument Sans", sans-serif;
+  --ev-text-11: 11px;
+  --ev-text-13: 13px;
+  --ev-text-15: 15px;
+  --ev-text-20: 20px;
+  --ev-text-28: 28px;
+  --ev-weight-regular: 400;
+  --ev-weight-medium: 500;
+  --ev-weight-semibold: 600;
+
+  /* Spacing (4 px grid). */
+  --ev-space-1: 4px;
+  --ev-space-2: 8px;
+  --ev-space-3: 12px;
+  --ev-space-4: 16px;
+  --ev-space-5: 20px;
+
+  /* Shape. */
+  --ev-radius-control: 8px;
+  --ev-squircle-exponent: 5;
+
+  /* Motion (tune P2). Spring physics, not eased tweens. */
+  --ev-spring-stiffness: 400;
+  --ev-spring-damping: 32;
+  --ev-spring-mass: 1;
+  --ev-fade-reduced: 150ms;
+  --ev-fade-content: 120ms;
+
+  /* Island geometry, logical px (tune P2). */
+  --ev-island-top: 6px;
+  --ev-island-idle-width: 120px;
+  --ev-island-idle-height: 10px;
+  --ev-island-hover-width: 200px;
+  --ev-island-hover-height: 32px;
+  --ev-island-panel-width: 360px;
+  --ev-island-panel-height: 200px;
+  /* Idle pill is a few px tall; the hover target is a bit larger. */
+  --ev-island-hit-slop: 6px;
+}
