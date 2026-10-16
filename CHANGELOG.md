@@ -16,3 +16,6 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   no focus steal, fullscreen auto-hide, squircle spring morph with frame-time reporting).
 - Tooling: version check, protocol and bindings codegen, PyInstaller build, pinned llama.cpp
   fetch, third-party notices with license policy, CI for Linux and Windows, Windows spike kit.
+- Brain (provisional): local model via llama.cpp with background load and idle unload, typed
+  chat in the island panel with streaming replies, instant answers for time and date, effort
+  levels ("max effort, ..."), tool calling (`current_time`), prompt-prefix caching.

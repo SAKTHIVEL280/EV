@@ -51,6 +51,19 @@ EXTRA = [
         "https://pyinstaller.org/ (exception permits any license for bundled apps)",
     ),
     Entry("Instrument Sans (font)", "2022", "OFL-1.1", "https://github.com/Instrument/instrument-sans"),
+    Entry("llama.cpp / ggml (llama-server)", "b11696", "MIT", "https://github.com/ggml-org/llama.cpp"),
+    Entry(
+        "LLVM OpenMP runtime (libomp, shipped with llama.cpp)",
+        "b11696 build",
+        "Apache-2.0 WITH LLVM-exception",
+        "https://github.com/llvm/llvm-project",
+    ),
+    Entry(
+        "Microsoft Visual C++ runtime (app-local, for llama.cpp)",
+        "14.x",
+        "Microsoft Visual C++ Redistributable terms (proprietary, redistributable)",
+        "https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files",
+    ),
 ]
 REVIEWED_EXCEPTIONS = {"PyInstaller bootloader"}
 

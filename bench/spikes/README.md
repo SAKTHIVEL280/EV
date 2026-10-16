@@ -35,7 +35,7 @@ A small black pill appears at the top center of the main screen.
 | 2 | Click-through | Put a window right under the pill. Click its content 2–5 mm beside and below the pill: the window receives the click. |
 | 3 | Hover | Move the mouse onto the pill: it grows and shows "Ready". Move away: it shrinks back. |
 | 4 | No focus steal | Type in Notepad and move the mouse over the pill while typing: the text keeps going into Notepad. |
-| 5 | Panel | Click the hovered pill: the panel opens and can be closed with **Esc**, the **Close** button, or by clicking another window. |
+| 5 | Panel | Click the hovered pill: the panel opens with the cursor in the message box. It closes with **Esc** or by clicking another window. |
 | 6 | Focus return | Click into Notepad, open the panel, press **Esc**, keep typing: the text goes into Notepad again. |
 | 7 | Fullscreen | Play a video fullscreen (or press F11 in a browser, or start a game): the pill disappears; it returns when you leave fullscreen. |
 | 8 | 60 fps | Open the panel → **Run morph test**. The result line must show `0 dropped`. Note the `worst` and `settle` values. |
@@ -63,6 +63,17 @@ powershell -ExecutionPolicy Bypass -File .\s3-llama.ps1 -ModelPath C:\path\to\Qw
 It downloads the pinned llama.cpp CPU and Vulkan builds (SHA-256 verified),
 runs `llama-bench` and measures `llama-server` memory with and without
 `-lm none`. Takes 5–15 minutes. Close other heavy apps first.
+
+## Optional — Phase 1 chat on Windows
+
+Only if the installer was built from the `feat/phase-1-brain` branch.
+
+1. Copy the model file to `%APPDATA%\EV\models\Qwen3.5-4B-Q4_K_M.gguf`.
+2. Open `%APPDATA%\EV\config.toml` and set, under `[llm]`:
+   `model_default = "Qwen3.5-4B-Q4_K_M.gguf"`. Save; it applies without restarting.
+3. Open the panel and ask "What time is it?" (instant), then "In one sentence, what is RAM?"
+   and "Is it morning or evening right now?". Note the `first word` / `total` times shown.
+4. Check Task Manager: `llama-server.exe` memory, and that it disappears when you quit EV.
 
 ## Share the results
 

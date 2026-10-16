@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Stage the llama.cpp runtime that the Windows installer ships as resources/llama/:
+# only llama-server and the libraries it loads, plus license texts.
+#
+# Usage: scripts/stage-llama-runtime [variant] [out_dir]
+#   variant  pinned build from scripts/llama-cpp.pins (default win-cpu-x64)
+#   out_dir  default build/llama-runtime (git-ignored)
+# Env: VC_REDIST_DIR  folder with msvcp140.dll, vcruntime140.dll, vcruntime140_1.dll
+#      (Microsoft Visual C++ runtime, app-local deployment; see docs/decisions.md).
+#      Required for win-* variants unless EV_ALLOW_MISSING_VC_REDIST=1 (local checks).
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+VARIANT="${1:-win-cpu-x64}"
+OUT="${2:-$ROOT/build/llama-runtime}"
+SRC="$ROOT/vendor/llama.cpp/$VARIANT"
+
+"$ROOT/scripts/fetch-llama-cpp" "$VARIANT"
+rm -rf "$OUT" && mkdir -p "$OUT"
+
+# Import closure of llama-server.exe (checked with objdump below); ggml-cpu-*
+# variants are loaded at runtime by CPU features, so all of them ship.
+FILES=(llama-server.exe llama-server-impl.dll llama-common.dll mtmd.dll llama.dll
+       ggml.dll ggml-base.dll libomp.dll LICENSE-LLVM-OpenMP)
+for f in "${FILES[@]}"; do cp "$SRC/$f" "$OUT/"; done
+cp "$SRC"/ggml-cpu-*.dll "$OUT/"
+cp "$ROOT/third_party/licenses/llama.cpp.txt" "$OUT/LICENSE-llama.cpp"
+
+VC=(msvcp140.dll vcruntime140.dll vcruntime140_1.dll)
+if [ -n "${VC_REDIST_DIR:-}" ]; then
+  for f in "${VC[@]}"; do cp "$VC_REDIST_DIR/$f" "$OUT/"; done
+elif [[ "$VARIANT" == win-* && "${EV_ALLOW_MISSING_VC_REDIST:-0}" != 1 ]]; then
+  echo "VC_REDIST_DIR is not set: llama-server needs the Visual C++ runtime" >&2
+  exit 1
+fi
+
+# Every non-system import of every staged binary must be in the staged folder.
+if command -v objdump >/dev/null; then
+  missing=0
+  for bin in "$OUT"/*.exe "$OUT"/*.dll; do
+    while read -r dll; do
+      lower="$(echo "$dll" | tr '[:upper:]' '[:lower:]')"
+      case "$lower" in
+        kernel32.dll|advapi32.dll|ws2_32.dll|user32.dll|shell32.dll|ole32.dll|oleaut32.dll|bcrypt.dll|crypt32.dll|psapi.dll|api-ms-win-*) continue ;;
+      esac
+      if ! find "$OUT" -maxdepth 1 -type f -iname "$lower" | grep -q .; then
+        if [[ " ${VC[*]} " == *" $lower "* && -z "${VC_REDIST_DIR:-}" ]]; then continue; fi
+        echo "missing: $(basename "$bin") imports $dll" >&2
+        missing=1
+      fi
+    done < <(objdump -p "$bin" | awk '/DLL Name/ {print $3}')
+  done
+  [ "$missing" = 0 ] || exit 1
+  echo "imports satisfied"
+fi
+du -sh "$OUT"

@@ -24,7 +24,22 @@ cd core && uv sync                       # core/.venv (dev tools included)
 cd ../app && pnpm install --frozen-lockfile
 ```
 
-## 3. Run the app
+## 3. Model for development
+
+```sh
+scripts/fetch-llama-cpp ubuntu-x64        # pinned llama.cpp for Linux, into vendor/ (git-ignored)
+mkdir -p ~/.local/share/EV/models
+curl -L -o ~/.local/share/EV/models/Qwen3.5-4B-Q4_K_M.gguf \
+  https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf
+echo "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4  $HOME/.local/share/EV/models/Qwen3.5-4B-Q4_K_M.gguf" | sha256sum -c
+```
+
+Then set `model_default = "Qwen3.5-4B-Q4_K_M.gguf"` in the `[llm]` section of
+`~/.local/share/EV/config.toml` (or of `$EV_DATA_DIR/config.toml`). Debug builds pass
+`vendor/llama.cpp/<platform>` to core as `EV_LLAMA_DIR`. Without a model, chat answers
+"No model installed" and the time and date questions still work (router).
+
+## 4. Run the app
 
 ```sh
 cd app && pnpm tauri dev
@@ -38,7 +53,7 @@ On Linux the island is a development stand-in. Wayland compositors decide window
 always-on-top and click-through behave differently from Windows. Island behavior is judged on
 Windows 11 only (spike S1).
 
-## 4. Checks (all must pass before a commit)
+## 5. Checks (all must pass before a commit)
 
 ```sh
 # Python core
@@ -56,7 +71,7 @@ cd core && uv run python ../scripts/third-party-notices --check
 actionlint .github/workflows/*.yml
 ```
 
-## 5. Generated code
+## 6. Generated code
 
 | Output | Source | Regenerate | Guard |
 |---|---|---|---|
@@ -65,18 +80,19 @@ actionlint .github/workflows/*.yml
 | `app/src/lib/bindings.ts` | Rust commands and events | `scripts/codegen-bindings` | Rust test `bindings_are_up_to_date` |
 | `THIRD_PARTY_NOTICES.md` | Cargo, uv and pnpm dependency graphs | `cd core && uv run python ../scripts/third-party-notices` | CI `--check` |
 
-## 6. Packaging
+## 7. Packaging
 
 ```sh
-scripts/build-core          # core/dist/ev-core/ (PyInstaller onedir, runtime deps only)
-cd app && pnpm tauri build  # on Windows: NSIS installer with the core as resources
+scripts/build-core                       # core/dist/ev-core/ (PyInstaller onedir, runtime deps only)
+VC_REDIST_DIR=... scripts/stage-llama-runtime  # build/llama-runtime/ (llama-server + its DLLs)
+cd app && pnpm tauri build               # on Windows: NSIS installer with core and llama.cpp
 ```
 
 Windows installers are built by `.github/workflows/windows-build.yml` (artifact
 `ev-windows-spike-kit`). Pinned llama.cpp builds: `scripts/fetch-llama-cpp` (SHA-256 verified,
 into `vendor/llama.cpp/`, git-ignored).
 
-## 7. Versions
+## 8. Versions
 
 `app/src-tauri/tauri.conf.json` `version` is the single source of truth. `Cargo.toml`,
 `app/package.json` and `core/pyproject.toml` must match (`scripts/check-versions`; CI enforces).

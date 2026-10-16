@@ -31,7 +31,8 @@ grep -v '^#' "$PINS" | while read -r tag variant expected; do
   archive="llama-${tag}-bin-${variant}.${ext}"
   url="https://github.com/ggml-org/llama.cpp/releases/download/${tag}/${archive}"
   out="$DEST/$variant"
-  if [ -f "$out/.verified-$tag" ]; then echo "ok   $variant ($tag, cached)"; continue; fi
+  marker="$DEST/.verified-$variant-$tag"  # outside $out so it is never bundled
+  if [ -f "$marker" ] && [ -d "$out" ]; then echo "ok   $variant ($tag, cached)"; continue; fi
   mkdir -p "$DEST"
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' EXIT
@@ -49,6 +50,7 @@ grep -v '^#' "$PINS" | while read -r tag variant expected; do
     # Linux archives wrap everything in one top-level folder.
     tar -xzf "$tmp/$archive" -C "$out" --strip-components=1
   fi
-  touch "$out/.verified-$tag"
+  rm -f "$DEST"/.verified-"$variant"-*
+  touch "$marker"
   echo "ok   $variant ($tag, sha256 verified)"
 done

@@ -283,13 +283,23 @@ model downloader) and the Microsoft Edge WebView2 runtime (part of Windows 11).
 
 | Component | Version | License | Source |
 |---|---|---|---|
+| aiohappyeyeballs | 2.7.1 | Python Software Foundation License | https://github.com/aio-libs/aiohappyeyeballs |
+| aiohttp | 3.14.5 | Apache-2.0 AND MIT | https://github.com/aio-libs/aiohttp |
+| aiosignal | 1.4.0 | Apache Software License | https://github.com/aio-libs/aiosignal |
 | annotated-types | 0.8.0 | MIT | https://github.com/annotated-types/annotated-types |
+| attrs | 26.1.0 | MIT | https://github.com/python-attrs/attrs |
+| frozenlist | 1.8.0 | Apache-2.0 | https://github.com/aio-libs/frozenlist |
+| idna | 3.20 | BSD-3-Clause | https://github.com/kjd/idna |
+| multidict | 7.1.0 | Apache-2.0 | https://github.com/aio-libs/multidict |
+| propcache | 0.5.4 | Apache-2.0 | https://github.com/aio-libs/propcache |
+| psutil | 7.2.2 | BSD-3-Clause | https://github.com/giampaolo/psutil |
 | pydantic | 2.14.1 | MIT | https://github.com/pydantic/pydantic |
 | pydantic-core | 2.50.1 | MIT | https://github.com/pydantic/pydantic |
 | tomlkit | 0.15.2 | MIT | https://github.com/python-poetry/tomlkit |
 | typing-extensions | 4.16.0 | PSF-2.0 | https://github.com/python/typing_extensions |
 | typing-inspection | 0.4.4 | MIT | https://github.com/pydantic/typing-inspection |
 | websockets | 17.2 | BSD-3-Clause | https://github.com/python-websockets/websockets |
+| yarl | 1.25.1 | Apache-2.0 | https://github.com/aio-libs/yarl |
 
 ## JavaScript packages
 
@@ -323,4 +333,7 @@ model downloader) and the Microsoft Edge WebView2 runtime (part of Windows 11).
 |---|---|---|---|
 | CPython runtime | 3.12 | PSF-2.0 | https://www.python.org/ |
 | Instrument Sans (font) | 2022 | OFL-1.1 | https://github.com/Instrument/instrument-sans |
+| LLVM OpenMP runtime (libomp, shipped with llama.cpp) | b11696 build | Apache-2.0 WITH LLVM-exception | https://github.com/llvm/llvm-project |
+| Microsoft Visual C++ runtime (app-local, for llama.cpp) | 14.x | Microsoft Visual C++ Redistributable terms (proprietary, redistributable) | https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files |
 | PyInstaller bootloader | 6.22.3 | GPL-2.0-or-later WITH Bootloader-exception | https://pyinstaller.org/ (exception permits any license for bundled apps) |
+| llama.cpp / ggml (llama-server) | b11696 | MIT | https://github.com/ggml-org/llama.cpp |

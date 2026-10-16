@@ -33,6 +33,20 @@ jobs:
       - name: Build ev-core (PyInstaller onedir)
         shell: bash
         run: scripts/build-core
+      - name: Locate the Visual C++ runtime (app-local copy for llama.cpp)
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $crt = Get-ChildItem "$vs\VC\Redist\MSVC\*\x64\Microsoft.VC14*.CRT" -Directory |
+            Sort-Object FullName | Select-Object -Last 1
+          if (-not $crt) { throw "Visual C++ redistributable folder not found" }
+          Write-Host "Using $($crt.FullName)"
+          "VC_REDIST_DIR=$($crt.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Stage llama.cpp runtime
+        shell: bash
+        run: |
+          scripts/stage-llama-runtime win-cpu-x64
+          build/llama-runtime/llama-server.exe --version
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup show active-toolchain || rustup toolchain install
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2

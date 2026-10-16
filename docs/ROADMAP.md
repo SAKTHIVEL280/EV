@@ -9,7 +9,7 @@ Status legend: `planned` · `in progress` · `blocked (reason)` · `done (date)`
 | Phase | Name | Status |
 |---|---|---|
 | 0 | Foundation & spikes | in progress (Linux foundation done 2026-10-17; waiting on CI run + Windows spikes) |
-| 1 | Brain | planned |
+| 1 | Brain | in progress (provisional, branch `feat/phase-1-brain`; started before the Phase 0 gate, see decisions.md) |
 | 2 | Island | planned |
 | 3 | Tools | planned |
 | 4 | Voice | planned |
@@ -80,6 +80,9 @@ Docs: `ARCHITECTURE.md`, `DESIGN.md`, `PERFORMANCE.md`, `FEATURES.md`, `ROADMAP.
 ---
 
 ## Phase 1 — Brain
+Status (2026-10-17): built and verified on Linux with Qwen3.5-4B (see PERFORMANCE.md §4.5);
+the Windows run and the RAM-budget check on the test laptop are pending.
+
 llama-server supervisor (random port, auth token, `-lm none`, restart policy), `LlmBackend`
 interface, agent loop (§5.4) with grammar-constrained tool calls, rule router (Instant), effort
 levels (§5.5), rolling history, typed chat in a minimal panel.
@@ -120,6 +123,8 @@ Setup flow, compute benchmark (§5.6), model downloader (SHA-256, resume), updat
 ## Phase 9 — Polish & beta
 Performance tuning against every §4 budget, accessibility pass (§6.6), 8 h soak (< 50 MB/h),
 installer ≤ 150 MB, docs, `0.1.0-beta.1` pre-release on GitHub.
+Ship full license texts for every bundled component (generated, e.g. cargo-about),
+not only the component list.
 
 ## Phase 10 — Public release
 Feedback fixes, SignPath code signing, README, `1.0.0`.

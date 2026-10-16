@@ -27,9 +27,9 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 ### Core
 | ID | Feature | Phase | Status |
 |---|---|---|---|
-| F-001 | Typed chat in panel | 1 | draft |
-| F-002 | Rule router (Instant commands) | 1 | draft |
-| F-003 | Effort levels (setting + voice) | 1 | draft |
+| F-001 | Typed chat in panel | 1 | built (Linux-verified) |
+| F-002 | Rule router (Instant commands) | 1 | built (Linux-verified) |
+| F-003 | Effort levels (setting + voice) | 1 | built (Linux-verified) |
 | F-004 | Hotkey `Ctrl+Space` with IME conflict detection | 2 | index |
 | F-005 | Push-to-talk | 4 | index |
 | F-006 | Barge-in | 4 | index |
@@ -91,7 +91,7 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 ## Specs
 
 ### F-001 Typed chat in panel
-- Phase / status: 1 / draft (written 2026-10-17, before the Phase 0 gate; see decisions.md).
+- Phase / status: 1 / built, verified on Linux with Qwen3.5-4B; Windows pending (spec written 2026-10-17, before the Phase 0 gate; see decisions.md).
 - Behavior: the user opens the panel (click or, from Phase 2, the hotkey), types a message and
   presses Enter. The island shows `thinking` until the first token, then streams the reply into
   the panel. A new message while a reply is streaming cancels that reply and starts the new one.
@@ -102,7 +102,7 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
   model is told so.
 - Settings: `agent.default_effort`, `llm.*` (models, threads, context, idle unload).
 - Island states used: panel (input, reply), thinking, error text in the reply area.
-- Edge cases: empty or whitespace-only input is ignored. Input over 8,000 characters is refused
+- Edge cases: empty or whitespace-only input is ignored by the panel; if it reaches core anyway it is answered with `chat.failed` (`empty_input`, "Type a message first."). Input over 8,000 characters is refused
   with a message. The model is still loading: the reply waits and the panel shows "Waking up".
   No model installed: a failure message. Core restarts mid-reply: the reply ends with an error line.
 - Failure messages: "No model installed. Add one in Settings." · "The model stopped responding.
@@ -113,7 +113,7 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
   protocol contract fixtures; manual run against Qwen3.5-4B.
 
 ### F-002 Rule router (Instant commands)
-- Phase / status: 1 / draft.
+- Phase / status: 1 / built (Linux-verified).
 - Behavior: before any model call, a rule table (regular expressions, no LLM) matches the
   request. A match runs its tool directly and answers from a template. Phase 1 rules:
   current time and date ("what time is it", "what's the date", "what day is it"). Phase 3 adds
@@ -128,7 +128,7 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 - Tests: table-driven positive and negative phrases; latency test with the real tool.
 
 ### F-003 Effort levels
-- Phase / status: 1 / draft.
+- Phase / status: 1 / built (Linux-verified).
 - Behavior: four levels (CLAUDE.md §5.5). Set by `agent.default_effort` or per request by a
   spoken or typed prefix: "instant/quick", "normal", "deep", "max effort" followed by a comma or
   colon ("max effort, plan my week"). The prefix is removed before the model sees the text.

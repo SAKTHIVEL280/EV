@@ -18,7 +18,7 @@ ev.exe (Tauri 2, Rust)
 |---|---|---|---|
 | `ev.exe` | user | — | — |
 | `ev-core` | Rust supervisor | `127.0.0.1:<random>` | 1 s, 2 s, 5 s, then stop and report |
-| `llama-server` | `ev-core` (Phase 1) | `127.0.0.1:<random>` + API key | same policy, owned by core |
+| `llama-server` | `ev-core` (`llm` module) | `127.0.0.1:<random>` + API key | reloaded on the next request; a failed load is reported (`llm.status` failed) |
 
 Rules: every child binds 127.0.0.1 only, never `0.0.0.0`; every connection carries a per-session
 secret; children never outlive the parent. Core holds a stdin pipe from the app and exits on EOF,
@@ -190,7 +190,32 @@ app/
 - Development (debug builds): Rust spawns `core/.venv`'s Python with `-m ev_core`
   (run `uv sync` in `core/` first).
 
-## 6. Security boundaries (Phase 0 scope)
+## 6. Brain (Phase 1)
+
+```
+app (Rust)                         core (Python)
+ chat_send / chat_cancel ──ws──▶ server ──bus: ChatRequested──▶ agent
+ ChatUpdate / LlmStatusChanged ◀─ws── server ◀──bus: Chat*, LlmStatusChanged── agent, llm
+                                                     agent ──LlmProvider──▶ llm ──HTTP──▶ llama-server
+```
+
+- `ev_core/interfaces/`: contracts shared by modules (`LlmBackend`, `LlmProvider`, `Tool`,
+  chat and model-status bus events). Modules depend only on these.
+- `llm` module: resolves the effort's model role to a configured file (with fallback), starts
+  llama-server (`--load-mode none`, q8 KV cache, one slot, loopback, random port, per-start API
+  key, `--jinja`), restarts it when it died or the config changed, warms the default model at
+  start, unloads it after the idle timeout (never while a reply streams) and publishes
+  `LlmStatusChanged`. llama-server never outlives core (Job Object on Windows, `setpriv
+  --pdeathsig` on Linux).
+- `agent` module: one turn at a time; a new request cancels the running one first. A turn is the
+  rule router (no model) or up to N model steps (effort) with native tool calls; replies stream
+  as `ChatDelta`. When a model becomes ready, the agent pre-reads the static prompt prefix.
+- Server: `chat.send` / `chat.cancel` become bus events; outbound events pass through one ordered
+  outbox per connection; the latest model status is replayed after `hello.ack`.
+- Rust: `CoreLink` sends messages only while a session is connected (commands fail fast
+  otherwise); `CoreObserver` turns core messages into typed UI events.
+
+## 7. Security boundaries (Phase 0 scope)
 - Loopback only, token auth, Origin rejected, constant-time compare.
 - Token held in memory only; never logged.
 - Core accepts one authenticated client at a time; a second connection is refused.

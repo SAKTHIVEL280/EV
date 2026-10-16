@@ -85,6 +85,26 @@ The contract default misses the ≤ 350 ms "animation complete" budget for the l
 tunes the spring (CLAUDE.md §6.2) and records the final values in `DESIGN.md`. See
 `docs/decisions.md` (Phase 0).
 
+### 4.5 Phase 1 brain (dev machine, linux-dev, measured 2026-10-17)
+Qwen3.5-4B Q4_K_M, llama.cpp b11696 CPU, 8 threads, 8K context, q8 KV cache, `--load-mode none`.
+Wall times measured over the WebSocket, as the app sees them.
+
+| Measurement | Result | Budget |
+|---|---|---|
+| Model load (llama-server start → healthy) | 2.3–2.5 s | warms in background |
+| Static prefix (system prompt + tool list) | 410 tokens | ≤ 1,000 |
+| Router answer ("What time is it?") | 1 ms | Instant ≤ 300 ms |
+| Normal, first token, cold prefix (418-token prompt) | 3.5 s | (spoken word ≤ 2 s, Phase 4) |
+| Normal, first token, cached prefix ("what is a GPU?") | 0.42 s | |
+| Normal, total, 32 tokens | 2.8 s | |
+| Normal with one tool step (time question), first token / total | 2.2 s / 3.1 s | |
+| Max effort (thinking), "17 × 23", 174 tokens | 13.7 s | Max: minutes, cancellable |
+| Prompt read / generate speed | 118 tok/s / 13.2 tok/s | baseline 120 / 13.6 |
+| RSS: llama-server / core | 3.2–3.4 GB / 51 MB | total ≤ 5.0 GB |
+
+The cached-prefix numbers depend on the warm-up request sent when a model becomes ready
+(docs/decisions.md, Phase 1).
+
 ### 4.4 Pending (Phase 0 spikes, Windows 11)
 | Measurement | Spike | Result |
 |---|---|---|
