@@ -1,0 +1,32 @@
+# Models and large binaries (downloaded at runtime/build time, never committed)
+*.gguf
+*.onnx
+*.ort
+*.bin
+*.safetensors
+models/
+vendor/llama.cpp/
+# Build output
+target/
+dist/
+build/
+node_modules/
+.svelte-kit/
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+# Local data, logs, secrets
+*.db
+*.db-wal
+*.db-shm
+logs/
+.env
+.env.*
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
