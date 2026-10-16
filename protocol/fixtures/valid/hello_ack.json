@@ -1,0 +1,1 @@
+{"v": 1, "type": "hello.ack", "id": "5f8e2a1b-3c4d-4e5f-8a9b-0c1d2e3f4a5b", "reply_to": "0b6f1d4e-2c3a-4b5d-9e8f-1a2b3c4d5e6f", "payload": {"core_version": "0.1.0-beta.1", "protocol": 1, "modules": [{"name": "config", "state": "ready"}, {"name": "voice", "state": "disabled", "detail": "Voice is turned off in Settings."}]}}

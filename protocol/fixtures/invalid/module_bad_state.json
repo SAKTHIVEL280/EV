@@ -1,0 +1,1 @@
+{"v": 1, "type": "hello.ack", "id": "039e1f2a-3b4c-4d5e-8f6a-8b9c0d1e2f3a", "payload": {"core_version": "0.1.0-beta.1", "protocol": 1, "modules": [{"name": "x", "state": "exploded"}]}}
