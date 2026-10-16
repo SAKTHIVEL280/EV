@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import pytest
@@ -23,10 +24,16 @@ def test_windows_without_appdata_raises() -> None:
         data_dir({}, "win32")
 
 
+# "/xdg" is not an absolute path on Windows; the Linux branch is tested on POSIX hosts.
+posix_only = pytest.mark.skipif(sys.platform == "win32", reason="POSIX path semantics")
+
+
+@posix_only
 def test_linux_uses_absolute_xdg() -> None:
     assert data_dir({"XDG_DATA_HOME": "/xdg"}, "linux") == Path("/xdg/EV")
 
 
+@posix_only
 def test_linux_ignores_relative_xdg_and_defaults() -> None:
     expected = Path.home() / ".local" / "share" / "EV"
     assert data_dir({"XDG_DATA_HOME": "relative"}, "linux") == expected

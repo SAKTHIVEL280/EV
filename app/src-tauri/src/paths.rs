@@ -78,6 +78,8 @@ mod tests {
         assert!(data_dir(env(&[]), true).is_err());
     }
 
+    // "/xdg" is not absolute on Windows; the Linux branch is tested on POSIX hosts.
+    #[cfg(unix)]
     #[test]
     fn linux_xdg_then_home() {
         assert_eq!(
