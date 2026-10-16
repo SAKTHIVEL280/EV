@@ -85,7 +85,7 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 | F-407 | Plugin tools folder (declared permissions) | 8 | index |
 | F-408 | Update check (GitHub Releases, user approves) | 8 | index |
 | F-409 | Local crash log + "Report issue" | 8 | index |
-| F-410 | Settings window (all §6.5 sections, §6.5.1 customization) | 2 | draft |
+| F-410 | Settings window (all §6.5 sections, §6.5.1 customization) | 2 | built (skeleton; Linux-verified) |
 | F-411 | Auto-hide in fullscreen / screen share | 2 | index |
 
 ## Specs
@@ -149,7 +149,9 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 - Tests: prefix parsing table; model fallback table; step limit enforced per level.
 
 ### F-410 Settings window
-- Phase / status: 2 / draft (written 2026-10-17, before the Phase 0 gate; see decisions.md).
+- Phase / status: 2 / skeleton built (written 2026-10-17, before the Phase 0 gate; see decisions.md).
+  Verified on Linux: settings round trip through the real core; the window itself still needs the
+  Windows review gate (screenshots at 100/150% DPI, light and dark), and Mica.
   Phase 2 delivers the window, every section and the settings that exist so far. Later phases add
   their settings to the same mechanism (§6.5.1 list is complete only at beta).
 - Behavior: opened from the island panel (Settings) and, from the tray (Phase 2, Windows). A

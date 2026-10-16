@@ -19,3 +19,5 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - Brain (provisional): local model via llama.cpp with background load and idle unload, typed
   chat in the island panel with streaming replies, instant answers for time and date, effort
   levels ("max effort, ..."), tool calling (`current_time`), prompt-prefix caching.
+- Settings window (provisional): all 13 sections, instant apply through core with validation and
+  reset to default, live update on hand edits of `config.toml`; Minimal light/dark theme.

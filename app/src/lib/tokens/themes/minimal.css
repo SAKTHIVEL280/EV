@@ -1,0 +1,39 @@
+/*
+ * Minimal theme (CLAUDE.md §6.3): light and dark, follows the system setting.
+ * Used by the Settings window; the island is always black (base.css).
+ * Text opacities are chosen for WCAG AA (≥ 4.5:1) on the surface colour:
+ * light fg-3 0.60 ≈ 4.8:1, dark fg-3 0.52 ≈ 5.0:1 (docs/decisions.md, Phase 2).
+ */
+
+:root {
+  color-scheme: light dark;
+  --ev-surface: #f6f6f4;
+  --ev-surface-nav: #efefec;
+  --ev-fg-1: rgb(20 20 20 / 1);
+  --ev-fg-2: rgb(20 20 20 / 0.72);
+  --ev-fg-3: rgb(20 20 20 / 0.6);
+  --ev-hairline: rgb(20 20 20 / 0.08);
+  --ev-control: rgb(20 20 20 / 0.06);
+  --ev-control-hover: rgb(20 20 20 / 0.1);
+  --ev-selected: rgb(20 20 20 / 0.08);
+  --ev-switch-on: #141414;
+  --ev-switch-knob: #ffffff;
+  --ev-theme-focus-ring: rgb(20 20 20 / 0.72);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ev-surface: #1b1b1a;
+    --ev-surface-nav: #161615;
+    --ev-fg-1: rgb(242 242 240 / 1);
+    --ev-fg-2: rgb(242 242 240 / 0.7);
+    --ev-fg-3: rgb(242 242 240 / 0.52);
+    --ev-hairline: rgb(242 242 240 / 0.08);
+    --ev-control: rgb(242 242 240 / 0.08);
+    --ev-control-hover: rgb(242 242 240 / 0.13);
+    --ev-selected: rgb(242 242 240 / 0.1);
+    --ev-switch-on: #f2f2f0;
+    --ev-switch-knob: #1b1b1a;
+    --ev-theme-focus-ring: rgb(242 242 240 / 0.7);
+  }
+}

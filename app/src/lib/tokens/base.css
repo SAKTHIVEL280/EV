@@ -25,6 +25,8 @@
 
   /* Typography. Weights 400 / 500 / 600 only. */
   --ev-font-sans: "Instrument Sans", sans-serif;
+  /* Commit Mono is bundled when first needed; until then paths use the platform mono font. */
+  --ev-font-mono: ui-monospace, monospace;
   --ev-text-11: 11px;
   --ev-text-13: 13px;
   --ev-text-15: 15px;

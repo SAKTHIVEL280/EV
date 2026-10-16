@@ -285,7 +285,10 @@
           {testing ? "Testing" : "Morph test"}
         </button>
         {#if testSummary}<p class="result">{testSummary}</p>{/if}
-        <button class="quit" type="button" onclick={() => void commands.appQuit()}>Quit EV</button>
+        <button class="quit" type="button" onclick={() => void commands.settingsOpen()}>
+          Settings
+        </button>
+        <button type="button" onclick={() => void commands.appQuit()}>Quit EV</button>
       </footer>
     </div>
   {/if}
@@ -364,10 +367,11 @@
     font-weight: var(--ev-weight-semibold);
   }
 
+  /* Text uses fg-1 / fg-2 only: fg-3 (40%) is 3.7:1 on black, below WCAG AA. */
   .meta,
   .result {
     font-size: var(--ev-text-13);
-    color: var(--ev-island-fg-3);
+    color: var(--ev-island-fg-2);
     font-variant-numeric: tabular-nums;
   }
 

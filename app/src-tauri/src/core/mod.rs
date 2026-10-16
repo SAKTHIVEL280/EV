@@ -302,6 +302,105 @@ mod tests {
         ));
     }
 
+    /// Settings round trip through the real core: get, change, refused change.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn real_core_settings_round_trip() {
+        use crate::protocol::generated::SettingValue;
+
+        let dir = tempfile::tempdir().unwrap();
+        let rec = Recorder::default();
+        let link = Arc::new(CoreLink::default());
+        let (tx, rx) = watch::channel(false);
+        let spec = real_core(dir.path());
+        let (task_rec, task_link) = (rec.clone(), link.clone());
+        let task = tokio::spawn(async move {
+            supervise(
+                Ok(spec),
+                "0.1.0-beta.1",
+                &fast_timing(),
+                fast_policy(),
+                rx,
+                &task_rec,
+                &task_link,
+            )
+            .await;
+        });
+        let deadline = Instant::now() + Duration::from_secs(30);
+        let wait_for = |n: usize| {
+            let rec = rec.clone();
+            async move {
+                while rec
+                    .messages
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .filter(|m| matches!(m, Message::ConfigState(_) | Message::ConfigRejected(_)))
+                    .count()
+                    < n
+                {
+                    assert!(Instant::now() < deadline, "settings reply missing");
+                    sleep(Duration::from_millis(20)).await;
+                }
+            }
+        };
+        while !rec
+            .statuses
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|s| matches!(s, CoreStatus::Running { .. }))
+        {
+            assert!(Instant::now() < deadline, "core never became ready");
+            sleep(Duration::from_millis(20)).await;
+        }
+        link.send(crate::protocol::config_get().unwrap()).unwrap();
+        wait_for(1).await;
+        link.send(
+            crate::protocol::config_set("llm", "context", SettingValue::Integer(16384)).unwrap(),
+        )
+        .unwrap();
+        wait_for(2).await;
+        link.send(crate::protocol::config_set("llm", "context", SettingValue::Integer(1)).unwrap())
+            .unwrap();
+        wait_for(3).await;
+        tx.send(true).unwrap();
+        tokio::time::timeout(Duration::from_secs(10), task)
+            .await
+            .unwrap()
+            .unwrap();
+
+        let replies: Vec<Message> = rec
+            .messages
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|m| matches!(m, Message::ConfigState(_) | Message::ConfigRejected(_)))
+            .cloned()
+            .collect();
+        let context = |m: &Message| match m {
+            Message::ConfigState(state) => state
+                .payload
+                .items
+                .iter()
+                .find(|i| *i.key == "context")
+                .map(|i| crate::settings::SettingValue::from(i.value.clone())),
+            _ => None,
+        };
+        assert_eq!(
+            context(&replies[0]),
+            Some(crate::settings::SettingValue::Int(8192))
+        );
+        assert_eq!(
+            context(&replies[1]),
+            Some(crate::settings::SettingValue::Int(16384))
+        );
+        assert!(
+            matches!(&replies[2], Message::ConfigRejected(r) if r.payload.message.contains("2048 to 131072"))
+        );
+        let saved = std::fs::read_to_string(dir.path().join("config.toml")).unwrap();
+        assert!(saved.contains("context = 16384"));
+    }
+
     #[tokio::test]
     async fn missing_executable_fails_without_retry() {
         let (log, report) = recorder();

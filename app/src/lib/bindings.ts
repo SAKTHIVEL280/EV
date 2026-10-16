@@ -41,6 +41,52 @@ export const commands = {
 	 */
 	chatCancel: (turnId: string) => typedError<null, CommandError>(__TAURI_INVOKE("chat_cancel", { turnId })),
 	llmStatus: () => __TAURI_INVOKE<LlmStatus>("llm_status"),
+	/**
+	 *  Ask core for the current settings; the answer arrives as `SettingsChanged`.
+	 * 
+	 *  # Errors
+	 *  When core is not connected.
+	 */
+	settingsRefresh: () => typedError<null, CommandError>(__TAURI_INVOKE("settings_refresh")),
+	/**
+	 *  Change one setting; core answers with `SettingsChanged` or `SettingRejected`.
+	 * 
+	 *  # Errors
+	 *  When core is not connected.
+	 */
+	settingsSet: (section: string, key: string, value: SettingValue) => typedError<null, CommandError>(__TAURI_INVOKE("settings_set", { section, key, value })),
+	/**
+	 *  Return one setting to its default.
+	 * 
+	 *  # Errors
+	 *  When core is not connected.
+	 */
+	settingsReset: (section: string, key: string) => typedError<null, CommandError>(__TAURI_INVOKE("settings_reset", { section, key })),
+	/**  The last settings core reported, if any. */
+	settingsState: () => __TAURI_INVOKE<{
+	path: string,
+	items: SettingItem[],
+	warnings: ConfigWarning[],
+} | null>("settings_state"),
+	/**
+	 *  # Errors
+	 *  When the window cannot be created.
+	 */
+	settingsOpen: () => typedError<null, CommandError>(__TAURI_INVOKE("settings_open")),
+	/**
+	 *  Open config.toml in the user's default editor.
+	 * 
+	 *  # Errors
+	 *  When no application can open it.
+	 */
+	openConfigFile: () => typedError<null, CommandError>(__TAURI_INVOKE("open_config_file")),
+	/**
+	 *  Open the logs folder.
+	 * 
+	 *  # Errors
+	 *  When no application can open it.
+	 */
+	openLogsFolder: () => typedError<null, CommandError>(__TAURI_INVOKE("open_logs_folder")),
 };
 
 /** Events */
@@ -50,6 +96,8 @@ export const events = {
 	islandPointer: makeEvent<IslandPointer>("island-pointer"),
 	islandVisibility: makeEvent<IslandVisibility>("island-visibility"),
 	llmStatusChanged: makeEvent<LlmStatusChanged>("llm-status-changed"),
+	settingRejected: makeEvent<SettingRejected>("setting-rejected"),
+	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
 };
 
 /* Types */
@@ -59,6 +107,11 @@ export type ChatUpdate = ChatUpdateKind;
 export type ChatUpdateKind = { kind: "started"; turn_id: string; effort: Effort; model: string | null } | { kind: "delta"; turn_id: string; text: string } | { kind: "tool"; turn_id: string; name: string; state: string } | { kind: "done"; turn_id: string; text: string; effort: Effort; model: string | null; first_token_ms: number | null; total_ms: number; cancelled: boolean } | { kind: "failed"; turn_id: string; code: string; message: string };
 
 export type CommandError = {
+	message: string,
+};
+
+export type ConfigWarning = {
+	key: string,
 	message: string,
 };
 
@@ -121,6 +174,39 @@ export type ModuleInfo = {
 	name: string,
 	state: string,
 	detail: string | null,
+};
+
+export type SettingItem = {
+	section: string,
+	key: string,
+	/**  Settings section id (general, models, … about). */
+	nav: string,
+	label: string,
+	description: string,
+	/**  boolean | choice | integer | text */
+	kind: string,
+	default: SettingValue,
+	value: SettingValue,
+	options: string[],
+	minimum: number | null,
+	maximum: number | null,
+};
+
+export type SettingRejected = {
+	section: string,
+	key: string,
+	message: string,
+};
+
+/**  A setting value. Integers are `i32` so the TypeScript type stays `number`. */
+export type SettingValue = boolean | number | string;
+
+export type SettingsChanged = SettingsState;
+
+export type SettingsState = {
+	path: string,
+	items: SettingItem[],
+	warnings: ConfigWarning[],
 };
 
 /* Tauri Specta runtime */

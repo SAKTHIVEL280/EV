@@ -10,7 +10,7 @@ Status legend: `planned` · `in progress` · `blocked (reason)` · `done (date)`
 |---|---|---|
 | 0 | Foundation & spikes | in progress (Linux foundation done 2026-10-17; waiting on CI run + Windows spikes) |
 | 1 | Brain | in progress (provisional, branch `feat/phase-1-brain`; started before the Phase 0 gate, see decisions.md) |
-| 2 | Island | planned |
+| 2 | Island | in progress (provisional, branch `feat/phase-2-island`: settings plumbing, Settings window skeleton, Minimal theme) |
 | 3 | Tools | planned |
 | 4 | Voice | planned |
 | 5 | Vision & media | planned |

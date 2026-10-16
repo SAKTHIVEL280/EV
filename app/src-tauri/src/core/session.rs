@@ -234,7 +234,9 @@ async fn drive(
                         | Message::ChatTool(_)
                         | Message::ChatDone(_)
                         | Message::ChatFailed(_)
-                        | Message::LlmStatus(_)),
+                        | Message::LlmStatus(_)
+                        | Message::ConfigState(_)
+                        | Message::ConfigRejected(_)),
                     ) => (hooks.on_message)(m),
                     Ok(m) => tracing::warn!(kind = m.kind(), "unexpected message from core"),
                     Err(e) => tracing::warn!(error = %e, "undecodable message from core"),

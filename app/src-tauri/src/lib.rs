@@ -11,6 +11,8 @@ pub mod paths;
 pub mod platform;
 pub mod protocol;
 pub mod secrets;
+pub mod settings;
+pub mod settings_window;
 pub mod state;
 
 use std::path::PathBuf;
@@ -57,13 +59,22 @@ pub fn specta_builder<R: Runtime>() -> tauri_specta::Builder<R> {
             commands::chat_send,
             commands::chat_cancel,
             commands::llm_status,
+            commands::settings_refresh,
+            commands::settings_set,
+            commands::settings_reset,
+            commands::settings_state,
+            commands::settings_open::<tauri::Wry>,
+            commands::open_config_file::<tauri::Wry>,
+            commands::open_logs_folder::<tauri::Wry>,
         ])
         .events(collect_events![
             CoreStatusChanged,
             IslandPointer,
             IslandVisibility,
             ChatUpdate,
-            LlmStatusChanged
+            LlmStatusChanged,
+            settings::SettingsChanged,
+            settings::SettingRejected
         ])
 }
 
@@ -84,11 +95,12 @@ pub fn run() -> Result<(), AppError> {
 
     let builder = specta_builder::<tauri::Wry>();
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
             builder.mount_events(app);
             let (shutdown_tx, shutdown_rx) = watch::channel(false);
-            app.manage(AppState::new(shutdown_tx));
+            app.manage(AppState::new(shutdown_tx, data_dir.clone()));
             app.manage(IslandState::default());
             island::create(app.handle())?;
             start_supervisor(app.handle(), data_dir.clone(), shutdown_rx);
@@ -127,6 +139,23 @@ struct AppObserver<R: Runtime> {
 }
 
 impl<R: Runtime> AppObserver<R> {
+    fn settings_message(&self, message: Message) {
+        match settings::update(message) {
+            Some(settings::Update::State(state)) => {
+                self.app.state::<AppState>().set_settings(state.clone());
+                if let Err(e) = settings::SettingsChanged(state).emit(&self.app) {
+                    tracing::warn!(error = %e, "emit SettingsChanged failed");
+                }
+            }
+            Some(settings::Update::Rejected(rejected)) => {
+                if let Err(e) = rejected.emit(&self.app) {
+                    tracing::warn!(error = %e, "emit SettingRejected failed");
+                }
+            }
+            None => {}
+        }
+    }
+
     fn set_llm(&self, status: LlmStatus) {
         self.app.state::<AppState>().set_llm_status(status.clone());
         if let Err(e) = LlmStatusChanged(status).emit(&self.app) {
@@ -148,6 +177,13 @@ impl<R: Runtime> CoreObserver for AppObserver<R> {
     }
 
     fn message(&self, message: Message) {
+        if matches!(
+            message,
+            Message::ConfigState(_) | Message::ConfigRejected(_)
+        ) {
+            self.settings_message(message);
+            return;
+        }
         match chat::update(message) {
             Some(Update::Chat(update)) => {
                 if let Err(e) = ChatUpdate(update).emit(&self.app) {

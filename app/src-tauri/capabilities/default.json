@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Island window: core IPC and event listening only.",
-  "windows": ["island"],
+  "description": "Island and Settings windows: core IPC and event listening only.",
+  "windows": ["island", "settings"],
   "permissions": ["core:default"]
 }

@@ -22,7 +22,8 @@ pub mod generated {
 use std::num::NonZeroU64;
 
 use generated::{
-    ChatCancelPayload, ChatSendPayload, Effort, EmptyPayload, HelloPayload, ProtocolVersion,
+    ChatCancelPayload, ChatSendPayload, ConfigGetPayload, ConfigResetPayload, ConfigSetPayload,
+    Effort, EmptyPayload, HelloPayload, ProtocolVersion, SettingName, SettingValue,
     ShutdownPayload, ShutdownPayloadReason,
 };
 use serde_json::Value;
@@ -107,6 +108,11 @@ messages! {
     ChatDone(ChatDoneMessage) = "chat.done",
     ChatFailed(ChatFailedMessage) = "chat.failed",
     LlmStatus(LlmStatusMessage) = "llm.status",
+    ConfigGet(ConfigGetMessage) = "config.get",
+    ConfigSet(ConfigSetMessage) = "config.set",
+    ConfigReset(ConfigResetMessage) = "config.reset",
+    ConfigState(ConfigStateMessage) = "config.state",
+    ConfigRejected(ConfigRejectedMessage) = "config.rejected",
 }
 
 #[derive(Debug, Error)]
@@ -211,6 +217,54 @@ pub fn chat_cancel(turn_id: &str) -> Result<Message, AppError> {
         },
         reply_to: None,
         type_: "chat.cancel".into(),
+        v: version(),
+    }))
+}
+
+fn setting_name(name: &str) -> Result<SettingName, AppError> {
+    name.parse()
+        .map_err(|e: generated::error::ConversionError| AppError::ProtocolMismatch(e.to_string()))
+}
+
+/// # Errors
+/// When the OS random source fails.
+pub fn config_get() -> Result<Message, AppError> {
+    Ok(Message::ConfigGet(generated::ConfigGetMessage {
+        id: id()?,
+        payload: ConfigGetPayload(serde_json::Map::new()),
+        reply_to: None,
+        type_: "config.get".into(),
+        v: version(),
+    }))
+}
+
+/// # Errors
+/// When the OS random source fails or a name is not a setting name.
+pub fn config_set(section: &str, key: &str, value: SettingValue) -> Result<Message, AppError> {
+    Ok(Message::ConfigSet(generated::ConfigSetMessage {
+        id: id()?,
+        payload: ConfigSetPayload {
+            key: setting_name(key)?,
+            section: setting_name(section)?,
+            value,
+        },
+        reply_to: None,
+        type_: "config.set".into(),
+        v: version(),
+    }))
+}
+
+/// # Errors
+/// When the OS random source fails or a name is not a setting name.
+pub fn config_reset(section: &str, key: &str) -> Result<Message, AppError> {
+    Ok(Message::ConfigReset(generated::ConfigResetMessage {
+        id: id()?,
+        payload: ConfigResetPayload {
+            key: setting_name(key)?,
+            section: setting_name(section)?,
+        },
+        reply_to: None,
+        type_: "config.reset".into(),
         v: version(),
     }))
 }

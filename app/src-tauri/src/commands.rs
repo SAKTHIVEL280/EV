@@ -8,12 +8,15 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::{AppHandle, Runtime, State, WebviewWindow};
+use tauri_plugin_opener::OpenerExt;
 
 use crate::chat::{Effort, LlmStatus};
 use crate::core::CoreStatus;
 use crate::island::IslandState;
 use crate::island::geometry::HitRect;
 use crate::protocol::{self, Message};
+use crate::settings::{SettingValue, SettingsState};
+use crate::settings_window;
 use crate::started_at;
 use crate::state::AppState;
 
@@ -166,4 +169,112 @@ pub fn chat_cancel(state: State<'_, AppState>, turn_id: String) -> Result<(), Co
 #[specta::specta]
 pub fn llm_status(state: State<'_, AppState>) -> LlmStatus {
     state.llm_status()
+}
+
+fn send(
+    state: &AppState,
+    message: Result<Message, crate::error::AppError>,
+) -> Result<(), CommandError> {
+    let message = message.map_err(|_| CommandError {
+        message: "EV couldn't do that.".into(),
+    })?;
+    state.link.send(message).map_err(|_| CommandError {
+        message: CORE_DOWN_TEXT.into(),
+    })
+}
+
+/// Ask core for the current settings; the answer arrives as `SettingsChanged`.
+///
+/// # Errors
+/// When core is not connected.
+#[tauri::command]
+#[specta::specta]
+pub fn settings_refresh(state: State<'_, AppState>) -> Result<(), CommandError> {
+    send(&state, protocol::config_get())
+}
+
+/// Change one setting; core answers with `SettingsChanged` or `SettingRejected`.
+///
+/// # Errors
+/// When core is not connected.
+#[tauri::command]
+#[specta::specta]
+pub fn settings_set(
+    state: State<'_, AppState>,
+    section: String,
+    key: String,
+    value: SettingValue,
+) -> Result<(), CommandError> {
+    send(&state, protocol::config_set(&section, &key, value.into()))
+}
+
+/// Return one setting to its default.
+///
+/// # Errors
+/// When core is not connected.
+#[tauri::command]
+#[specta::specta]
+pub fn settings_reset(
+    state: State<'_, AppState>,
+    section: String,
+    key: String,
+) -> Result<(), CommandError> {
+    send(&state, protocol::config_reset(&section, &key))
+}
+
+/// The last settings core reported, if any.
+#[tauri::command]
+#[specta::specta]
+pub fn settings_state(state: State<'_, AppState>) -> Option<SettingsState> {
+    state.settings()
+}
+
+/// # Errors
+/// When the window cannot be created.
+#[tauri::command]
+#[specta::specta]
+pub fn settings_open<R: Runtime>(app: AppHandle<R>) -> Result<(), CommandError> {
+    settings_window::open(&app).map_err(CommandError::from)
+}
+
+/// Open config.toml in the user's default editor.
+///
+/// # Errors
+/// When no application can open it.
+#[tauri::command]
+#[specta::specta]
+pub fn open_config_file<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
+    let path = state.data_dir.join("config.toml");
+    app.opener()
+        .open_path(path.to_string_lossy(), None::<&str>)
+        .map_err(|e| {
+            tracing::warn!(error = %e, "open config file failed");
+            CommandError {
+                message: "Couldn't open the config file.".into(),
+            }
+        })
+}
+
+/// Open the logs folder.
+///
+/// # Errors
+/// When no application can open it.
+#[tauri::command]
+#[specta::specta]
+pub fn open_logs_folder<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
+    let path = state.data_dir.join("logs");
+    app.opener()
+        .open_path(path.to_string_lossy(), None::<&str>)
+        .map_err(|e| {
+            tracing::warn!(error = %e, "open logs folder failed");
+            CommandError {
+                message: "Couldn't open the logs folder.".into(),
+            }
+        })
 }

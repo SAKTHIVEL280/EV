@@ -126,12 +126,13 @@
     margin: 0;
   }
 
+  /* Text uses fg-1 / fg-2 only: fg-3 (40%) is below WCAG AA on black. */
   .model,
   .meta,
   .hint,
   .user {
     font-size: var(--ev-text-11);
-    color: var(--ev-island-fg-3);
+    color: var(--ev-island-fg-2);
     font-variant-numeric: tabular-nums;
   }
 
@@ -177,7 +178,7 @@
   }
 
   input::placeholder {
-    color: var(--ev-island-fg-3);
+    color: var(--ev-island-fg-2);
   }
 
   input:focus-visible {
