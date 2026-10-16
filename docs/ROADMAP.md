@@ -80,8 +80,14 @@ Docs: `ARCHITECTURE.md`, `DESIGN.md`, `PERFORMANCE.md`, `FEATURES.md`, `ROADMAP.
 ---
 
 ## Phase 1 — Brain
-Status (2026-10-17): built and verified on Linux with Qwen3.5-4B (see PERFORMANCE.md §4.5);
-the Windows run and the RAM-budget check on the test laptop are pending.
+Status (2026-10-17): built and verified on Linux with Qwen3.5-4B (see PERFORMANCE.md §4.5).
+- [x] Golden tests pass against fakes (`tests/test_agent_loop.py`, CI) and against the real 4B
+      model (`tests/test_golden.py`, run manually: 6/6 on 2026-10-17).
+- [x] Instant ≤ 300 ms (router: 1 ms).
+- [x] Normal first token measured and recorded (0.42 s cached prefix, 3.5 s cold; linux-dev).
+- [ ] RAM within budget on the Windows test laptop (linux-dev: 3.2–3.4 GB llama-server + 51 MB
+      core; app and WebView not yet summed).
+- [ ] Chat used interactively in the island on Windows (spike kit, optional section).
 
 llama-server supervisor (random port, auth token, `-lm none`, restart policy), `LlmBackend`
 interface, agent loop (§5.4) with grammar-constrained tool calls, rule router (Instant), effort
