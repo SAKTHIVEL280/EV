@@ -1,0 +1,77 @@
+# EV — Performance
+
+Budgets are defined in `CLAUDE.md` §4 and are hard limits. This file defines **how** each budget
+is measured, where results are stored, and what has been measured so far. Never record a number
+that was not measured; estimates live in `docs/feasibility.md` and are labelled as estimates.
+
+## 1. Reference machine
+| Item | Dev machine (baseline numbers in §4.1–4.2) | Windows 11 test laptop |
+|---|---|---|
+| CPU | Intel i7-11800H (8C/16T), DDR4 | to be recorded |
+| RAM | 32 GB installed (budgets target a 16 GB machine) | to be recorded |
+| GPU | Intel UHD (TigerLake-H GT1) iGPU + NVIDIA RTX 3050 Ti Mobile; baseline runs were CPU-only | to be recorded |
+| OS | Linux (Omarchy) | Windows 11 x64 |
+
+Linux numbers are labelled `linux-dev` and are never used to pass a Windows budget. Budgets are
+judged on the Windows 11 test laptop; its specification is recorded here before the first spike
+measurement.
+
+## 2. Budgets and measurement method
+
+| Budget | Target | Method | Phase |
+|---|---|---|---|
+| Total RAM, 4B loaded, steady | ≤ 5.0 GB (cap 5.5) | Sum of private working sets of `ev.exe`, WebView2 children, `ev-core`, `llama-server`, sampled 1/min for 10 min after warm-up | 1 |
+| RAM, model unloaded | ≤ 450 MB | Same sum after idle unload | 1 |
+| Idle CPU (wake word only) | ≤ 3% total | Sum of process CPU over 10 min idle, normalized to all logical cores | 4 |
+| RAM growth, 8 h soak | < 50 MB/h | Linear regression slope of the RAM sum over the soak script | 9 |
+| Hover → panel | ≤ 120 ms first frame, ≤ 350 ms complete | `performance.now()` from pointerenter to first rAF with new shape; animation end event | 2 |
+| Animation | 60 fps, 0 dropped frames | rAF frame deltas during scripted morphs; frame > 20 ms = dropped | 0 (S1), 2 |
+| Hotkey → panel focused | ≤ 150 ms | Rust hotkey timestamp → UI focus event timestamp | 2 |
+| Instant effort | ≤ 300 ms | input received → tool result | 1 |
+| Normal first spoken word | ≤ 2 s | input received → first TTS audio buffer played | 4 |
+| Normal + web | first word ≤ 6 s, complete ≤ 10 s | as above, web path | 6 |
+| Wake → chime | ≤ 250 ms | wake detection → earcon playback start | 4 |
+| Barge-in → TTS stops | ≤ 100 ms | voice activity detected → audio output stopped | 4 |
+| Cold start → island visible | ≤ 1.5 s | process start → island first paint | 0 (S2), 2 |
+| Installer size (no models) | ≤ 150 MB | NSIS output file size | 0, 9 |
+
+A change that worsens a budget metric by more than 5% must explain why in its PR description.
+
+## 3. Benchmark storage
+- Scripts: `bench/` (one script per budget group).
+- Budgets as data: `bench/budgets.toml` (machine-readable copy of §4; a CI test asserts it matches
+  this table's targets).
+- Results: `bench/results/<date>-<machine>-<os>.json`, append-only, committed. Each result records
+  git commit, EV version, llama.cpp build, model file SHA-256, backend, thread count.
+
+## 4. Measured results
+
+### 4.1 LLM (CPU, llama.cpp b11696, 8 threads, i7-11800H, measured 2026-10-16, linux-dev)
+| Model | Prompt | Generate | RSS |
+|---|---|---|---|
+| Qwen3.5-4B Q4_K_M | 120 tok/s | 13.6 tok/s | 2.9 GB with `-lm none` (4.3 GB default) |
+| Qwen3.5-2B Q4_K_M | 329 tok/s | 29 tok/s | ~1.4 GB |
+| 4B vision, 720p, 256 image tokens | ~7 s per image | — | +0.6 GB (F16 mmproj) |
+
+### 4.2 TTS (CPU, onnxruntime, i7-11800H, measured 2026-10-16, linux-dev)
+| Model | Short sentence | Speed | RAM |
+|---|---|---|---|
+| Kokoro int8 | 0.9 s | 2.7x realtime | ~460 MB |
+| Supertonic 3 | 0.6 s | 6x realtime | ~650 MB |
+| KittenTTS micro 0.8 | 0.3 s | 15x realtime | ~360 MB (quality unverified) |
+
+### 4.3 Pending (Phase 0 spikes, Windows 11)
+| Measurement | Spike | Result |
+|---|---|---|
+| `-lm none` RSS on Windows, 4B | S3 | not yet measured |
+| Vulkan iGPU prompt/generate, 4B | S3 | not yet measured |
+| Island morph frame times, 100% / 150% DPI | S1 | not yet measured |
+| Cold start → island visible, onedir core | S2 | not yet measured |
+| Installer size (app + core, no models) | S2 | not yet measured |
+
+## 5. Design rules that follow from the numbers
+- Prompt reading is the CPU bottleneck: static prefix (system prompt + tools) ≤ 1,000 tokens and
+  cached; memory ≤ 300 tokens; context ≤ 300 tokens.
+- Always start llama-server with `-lm none` (re-verify on Windows in S3).
+- Vision (~7 s/image) is a fallback, never a loop.
+- Heavy background work pauses on battery, busy CPU, or fullscreen.
