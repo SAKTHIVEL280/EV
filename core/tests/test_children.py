@@ -17,7 +17,11 @@ def _wait_dead(pid: int, timeout_s: float = 10) -> bool:
 
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
-        if not psutil.pid_exists(pid) or psutil.Process(pid).status() == psutil.STATUS_ZOMBIE:
+        try:
+            if psutil.Process(pid).status() == psutil.STATUS_ZOMBIE:
+                return True
+        except psutil.NoSuchProcess:
+            # Gone between checks is the outcome we wait for, not an error.
             return True
         time.sleep(0.05)
     return False
