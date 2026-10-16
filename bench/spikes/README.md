@@ -36,9 +36,10 @@ A small black pill appears at the top center of the main screen.
 | 3 | Hover | Move the mouse onto the pill: it grows and shows "Ready". Move away: it shrinks back. |
 | 4 | No focus steal | Type in Notepad and move the mouse over the pill while typing: the text keeps going into Notepad. |
 | 5 | Panel | Click the hovered pill: the panel opens and can be closed with **Esc**, the **Close** button, or by clicking another window. |
-| 6 | Fullscreen | Play a video fullscreen (or press F11 in a browser, or start a game): the pill disappears; it returns when you leave fullscreen. |
-| 7 | 60 fps | Open the panel → **Run morph test**. The result line must show `0 dropped`. Note the `worst` and `settle` values. |
-| 8 | 150% scaling | Settings → Display → Scale 150%, then repeat checks 2, 3 and 7. |
+| 6 | Focus return | Click into Notepad, open the panel, press **Esc**, keep typing: the text goes into Notepad again. |
+| 7 | Fullscreen | Play a video fullscreen (or press F11 in a browser, or start a game): the pill disappears; it returns when you leave fullscreen. |
+| 8 | 60 fps | Open the panel → **Run morph test**. The result line must show `0 dropped`. Note the `worst` and `settle` values. |
+| 9 | 150% scaling | Settings → Display → Scale 150%, then repeat checks 2, 3 and 8. |
 
 Write down pass/fail for each row. The morph test results are also logged.
 

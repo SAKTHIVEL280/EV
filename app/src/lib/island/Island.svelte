@@ -269,7 +269,7 @@
       <span class="status" aria-live="polite">{statusText}</span>
     </button>
   {:else if mode === "panel"}
-    <div class="panel" role="dialog" aria-label="EV">
+    <div class="panel" class:testing role="dialog" aria-label="EV">
       <header>
         <span class="title">EV</span>
         {#if coreVersion}<span class="meta">core {coreVersion}</span>{/if}
@@ -344,6 +344,11 @@
     display: flex;
     flex-direction: column;
     gap: var(--ev-space-2);
+  }
+
+  /* The morph test shrinks the surface under the panel; hide its content meanwhile. */
+  .panel.testing {
+    opacity: 0;
   }
 
   header {

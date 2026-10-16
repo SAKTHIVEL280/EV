@@ -12,7 +12,8 @@ export const commands = {
 	islandSetHitRect: (rect: HitRect) => __TAURI_INVOKE<void>("island_set_hit_rect", { rect }),
 	/**
 	 *  Opening the panel makes the island focusable and focuses it so the input
-	 *  can take typing; closing returns to never-focus.
+	 *  can take typing; closing returns to never-focus and, on Windows, hands
+	 *  keyboard focus back to the app that had it.
 	 * 
 	 *  # Errors
 	 *  When the window rejects the focus change.

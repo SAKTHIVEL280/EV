@@ -38,7 +38,8 @@ pub fn island_set_hit_rect(state: State<'_, IslandState>, rect: HitRect) {
 }
 
 /// Opening the panel makes the island focusable and focuses it so the input
-/// can take typing; closing returns to never-focus.
+/// can take typing; closing returns to never-focus and, on Windows, hands
+/// keyboard focus back to the app that had it.
 ///
 /// # Errors
 /// When the window rejects the focus change.
@@ -51,6 +52,12 @@ pub fn island_set_panel_open<R: Runtime>(
     window.set_focusable(open)?;
     if open {
         window.set_focus()?;
+    } else if cfg!(windows) && window.is_focused()? {
+        // Windows keeps focus on a window that just became non-activating.
+        // Hiding activates the next window in z-order (the app the user came
+        // from); showing again does not activate (WS_EX_NOACTIVATE).
+        window.hide()?;
+        window.show()?;
     }
     Ok(())
 }
