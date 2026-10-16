@@ -39,8 +39,8 @@ A change that worsens a budget metric by more than 5% must explain why in its PR
 
 ## 3. Benchmark storage
 - Scripts: `bench/` (one script per budget group).
-- Budgets as data: `bench/budgets.toml` (machine-readable copy of §4; a CI test asserts it matches
-  this table's targets).
+- Budgets as data: `bench/budgets.toml`, created in Phase 1 together with the first automated
+  benchmark that reads it. Phase 0 measurements are manual spikes (`bench/spikes/`).
 - Results: `bench/results/<date>-<machine>-<os>.json`, append-only, committed. Each result records
   git commit, EV version, llama.cpp build, model file SHA-256, backend, thread count.
 
@@ -60,12 +60,38 @@ A change that worsens a budget metric by more than 5% must explain why in its PR
 | Supertonic 3 | 0.6 s | 6x realtime | ~650 MB |
 | KittenTTS micro 0.8 | 0.3 s | 15x realtime | ~360 MB (quality unverified) |
 
-### 4.3 Pending (Phase 0 spikes, Windows 11)
+### 4.3 Phase 0 (dev machine, linux-dev, measured 2026-10-17)
+Development numbers only; they never pass a Windows budget.
+
+| Measurement | Result | Notes |
+|---|---|---|
+| App start → core `hello.ack` (debug build, dev venv) | ~200 ms | `app.log` timestamps |
+| App start → core `hello.ack` (release build, packaged onedir core) | 294 ms | |
+| Packaged core: spawn → listening line / `hello.ack` | 171 ms / 173 ms | PyInstaller onedir, Linux |
+| Core crash (SIGKILL) → restarted core ready | 1.1 s | 1 s backoff + start |
+| Process start → first island frame painted (debug, Vite dev server) | 377 ms | `spike s2 island painted` |
+| Packaged core onedir size | 42 MB | Linux; most is `libpython` (31 MB) |
+| Release app binary | 4.8 MB | Linux, LTO, `opt-level = "s"` |
+
+Spring settle time (computed with the shipped integrator, 60 fps, rest at 0.5 px):
+
+| Spring (stiffness / damping / mass) | 240 px (idle → panel) | 80 px |
+|---|---|---|
+| 400 / 32 / 1 (contract default) | ~417 ms | ~350 ms |
+| 500 / 40 / 1 | ~300 ms | ~267 ms |
+| 600 / 44 / 1 | ~283 ms | ~250 ms |
+
+The contract default misses the ≤ 350 ms "animation complete" budget for the largest morph. Phase 2
+tunes the spring (CLAUDE.md §6.2) and records the final values in `DESIGN.md`. See
+`docs/decisions.md` (Phase 0).
+
+### 4.4 Pending (Phase 0 spikes, Windows 11)
 | Measurement | Spike | Result |
 |---|---|---|
 | `-lm none` RSS on Windows, 4B | S3 | not yet measured |
 | Vulkan iGPU prompt/generate, 4B | S3 | not yet measured |
 | Island morph frame times, 100% / 150% DPI | S1 | not yet measured |
+| Hover → panel first frame (budget ≤ 120 ms) | S1 | not yet measured |
 | Cold start → island visible, onedir core | S2 | not yet measured |
 | Installer size (app + core, no models) | S2 | not yet measured |
 

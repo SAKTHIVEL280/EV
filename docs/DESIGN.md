@@ -9,11 +9,14 @@ like a camera cutout. Depth comes from motion and blur, never from shadows, grad
 One accent color, used only for live states.
 
 ## 2. Tokens
-Tokens are the only source of visual values. Components reference CSS custom properties; a lint
-rule (Phase 2) rejects raw colors, lengths, durations and font names in component styles.
+Tokens are the only source of visual values. Components reference CSS custom properties, and
+script code reads geometry and motion from tokens at runtime. ESLint already rejects raw colors in
+TypeScript and Svelte script code. A stylelint rule for raw colors, lengths, durations and font
+names inside `<style>` blocks is added in Phase 2.
 
-Files: `app/src/lib/tokens/base.css` (theme-independent), `app/src/lib/tokens/themes/minimal.css`
-(light + dark). A new theme is one new file with zero component changes.
+Files: `app/src/lib/tokens/base.css` (theme-independent; exists since Phase 0) and, from Phase 2,
+`app/src/lib/tokens/themes/minimal.css` (light + dark). A new theme is one new file with zero
+component changes.
 
 ### 2.1 Island (fixed across themes)
 | Token | Value |
@@ -49,7 +52,7 @@ locked after the Phase 2 specimen (Windows, ClearType, 100/125/150% DPI) is appr
 ### 2.5 Motion
 | Token | Value |
 |---|---|
-| `--ev-spring-default` | stiffness 400, damping 32, mass 1 **(tune P2)** |
+| `--ev-spring-stiffness` / `-damping` / `-mass` | 400 / 32 / 1 **(tune P2)**. Measured in Phase 0: ~417 ms to settle the 240 px idle → panel morph, over the 350 ms budget; 500 / 40 settles in ~300 ms (PERFORMANCE.md §4.3). |
 | Reduced motion | cross-fade only, ≤ 150 ms |
 | Animation strength | Full / Subtle / Reduced (scales spring displacement; Reduced = cross-fade) |
 
@@ -72,8 +75,9 @@ Windows "Animation effects" setting.
 Every surface also designs: empty, loading, error, offline, permission denied, disabled.
 Feedback lives in the island only — no toasts.
 
-Exact geometry per state is defined in Phase 2. The Phase 0 spike uses `idle` ↔ `panel` only, to
-measure frame times and click-through.
+Exact geometry per state is defined in Phase 2. The Phase 0 spike implements `idle`, `hover` and
+`panel` (starting values in `base.css`) to measure frame times, latency and click-through. The
+panel contains spike controls (morph test, quit) that are replaced in Phase 2.
 
 ## 4. Icons
 Custom EV set, ~30 icons, 20 px grid, 1.5 px stroke, rounded joins, stored as SVG in

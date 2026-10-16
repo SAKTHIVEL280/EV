@@ -8,7 +8,7 @@ Status legend: `planned` · `in progress` · `blocked (reason)` · `done (date)`
 
 | Phase | Name | Status |
 |---|---|---|
-| 0 | Foundation & spikes | in progress |
+| 0 | Foundation & spikes | in progress (Linux foundation done 2026-10-17; waiting on CI run + Windows spikes) |
 | 1 | Brain | planned |
 | 2 | Island | planned |
 | 3 | Tools | planned |
@@ -59,11 +59,16 @@ Spikes (built by CI, verified by the user on the Windows 11 laptop):
 Docs: `ARCHITECTURE.md`, `DESIGN.md`, `PERFORMANCE.md`, `FEATURES.md`, `ROADMAP.md` (this file).
 
 ### Done when
-- [ ] All CI jobs green on Linux and Windows.
-- [ ] Protocol contract tests pass on both sides; codegen check passes.
-- [ ] Core: config, logging, bus, registry, server have unit tests; `mypy --strict` clean.
-- [ ] App runs end-to-end on Linux: island window appears, core starts, handshake succeeds,
+- [ ] All CI jobs green on Linux and Windows. *(Workflows written and actionlint-clean; they
+      first run when the branch is pushed, which waits for the user.)*
+- [x] Protocol contract tests pass on both sides; codegen check passes. *(local, 2026-10-17)*
+- [x] Core: config, logging, bus, registry, server have unit tests; `mypy --strict` clean.
+      *(75 Python tests; 30 Rust tests; 15 frontend tests)*
+- [x] App runs end-to-end on Linux: island window appears, core starts, handshake succeeds,
       killing core triggers restart with backoff, three failures show the error state.
+      *(Run manually on the dev machine: handshake, SIGKILL → restart in 1.1 s, app SIGKILL →
+      core exits. The three-failure path is covered by Rust tests with a scripted fake core;
+      the island's error text was not checked visually.)*
 - [ ] S1 verified on Windows 11 at 100% and 150% DPI: click-through works outside the pill,
       no shadow, no focus steal, fullscreen app hides the island, morph holds 60 fps with 0 dropped
       frames on the reference machine.
