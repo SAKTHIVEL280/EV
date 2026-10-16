@@ -138,15 +138,15 @@ class LlmModule(Module, LlmProvider):
 
     async def acquire(self, role: ModelRole) -> LlmBackend:
         async with self._lock:
-            model = resolve_model(self._settings, self.models_dir, role)
-            if model is None:
-                raise LlmError("no_model", NO_MODEL_TEXT, f"no installed model for role {role}")
             server = self._server
             if server is None or self._session is None or self._binary is None:
                 # The registry never started this module: turned off, or the runtime is missing.
                 if not self._settings.enabled:
                     raise LlmError("llm_disabled", DISABLED_TEXT, "llm.enabled is false")
                 raise LlmError("llm_unavailable", RUNTIME_MISSING_TEXT, "llm module not started")
+            model = resolve_model(self._settings, self.models_dir, role)
+            if model is None:
+                raise LlmError("no_model", NO_MODEL_TEXT, f"no installed model for role {role}")
             config = LaunchConfig(
                 binary=self._binary,
                 model=model,

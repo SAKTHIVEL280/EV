@@ -47,9 +47,15 @@ class EventBus:
             task.add_done_callback(self._tasks.discard)
 
     async def drain(self) -> None:
-        """Wait until every scheduled handler has finished."""
-        while self._tasks:
-            await asyncio.gather(*list(self._tasks))
+        """Wait until every scheduled handler has finished.
+
+        Only unfinished tasks are awaited. A finished task can stay in the set
+        until its discard callback runs, and gathering only finished tasks
+        completes without yielding (Python 3.12 eager gather), which made the
+        old loop spin forever (found in Phase 1 testing).
+        """
+        while pending := [task for task in self._tasks if not task.done()]:
+            await asyncio.wait(pending)
 
     @staticmethod
     async def _run(handler: Handler[Any], event: Event) -> None:

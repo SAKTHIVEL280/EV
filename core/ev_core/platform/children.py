@@ -3,15 +3,21 @@
 - Windows: children are assigned to a Job Object created with
   JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE. Core holds the only handle; when core
   exits for any reason the OS closes it and kills every child.
-- Linux: PR_SET_PDEATHSIG makes the kernel send SIGKILL to the child when the
-  thread that spawned it (core's event loop thread) dies.
+- Linux (development): children start through util-linux
+  `setpriv --pdeathsig KILL`, so the kernel kills them when core dies. This
+  replaced a `preexec_fn` doing the same prctl: running Python in a forked
+  child of a multi-threaded process (aiohttp's resolver threads) can deadlock,
+  and Python 3.12 warns about it (found in Phase 1 testing).
 """
 
 import ctypes
-import signal
+import logging
+import shutil
 import subprocess
 import sys
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 if sys.platform == "win32":
     from ctypes import wintypes
@@ -98,12 +104,19 @@ class ChildGuard:
                 raise ctypes.WinError(error)
             self._job = job
 
+    def command(self, argv: list[str]) -> list[str]:
+        """The command line to spawn, wrapped where the platform needs it."""
+        if sys.platform == "linux":
+            setpriv = shutil.which("setpriv")
+            if setpriv is not None:
+                return [setpriv, "--pdeathsig", "KILL", "--", *argv]
+            logger.warning("setpriv not found; child processes may outlive core")
+        return argv
+
     def spawn_kwargs(self) -> dict[str, Any]:
         """Extra keyword arguments for subprocess creation."""
         if sys.platform == "win32":
             return {"creationflags": subprocess.CREATE_NO_WINDOW}
-        if sys.platform == "linux":
-            return {"preexec_fn": _die_with_parent}
         return {}
 
     def adopt(self, pid: int) -> None:
@@ -123,10 +136,3 @@ class ChildGuard:
         if sys.platform == "win32" and self._job is not None:
             _kernel32.CloseHandle(self._job)
             self._job = None
-
-
-def _die_with_parent() -> None:
-    # Runs in the forked child before exec: only async-signal-safe work here.
-    pr_set_pdeathsig = 1
-    libc = ctypes.CDLL(None, use_errno=True)
-    libc.prctl(pr_set_pdeathsig, signal.SIGKILL)

@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 
 import pytest
@@ -63,3 +64,19 @@ async def test_unsubscribe() -> None:
     bus.publish(Ping(1))
     await bus.drain()
     assert seen == []
+
+
+async def test_drain_returns_when_finished_tasks_await_cleanup() -> None:
+    # A handler that finishes immediately leaves its task in the set until the
+    # discard callback runs; drain must not spin on it.
+    bus = EventBus()
+    seen: list[int] = []
+
+    async def handler(event: Ping) -> None:
+        seen.append(event.n)
+
+    bus.subscribe(Ping, handler)
+    bus.publish(Ping(1))
+    await asyncio.sleep(0)  # the handler task runs and finishes; cleanup is only scheduled
+    await asyncio.wait_for(bus.drain(), 1)
+    assert seen == [1]

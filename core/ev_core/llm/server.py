@@ -100,7 +100,7 @@ class LlamaServer:
         port = free_port()
         self._stderr.clear()
         process = await asyncio.create_subprocess_exec(
-            *arguments(config, port, api_key),
+            *self._guard.command(arguments(config, port, api_key)),
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.PIPE,

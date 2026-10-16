@@ -167,3 +167,51 @@ async def test_binds_loopback_only(harness: Harness) -> None:
     assert harness.server._server is not None
     hosts = {sock.getsockname()[0] for sock in harness.server._server.sockets}
     assert hosts == {"127.0.0.1"}
+
+
+async def test_chat_send_and_cancel_become_bus_events(harness: Harness) -> None:
+    from ev_core.config import EffortLevel
+    from ev_core.interfaces.events import ChatCancelRequested, ChatRequested
+
+    seen: list[object] = []
+
+    async def record(event: object) -> None:
+        seen.append(event)
+
+    harness.bus.subscribe(ChatRequested, record)
+    harness.bus.subscribe(ChatCancelRequested, record)
+    async with connect(harness.url, additional_headers=AUTH) as ws:
+        await _greet(ws)
+        send = protocol.chat_send("hi", protocol.Effort.deep)
+        await ws.send(protocol.encode(send))
+        await ws.send(protocol.encode(protocol.chat_cancel(send.id)))
+        await ws.send(protocol.encode(protocol.ping()))
+        await _recv(ws)  # pong: both earlier frames were handled
+    await harness.bus.drain()
+    assert seen == [ChatRequested(send.id, "hi", EffortLevel.DEEP), ChatCancelRequested(send.id)]
+
+
+async def test_outbound_events_keep_order_and_status_is_replayed(harness: Harness) -> None:
+    from ev_core.config import EffortLevel
+    from ev_core.interfaces.events import ChatDelta, ChatDone, ChatStarted, LlmStatusChanged
+
+    turn = protocol.new_id()
+    harness.bus.publish(LlmStatusChanged("ready", "m.gguf"))
+    harness.bus.publish(ChatDelta(turn, "dropped: no client yet"))
+    await harness.bus.drain()
+    async with connect(harness.url, additional_headers=AUTH) as ws:
+        await _greet(ws)
+        status = await _recv(ws)
+        assert status["type"] == "llm.status"
+        assert status["payload"] == {"state": "ready", "model": "m.gguf"}
+        harness.bus.publish(ChatStarted(turn, EffortLevel.NORMAL, "m.gguf"))
+        for i in range(50):
+            harness.bus.publish(ChatDelta(turn, str(i)))
+        harness.bus.publish(
+            ChatDone(turn, "x", EffortLevel.NORMAL, "m.gguf", total_ms=5, cancelled=False)
+        )
+        received = [await _recv(ws) for _ in range(52)]
+    assert received[0]["type"] == "chat.started"
+    assert [m["payload"]["text"] for m in received[1:51]] == [str(i) for i in range(50)]
+    assert received[51]["type"] == "chat.done"
+    assert received[51]["payload"]["timings"] == {"total_ms": 5}
