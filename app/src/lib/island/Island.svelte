@@ -227,6 +227,10 @@
     heightSpring = new Spring(idle.height, config);
     draw();
     reportHitRect(idle);
+    // Spike S2: two frames later the first island frame has been painted.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => void commands.spikeIslandPainted());
+    });
 
     const unlisteners = [
       events.coreStatusChanged.listen((event) => {

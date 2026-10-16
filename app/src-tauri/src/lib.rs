@@ -13,7 +13,8 @@ pub mod secrets;
 pub mod state;
 
 use std::path::PathBuf;
-use std::time::Duration;
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Manager, RunEvent, Runtime};
 use tauri_specta::{Event, collect_commands, collect_events};
@@ -31,6 +32,13 @@ use crate::state::AppState;
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 const SHUTDOWN_WAIT: Duration = Duration::from_secs(5);
 
+static STARTED: OnceLock<Instant> = OnceLock::new();
+
+/// When `run` began (first call wins); the reference for startup timings.
+pub fn started_at() -> Instant {
+    *STARTED.get_or_init(Instant::now)
+}
+
 /// Commands and events exposed to the UI. Also used to generate
 /// `app/src/lib/bindings.ts`.
 #[must_use]
@@ -42,6 +50,7 @@ pub fn specta_builder<R: Runtime>() -> tauri_specta::Builder<R> {
             commands::core_status,
             commands::app_quit::<tauri::Wry>,
             commands::spike_report_frames,
+            commands::spike_island_painted,
         ])
         .events(collect_events![
             CoreStatusChanged,
@@ -55,6 +64,7 @@ pub fn specta_builder<R: Runtime>() -> tauri_specta::Builder<R> {
 /// # Errors
 /// When the data directory, logging or the Tauri runtime cannot be set up.
 pub fn run() -> Result<(), AppError> {
+    started_at();
     let data_dir = paths::current_data_dir()?;
     let level = if cfg!(debug_assertions) {
         LevelFilter::DEBUG

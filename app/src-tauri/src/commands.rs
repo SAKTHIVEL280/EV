@@ -12,6 +12,7 @@ use tauri::{AppHandle, Runtime, State, WebviewWindow};
 use crate::core::CoreStatus;
 use crate::island::IslandState;
 use crate::island::geometry::HitRect;
+use crate::started_at;
 use crate::state::AppState;
 
 #[derive(Debug, Serialize, Type, thiserror::Error)]
@@ -97,4 +98,15 @@ pub fn spike_report_frames(stats: FrameStats) {
         dpr_percent = stats.dpr_percent,
         "spike s1 frame stats"
     );
+}
+
+/// Spike S2: the island's first painted frame, measured from process start
+/// (budget: cold start -> island visible <= 1.5 s). Logged once.
+#[tauri::command]
+#[specta::specta]
+pub fn spike_island_painted(state: State<'_, AppState>) {
+    if state.mark_painted() {
+        let elapsed_ms = u64::try_from(started_at().elapsed().as_millis()).unwrap_or(u64::MAX);
+        tracing::info!(elapsed_ms, "spike s2 island painted");
+    }
 }

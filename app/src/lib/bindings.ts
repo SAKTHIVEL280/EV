@@ -21,6 +21,11 @@ export const commands = {
 	coreStatus: () => __TAURI_INVOKE<CoreStatus>("core_status"),
 	appQuit: () => __TAURI_INVOKE<void>("app_quit"),
 	spikeReportFrames: (stats: FrameStats) => __TAURI_INVOKE<void>("spike_report_frames", { stats }),
+	/**
+	 *  Spike S2: the island's first painted frame, measured from process start
+	 *  (budget: cold start -> island visible <= 1.5 s). Logged once.
+	 */
+	spikeIslandPainted: () => __TAURI_INVOKE<void>("spike_island_painted"),
 };
 
 /** Events */
