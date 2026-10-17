@@ -1,0 +1,5 @@
+# Lint the benchmark with core's rules.
+extend = "../../core/pyproject.toml"
+
+[lint.per-file-ignores]
+"test_*.py" = ["S101"]

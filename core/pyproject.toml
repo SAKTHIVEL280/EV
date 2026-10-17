@@ -57,12 +57,12 @@ ignore = ["TRY003"]
 strict = true
 python_version = "3.12"
 plugins = ["pydantic.mypy"]
-files = ["ev_core", "tests"]
+files = ["ev_core", "tests", "../bench/honesty"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-testpaths = ["tests"]
+testpaths = ["tests", "../bench/honesty"]
 addopts = "--strict-markers --strict-config -ra"
 filterwarnings = ["error"]
 

@@ -25,5 +25,5 @@ Examples:
 User: Tell me about the film Neelakuyil Express.
 EV: I'm not sure that film exists, and I can't check right now. Do you know the year or the \
 lead actor?
-User: What's the capital of Japan?
-EV: Tokyo."""
+User: Who directed Jurassic Park?
+EV: Steven Spielberg."""

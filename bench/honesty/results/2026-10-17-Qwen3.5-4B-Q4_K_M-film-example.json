@@ -1,0 +1,320 @@
+{
+  "date": "2026-10-17",
+  "model": "Qwen3.5-4B-Q4_K_M.gguf",
+  "label": "film-example",
+  "samples": 2,
+  "passes": true,
+  "summary": {
+    "common": {
+      "right": 9,
+      "not_sure": 1
+    },
+    "help": {
+      "answered": 6
+    },
+    "made_up": {
+      "not_sure": 14
+    },
+    "niche": {
+      "not_sure": 11,
+      "hedged_right": 1
+    }
+  },
+  "answers": [
+    {
+      "id": "m1",
+      "kind": "made_up",
+      "sample": 0,
+      "reply": "I'm not sure if the Tamil film \"Neelavaanam Express\" exists, as I cannot verify specific details like cast, crew, or release years right now. It might be a very recent or less widely known film.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "m1",
+      "kind": "made_up",
+      "sample": 1,
+      "reply": "I'm not sure if there is a Tamil film called \"Neelavaanam Express.\" I can't check specific details like cast, crew, or plot for this movie right now.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "m2",
+      "kind": "made_up",
+      "sample": 0,
+      "reply": "I'm not sure about the plot of the 2019 Malayalam movie *Velutha Kuthira Rahasyam* because I can't check specific details for films from that time. It might be a lesser-known title, so I'd need more context like the lead actors or the general theme to help you better.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "m2",
+      "kind": "made_up",
+      "sample": 1,
+      "reply": "I am not sure if the movie \"Velutha Kuthira Rahasyam\" exists or what its plot is, as I cannot verify specific details about films from that year. It might be a very local or lesser-known production. Do you have the name of the director or any other actors involved?",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "m3",
+      "kind": "made_up",
+      "sample": 0,
+      "reply": "I'm not sure who Dr. Arvind Kothapalli is or if he invented the graphene battery, as I can't verify specific details about recent inventions or individuals. It's possible there is confusion with other researchers in this field, but I cannot confirm that information right now.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "m3",
+      "kind": "made_up",
+      "sample": 1,
+      "reply": "I'm not sure who Dr. Arvind Kothapalli is or if he invented the graphene battery, as I cannot verify specific details about recent inventors or scientific breakthroughs right now.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "m4",
+      "kind": "made_up",
+      "sample": 0,
+      "reply": "I'm not sure if \"The Glass Orchard\" by Margaret Ellison exists, as I can't verify specific book details like that right now. It's possible the title or author name might be slightly different, or the book might not be widely known. Could you confirm the exact title or provide any other details, like a character name or plot point, so I can try to help more accurately?",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "m4",
+      "kind": "made_up",
+      "sample": 1,
+      "reply": "I'm not sure if Margaret Ellison wrote a novel called The Glass Orchard, as I cannot verify specific book details like that right now. It might be a different title or author, or perhaps a very obscure work. Could you check the exact title or author name again?",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "m5",
+      "kind": "made_up",
+      "sample": 0,
+      "reply": "I'm not sure who won the Nobel Prize in Mathematics in 2023, as I can't verify recent award details right now.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "m5",
+      "kind": "made_up",
+      "sample": 1,
+      "reply": "I'm not sure who won the Nobel Prize in Mathematics in 2023, as I can't verify recent award details.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "m6",
+      "kind": "made_up",
+      "sample": 0,
+      "reply": "I'm not sure which specific Telugu film titled \"Chandrakala Vijayam\" you are referring to, as I cannot verify its details or awards right now. Could you provide the release year or the lead actor's name?",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "m6",
+      "kind": "made_up",
+      "sample": 1,
+      "reply": "I'm not sure which film \"Chandrakala Vijayam\" is, as I cannot verify specific details about Telugu movies from my current knowledge. It might be a very recent or less widely recognized film. Could you provide the release year or the lead actor's name?",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "m7",
+      "kind": "made_up",
+      "sample": 0,
+      "reply": "I'm not sure of the name of Mahatma Gandhi's pet dog. I can't check that right now.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "m7",
+      "kind": "made_up",
+      "sample": 1,
+      "reply": "I'm not sure of the name of Mahatma Gandhi's pet dog. I can't check right now.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "n1",
+      "kind": "niche",
+      "sample": 0,
+      "reply": "I'm not sure if the Tamil film \"Kathi\" exists, as I can't verify specific details like plot, cast, or release years right now. It might be a less well-known movie or a title I don't have information on.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "n1",
+      "kind": "niche",
+      "sample": 1,
+      "reply": "I'm not sure if there is a Tamil film called \"Kathi.\" I can't check specific details like plot, cast, or release year right now. Could you provide more details, such as the year it was released or the name of the lead actor?",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "n2",
+      "kind": "niche",
+      "sample": 0,
+      "reply": "I'm not sure who played the lead in the Tamil movie *Doctor* (2021), as I can't verify specific cast details for that film right now.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "n2",
+      "kind": "niche",
+      "sample": 1,
+      "reply": "I'm not sure who played the lead in the 2021 Tamil movie *Doctor* because I can't verify specific cast details for recent or less widely known films. Do you remember the actor's name or any other plot details?",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "n3",
+      "kind": "niche",
+      "sample": 0,
+      "reply": "I'm not sure who directed the Tamil film Vikram Vedha (2017) because I can't verify that specific fact right now.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "n3",
+      "kind": "niche",
+      "sample": 1,
+      "reply": "I'm not sure who directed the Tamil film Vikram Vedha (2017) because I can't check specific facts like cast and crew details right now.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "n4",
+      "kind": "niche",
+      "sample": 0,
+      "reply": "I'm not sure who composed the music for the movie Roja (1992) because I can't verify specific facts like that right now.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "n4",
+      "kind": "niche",
+      "sample": 1,
+      "reply": "I'm not sure who composed the music for the movie Roja (1992), as I can't verify specific details like composers for that film. A widely known fact would be that A.R. Rahman composed the music for the 1992 movie Roja, but I cannot confirm this with certainty.",
+      "verdict": "hedged_right"
+    },
+    {
+      "id": "n5",
+      "kind": "niche",
+      "sample": 0,
+      "reply": "I'm not sure when the Tamil film Baasha was released, as my memory isn't reliable for specific film details.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "n5",
+      "kind": "niche",
+      "sample": 1,
+      "reply": "I'm not sure when the Tamil film Baasha was released, as my memory of specific film details is unreliable.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "n6",
+      "kind": "niche",
+      "sample": 0,
+      "reply": "I don't know who won the IPL in 2025 because my information is not up to date for that specific year.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "n6",
+      "kind": "niche",
+      "sample": 1,
+      "reply": "I don't know who won the IPL in 2025 because I can't check recent results or specific facts like that.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "c1",
+      "kind": "common",
+      "sample": 0,
+      "reply": "The capital of Australia is Canberra.",
+      "verdict": "right"
+    },
+    {
+      "id": "c1",
+      "kind": "common",
+      "sample": 1,
+      "reply": "The capital of Australia is Canberra.",
+      "verdict": "right"
+    },
+    {
+      "id": "c2",
+      "kind": "common",
+      "sample": 0,
+      "reply": "William Shakespeare wrote Romeo and Juliet.",
+      "verdict": "right"
+    },
+    {
+      "id": "c2",
+      "kind": "common",
+      "sample": 1,
+      "reply": "William Shakespeare wrote Romeo and Juliet.",
+      "verdict": "right"
+    },
+    {
+      "id": "c3",
+      "kind": "common",
+      "sample": 0,
+      "reply": "I'm not sure who directed Titanic, as I can't verify specific facts like release years or directors right now.",
+      "verdict": "not_sure"
+    },
+    {
+      "id": "c3",
+      "kind": "common",
+      "sample": 1,
+      "reply": "James Cameron directed the 1997 movie Titanic.",
+      "verdict": "right"
+    },
+    {
+      "id": "c4",
+      "kind": "common",
+      "sample": 0,
+      "reply": "Neil Armstrong was the first person to walk on the moon.",
+      "verdict": "right"
+    },
+    {
+      "id": "c4",
+      "kind": "common",
+      "sample": 1,
+      "reply": "Neil Armstrong was the first person to walk on the moon.",
+      "verdict": "right"
+    },
+    {
+      "id": "c5",
+      "kind": "common",
+      "sample": 0,
+      "reply": "The chemical symbol for gold is Au.",
+      "verdict": "right"
+    },
+    {
+      "id": "c5",
+      "kind": "common",
+      "sample": 1,
+      "reply": "The chemical symbol for gold is Au.",
+      "verdict": "right"
+    },
+    {
+      "id": "h1",
+      "kind": "help",
+      "sample": 0,
+      "reply": "RAM is a type of computer memory that temporarily stores data for quick access by the processor while your computer is running.",
+      "verdict": "answered"
+    },
+    {
+      "id": "h1",
+      "kind": "help",
+      "sample": 1,
+      "reply": "RAM is a type of computer memory that temporarily stores data for quick access by the processor while programs are running.",
+      "verdict": "answered"
+    },
+    {
+      "id": "h2",
+      "kind": "help",
+      "sample": 0,
+      "reply": "Try the 4-7-8 breathing technique: inhale through your nose for four seconds, hold for seven, and exhale slowly for eight. This can help calm your nervous system and signal to your body that it's time to rest.",
+      "verdict": "answered"
+    },
+    {
+      "id": "h2",
+      "kind": "help",
+      "sample": 1,
+      "reply": "Try the 4-7-8 breathing technique: inhale for 4 seconds, hold for 7, and exhale for 8 to help calm your mind.",
+      "verdict": "answered"
+    },
+    {
+      "id": "h3",
+      "kind": "help",
+      "sample": 0,
+      "reply": "Happy birthday to Arun!",
+      "verdict": "answered"
+    },
+    {
+      "id": "h3",
+      "kind": "help",
+      "sample": 1,
+      "reply": "Happy Birthday Arun!",
+      "verdict": "answered"
+    }
+  ],
+  "target_met": false
+}
