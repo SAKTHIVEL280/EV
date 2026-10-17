@@ -181,6 +181,16 @@ pub fn chat_cancel(state: State<'_, AppState>, turn_id: String) -> Result<(), Co
     })
 }
 
+/// New chat (F-414).
+///
+/// # Errors
+/// When core is not connected.
+#[tauri::command]
+#[specta::specta]
+pub fn chat_reset(state: State<'_, AppState>) -> Result<(), CommandError> {
+    send(&state, protocol::chat_reset())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn llm_status(state: State<'_, AppState>) -> LlmStatus {
@@ -293,6 +303,48 @@ pub fn settings_state(state: State<'_, AppState>) -> Option<SettingsState> {
 pub async fn settings_open<R: Runtime>(app: AppHandle<R>) -> Result<(), CommandError> {
     settings_window::open(&app).map_err(CommandError::from)
 }
+
+/// Ask the user for a folder (Settings, F-415). `None` when they cancel.
+/// Async, and the dialog answers through a channel, so the event loop never
+/// blocks (the same Windows deadlock as `settings_open`).
+///
+/// # Errors
+/// When the dialog cannot be shown or returns a path that isn't a folder path.
+#[tauri::command]
+#[specta::specta]
+pub async fn pick_folder<R: Runtime>(
+    window: WebviewWindow<R>,
+    title: String,
+    start: Option<String>,
+) -> Result<Option<String>, CommandError> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let mut dialog = window.dialog().file().set_parent(&window).set_title(title);
+    if let Some(start) = start.filter(|s| std::path::Path::new(s).is_dir()) {
+        dialog = dialog.set_directory(start);
+    }
+    dialog.pick_folder(move |picked| {
+        let _ = tx.send(picked);
+    });
+    let picked = rx.await.map_err(|_| CommandError {
+        message: PICKER_FAILED_TEXT.into(),
+    })?;
+    picked
+        .map(|p| {
+            p.into_path()
+                .map(|path| path.to_string_lossy().into_owned())
+                .map_err(|e| {
+                    tracing::warn!(error = %e, "picked folder is not a path");
+                    CommandError {
+                        message: PICKER_FAILED_TEXT.into(),
+                    }
+                })
+        })
+        .transpose()
+}
+
+const PICKER_FAILED_TEXT: &str = "Couldn't open the folder picker.";
 
 /// Whether this run is the end-to-end smoke test (`EV_SMOKE_TEST=1`).
 #[tauri::command]

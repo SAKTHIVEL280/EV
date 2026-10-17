@@ -1,81 +1,83 @@
 <!--
-  Typed chat (docs/FEATURES.md F-001): one input and the current exchange.
+  Typed chat (docs/FEATURES.md F-001, F-414): the whole session and one
+  input. The session lives in the chat store, so closing the panel keeps it.
   Replies stream in; a new message replaces a reply that is still streaming.
-  Until a model is installed, the panel offers the models instead
-  (docs/FEATURES.md F-403).
+  Until a model is installed, the panel offers the models instead (F-403).
 -->
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
 
-  import { commands, events, type LlmStatus } from "../bindings";
   import ModelList from "../models/ModelList.svelte";
   import { needsModel } from "../models/models";
   import { models } from "../models/store.svelte";
-  import { apply, begin, busy, empty, sendFailed, sent, type ChatState } from "./chat";
+  import { busy, latest, type Turn } from "./chat";
+  import { chat } from "./store.svelte";
 
   const TOOL_TEXT: Record<string, string> = { current_time: "Checking the time" };
+  /** Within this distance of the bottom, new text keeps the view pinned there. */
+  const PIN_SLACK_PX = 24;
 
-  let chat = $state<ChatState>(empty);
-  let llm = $state<LlmStatus>({ state: "unloaded", model: null, detail: null });
   let draft = $state("");
   let input: HTMLInputElement | undefined = $state();
+  let list: HTMLDivElement | undefined = $state();
+  let pinned = true;
 
   const setup = $derived(needsModel(models.state));
+  const entries = $derived(chat.state.entries);
+  const newest = $derived(latest(chat.state));
 
   export function focus(): void {
     input?.focus();
   }
 
   const modelText = $derived.by(() => {
-    switch (llm.state) {
+    switch (chat.llm.state) {
       case "loading":
         return "Waking up";
       case "failed":
-        return llm.detail ?? "Couldn't load the model.";
+        return chat.llm.detail ?? "Couldn't load the model.";
       default:
         return "";
     }
   });
 
-  const turn = $derived(chat.current);
-
-  const placeholder = $derived.by(() => {
-    if (!turn) return null;
+  function waiting(turn: Turn): string | null {
     if (turn.reply || turn.status === "failed") return null;
     if (turn.tool) return TOOL_TEXT[turn.tool] ?? "Working";
-    return busy(chat) ? "Thinking" : null;
+    return turn === newest && busy(chat.state) ? "Thinking" : null;
+  }
+
+  function onScroll(): void {
+    if (!list) return;
+    pinned = list.scrollHeight - list.scrollTop - list.clientHeight <= PIN_SLACK_PX;
+  }
+
+  function toBottom(): void {
+    if (list) list.scrollTop = list.scrollHeight;
+  }
+
+  /** Changes whenever a message arrives or the newest reply grows. */
+  const growth = $derived(`${String(entries.length)}:${String(newest?.reply.length ?? 0)}`);
+
+  // Keep the newest text in view while pinned.
+  $effect(() => {
+    if (growth && pinned) void tick().then(toBottom);
   });
 
   async function submit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const text = draft.trim();
     if (!text) return;
-    chat = begin(chat, text);
     draft = "";
-    const result = await commands.chatSend(text, null);
-    chat =
-      result.status === "ok" ? sent(chat, result.data) : sendFailed(chat, result.error.message);
+    pinned = true;
+    await chat.send(text);
   }
 
   onMount(() => {
     models.init();
-    const unlisteners = [
-      events.chatUpdate.listen((event) => {
-        chat = apply(chat, event.payload);
-      }),
-      events.llmStatusChanged.listen((event) => {
-        llm = event.payload;
-      }),
-    ];
-    void commands.llmStatus().then((initial) => {
-      llm = initial;
-    });
-    return () => {
-      for (const pending of unlisteners)
-        void pending.then((unlisten) => {
-          unlisten();
-        });
-    };
+    chat.init();
+    // Opening the panel shows the newest message.
+    void tick().then(toBottom);
   });
 </script>
 
@@ -89,27 +91,33 @@
   <div class="chat">
     {#if modelText}<p class="model" aria-live="polite">{modelText}</p>{/if}
 
-    <div class="exchange" aria-live="polite">
-      {#if turn}
-        <p class="user">{turn.user}</p>
-        {#if turn.status === "failed"}
-          <p class="reply error">{turn.error}</p>
-        {:else if placeholder}
-          <p class="reply waiting">{placeholder}</p>
+    <div class="session" bind:this={list} onscroll={onScroll} aria-live="polite">
+      {#each entries as entry, i (i)}
+        {#if entry.type === "notice"}
+          <p class="notice">{entry.text}</p>
         {:else}
-          <p class="reply">{turn.reply}</p>
-        {/if}
-        {#if turn.status === "cancelled"}<p class="meta">Stopped</p>{/if}
-        {#if turn.status === "done" && turn.totalMs !== null}
-          <p class="meta">
-            {turn.firstTokenMs !== null ? `first word ${String(turn.firstTokenMs)} ms · ` : ""}total {String(
-              turn.totalMs,
-            )} ms
-          </p>
+          <div class="turn">
+            <p class="user">{entry.user}</p>
+            {#if entry.status === "failed"}
+              <p class="reply muted">{entry.error}</p>
+            {:else if waiting(entry)}
+              <p class="reply muted">{waiting(entry)}</p>
+            {:else}
+              <p class="reply">{entry.reply}</p>
+            {/if}
+            {#if entry.status === "cancelled"}<p class="meta">Stopped</p>{/if}
+            {#if entry === newest && entry.status === "done" && entry.totalMs !== null}
+              <p class="meta">
+                {entry.firstTokenMs !== null
+                  ? `first word ${String(entry.firstTokenMs)} ms · `
+                  : ""}total {String(entry.totalMs)} ms
+              </p>
+            {/if}
+          </div>
         {/if}
       {:else}
         <p class="hint">Ask anything. Press Enter to send.</p>
-      {/if}
+      {/each}
     </div>
 
     <form onsubmit={submit}>
@@ -131,7 +139,7 @@
   /* Scroll areas reach into the panel's side padding, so the scrollbar line
      sits beside the text instead of taking width from it. */
   .setup,
-  .exchange {
+  .session {
     margin-right: calc(-1 * var(--ev-space-3));
     padding-right: var(--ev-space-3);
   }
@@ -175,27 +183,33 @@
   /* Text uses fg-1 / fg-2 only: fg-3 (40%) is below WCAG AA on black. */
   .model,
   .meta,
-  .user {
+  .notice {
     font-size: var(--ev-text-11);
     color: var(--ev-island-fg-2);
     font-variant-numeric: tabular-nums;
   }
 
-  .user {
-    font-size: var(--ev-text-13);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .exchange {
+  .session {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: var(--ev-space-1);
+    gap: var(--ev-space-3);
     user-select: text;
+  }
+
+  .turn {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ev-space-1);
+  }
+
+  .user {
+    font-size: var(--ev-text-13);
+    color: var(--ev-island-fg-2);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
   .reply {
@@ -203,10 +217,10 @@
     line-height: 1.45;
     color: var(--ev-island-fg-1);
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
-  .waiting,
-  .error {
+  .muted {
     color: var(--ev-island-fg-2);
   }
 

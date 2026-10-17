@@ -48,6 +48,22 @@ export const commands = {
 	 *  When core is not connected or `turn_id` is not a turn id.
 	 */
 	chatCancel: (turnId: string) => typedError<null, CommandError>(__TAURI_INVOKE("chat_cancel", { turnId })),
+	/**
+	 *  New chat (F-414).
+	 * 
+	 *  # Errors
+	 *  When core is not connected.
+	 */
+	chatReset: () => typedError<null, CommandError>(__TAURI_INVOKE("chat_reset")),
+	/**
+	 *  Ask the user for a folder (Settings, F-415). `None` when they cancel.
+	 *  Async, and the dialog answers through a channel, so the event loop never
+	 *  blocks (the same Windows deadlock as `settings_open`).
+	 * 
+	 *  # Errors
+	 *  When the dialog cannot be shown or returns a path that isn't a folder path.
+	 */
+	pickFolder: (title: string, start: string | null) => typedError<string | null, CommandError>(__TAURI_INVOKE("pick_folder", { title, start })),
 	llmStatus: () => __TAURI_INVOKE<LlmStatus>("llm_status"),
 	/**
 	 *  Ask core for the current settings; the answer arrives as `SettingsChanged`.
@@ -110,6 +126,8 @@ export const commands = {
 	modelsState: () => __TAURI_INVOKE<{
 	models_dir: string,
 	models: ModelInfo[],
+	/**  `.gguf` files in the models folder that are not catalog models (F-415). */
+	other_files: string[],
 } | null>("models_state"),
 	/**
 	 *  Ask core for the model list; the answer arrives as `ModelsChanged`.
@@ -256,6 +274,8 @@ export type ModelsChanged = ModelsState;
 export type ModelsState = {
 	models_dir: string,
 	models: ModelInfo[],
+	/**  `.gguf` files in the models folder that are not catalog models (F-415). */
+	other_files: string[],
 };
 
 export type ModuleInfo = {
@@ -280,6 +300,12 @@ export type SettingItem = {
 	maximum: number | null,
 	/**  Shown after integer values (px, ms, min, tokens). */
 	unit: string | null,
+	/**  Control drawn instead of the plain one: model | folder | shortcut | slider (F-415). */
+	widget: string | null,
+	/**  For `widget = model`: small | default | large. */
+	role: string | null,
+	/**  For `widget = slider`: the values the slider stops at. */
+	steps: number[],
 };
 
 export type SettingRejected = {

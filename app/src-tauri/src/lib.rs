@@ -62,6 +62,8 @@ pub fn specta_builder<R: Runtime>() -> tauri_specta::Builder<R> {
             commands::spike_island_painted,
             commands::chat_send,
             commands::chat_cancel,
+            commands::chat_reset,
+            commands::pick_folder::<tauri::Wry>,
             commands::llm_status,
             commands::settings_refresh,
             commands::settings_set,
@@ -113,6 +115,7 @@ pub fn run() -> Result<(), AppError> {
     let builder = specta_builder::<tauri::Wry>();
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {

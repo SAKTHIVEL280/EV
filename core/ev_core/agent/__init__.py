@@ -28,6 +28,7 @@ from ev_core.interfaces.events import (
     ChatCancelRequested,
     ChatFailed,
     ChatRequested,
+    ChatResetRequested,
     LlmStatusChanged,
 )
 from ev_core.interfaces.llm import ChatMessage, LlmError, LlmProvider
@@ -65,6 +66,7 @@ class AgentModule(Module):
         self._bus = ctx.bus
         ctx.bus.subscribe(ChatRequested, self._on_request)
         ctx.bus.subscribe(ChatCancelRequested, self._on_cancel)
+        ctx.bus.subscribe(ChatResetRequested, self._on_reset)
         ctx.bus.subscribe(ConfigChanged, self._on_config)
         ctx.bus.subscribe(LlmStatusChanged, self._on_llm_status)
 
@@ -120,6 +122,14 @@ class AgentModule(Module):
         if event.turn_id == self._turn_id:
             async with self._switch:
                 await self._cancel_running()
+
+    async def _on_reset(self, _: ChatResetRequested) -> None:
+        # New chat (F-414): the running turn stops first, so its cancelled
+        # ChatDone and history entry land before the history is cleared.
+        async with self._switch:
+            await self._cancel_running()
+            self._history.clear()
+        logger.info("chat reset")
 
     async def _cancel_running(self) -> None:
         task, self._task = self._task, None

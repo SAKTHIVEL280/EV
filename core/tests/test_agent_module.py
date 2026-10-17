@@ -10,6 +10,7 @@ from ev_core.interfaces.events import (
     ChatDone,
     ChatFailed,
     ChatRequested,
+    ChatResetRequested,
     ChatStarted,
     LlmStatusChanged,
 )
@@ -84,7 +85,7 @@ async def test_prefix_beats_requested_effort() -> None:
     bus, rec, agent, provider = await setup(FakeBackend([answer("ok")]))
     bus.publish(ChatRequested("t1", "instant effort, summarize", EffortLevel.MAX))
     await rec.wait_for(ChatDone)
-    assert provider.roles == [ModelRole.SMALL]
+    assert provider.roles == [ModelRole.DEFAULT]
     started = rec.events[0]
     assert isinstance(started, ChatStarted)
     assert started.effort is EffortLevel.INSTANT
@@ -123,6 +124,28 @@ async def test_cancel_request() -> None:
     done = rec.events[-1]
     assert isinstance(done, ChatDone)
     assert done.cancelled
+    await agent.stop()
+
+
+async def test_reset_cancels_running_turn_and_forgets_history() -> None:
+    backend = FakeBackend([answer("Hi Sam."), answer("I don't know.")])
+    bus, rec, agent, _ = await setup(backend)
+    bus.publish(ChatRequested("t1", "my name is Sam", None))
+    await rec.wait_for(ChatDone)
+    blocking = Blocking([])
+    agent._provider = FakeProvider(blocking)
+    bus.publish(ChatRequested("t2", "long", None))
+    await rec.wait_for(ChatStarted, 2)
+    bus.publish(ChatResetRequested())
+    await rec.wait_for(ChatDone, 2)
+    done = rec.events[-1]
+    assert isinstance(done, ChatDone)
+    assert done.cancelled
+    agent._provider = FakeProvider(backend)
+    bus.publish(ChatRequested("t3", "what is my name", None))
+    await rec.wait_for(ChatDone, 3)
+    contents = [m.content for m in backend.calls[-1].messages]
+    assert not any("Sam" in c for c in contents)
     await agent.stop()
 
 
