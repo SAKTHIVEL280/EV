@@ -1,10 +1,10 @@
 <!--
-  The island (CLAUDE.md §6.1, docs/DESIGN.md §3): a drop of black liquid
-  hanging from the top edge of the screen. One outline morphs between the
-  idle drop, the hover capsule and the panel, driven by springs; content
+  The island (CLAUDE.md §6.1, docs/DESIGN.md §3): a black arc hanging from
+  the top edge of the screen (F-413). One outline morphs between the resting
+  arc, the hover capsule and the panel, driven by springs; content
   cross-fades on top.
 
-  The idle drop never takes clicks. Rust reveals it (IslandPointer) when the
+  The resting arc never takes clicks. Rust reveals it (IslandPointer) when the
   pointer stays near it; the UI reports its current shape and whether that
   shape takes clicks after every change (island/pointer.rs).
 -->
@@ -12,12 +12,13 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { onMount } from "svelte";
 
-  import { commands, events, type CoreStatus, type HitRect } from "../bindings";
+  import { commands, events, type CoreStatus, type HitRect, type SettingsState } from "../bindings";
   import ChatPanel from "../chat/ChatPanel.svelte";
+  import { chat } from "../chat/store.svelte";
   import Icon from "../icons/Icon.svelte";
   import { downloadStatus } from "../models/models";
   import { models } from "../models/store.svelte";
-  import { dropletBounds, dropletPath, type Drop } from "./droplet";
+  import { outlineBounds, outlinePath, type Outline } from "./outline";
   import { FrameRecorder } from "./frames";
   import { Spring, type SpringConfig } from "./spring";
 
@@ -28,6 +29,7 @@
     radius: number;
     neck: number;
     exponent: number;
+    arc: number;
   }
 
   let mode = $state<Mode>("idle");
@@ -36,6 +38,9 @@
   let path = $state("");
 
   let chatPanel: { focus: () => void } | undefined = $state();
+  let panelError = $state<string | null>(null);
+  /** island.arc_width / island.arc_depth; null until settings arrive (tokens apply). */
+  let arcSize: { width: number; depth: number } | null = null;
 
   const statusText = $derived.by(() => {
     switch (status.state) {
@@ -56,13 +61,33 @@
   }
 
   function shapeFor(m: Mode): Shape {
-    return {
+    const shape = {
       width: token(`--ev-island-${m}-width`),
       height: token(`--ev-island-${m}-height`),
       radius: token(`--ev-island-${m}-radius`),
       neck: token(`--ev-island-${m}-neck`),
       exponent: token(`--ev-island-${m}-exponent`),
+      arc: token(`--ev-island-${m}-arc`),
     };
+    if (m === "idle" && arcSize) {
+      shape.width = arcSize.width;
+      shape.height = arcSize.depth;
+    }
+    return shape;
+  }
+
+  /** Read the arc size from settings; re-shape the resting island if it changed. */
+  function applySettings(state: SettingsState): void {
+    const int = (key: string): number | null => {
+      const item = state.items.find((i) => i.section === "island" && i.key === key);
+      return item && typeof item.value === "number" ? item.value : null;
+    };
+    const width = int("arc_width");
+    const depth = int("arc_depth");
+    if (width === null || depth === null) return;
+    if (arcSize?.width === width && arcSize.depth === depth) return;
+    arcSize = { width, depth };
+    if (mode === "idle") morph("idle", "idle->idle");
   }
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -81,20 +106,21 @@
       radius: springs.radius.value,
       neck: springs.neck.value,
       exponent: springs.exponent.value,
+      arc: springs.arc.value,
     };
   }
 
-  function drop(shape: Shape): Drop {
+  function outline(shape: Shape): Outline {
     return { cx: window.innerWidth / 2, ...shape };
   }
 
   function draw(): void {
-    path = dropletPath(drop(current()));
+    path = outlinePath(outline(current()));
   }
 
   /** Tell Rust where the shape is and whether it takes clicks. */
   function report(shape: Shape, clickable: boolean): void {
-    const rect: HitRect = dropletBounds(drop(shape));
+    const rect: HitRect = outlineBounds(outline(shape));
     void commands.islandSetHitRect(rect, clickable);
   }
 
@@ -146,6 +172,7 @@
           radius: target.radius,
           neck: Math.max(now.neck, target.neck),
           exponent: target.exponent,
+          arc: Math.min(now.arc, target.arc),
         },
         true,
       );
@@ -185,6 +212,11 @@
     void commands.islandSetPanelOpen(false);
   }
 
+  async function newChat(): Promise<void> {
+    panelError = await chat.newChat();
+    chatPanel?.focus();
+  }
+
   function openSettings(): void {
     closePanel();
     void commands.settingsOpen();
@@ -212,10 +244,14 @@
       radius: new Spring(idle.radius, height),
       neck: new Spring(idle.neck, height),
       exponent: new Spring(idle.exponent, height),
+      // The arc blend follows the height, so the arc swells into the capsule.
+      arc: new Spring(idle.arc, height),
     };
     draw();
     report(idle, false);
     models.init();
+    // The session outlives the panel (F-414): listen from the start.
+    chat.init();
     // Spike S2: two frames later the first island frame has been painted.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => void commands.spikeIslandPainted());
@@ -246,6 +282,9 @@
         if (mode === "panel") closePanel();
         else openPanel();
       }),
+      events.settingsChanged.listen((event) => {
+        applySettings(event.payload);
+      }),
       getCurrentWindow().onFocusChanged((event) => {
         if (!event.payload) closePanel();
       }),
@@ -254,6 +293,9 @@
       smokeTest = enabled;
       status = await commands.coreStatus();
       smokeOnStatus(status);
+    });
+    void commands.settingsState().then((cached) => {
+      if (cached) applySettings(cached);
     });
 
     return () => {
@@ -286,6 +328,15 @@
           <button
             class="icon-button"
             type="button"
+            onclick={() => void newChat()}
+            aria-label="New chat"
+            title="New chat"
+          >
+            <Icon name="newChat" size={18} />
+          </button>
+          <button
+            class="icon-button"
+            type="button"
             onclick={openSettings}
             aria-label="Settings"
             title="Settings"
@@ -303,6 +354,7 @@
           </button>
         </div>
       </header>
+      {#if panelError}<p class="panel-error" role="alert">{panelError}</p>{/if}
       <ChatPanel bind:this={chatPanel} />
     </div>
   {/if}
@@ -399,6 +451,12 @@
     margin-left: auto;
     display: flex;
     gap: var(--ev-space-1);
+  }
+
+  .panel-error {
+    margin: 0;
+    font-size: var(--ev-text-13);
+    color: var(--ev-island-fg-1);
   }
 
   .icon-button {

@@ -65,6 +65,12 @@
   --ev-model-action-width: 88px;
   --ev-number-input-width: 96px;
   --ev-unit-width: 44px;
+  /* Settings controls (F-415): one right-hand column of equal width. */
+  --ev-control-column-width: 248px;
+  --ev-slider-width: 156px;
+  --ev-slider-value-width: 84px;
+  /* Appearance: the arc preview strip, a slice of the screen's top edge. */
+  --ev-preview-height: 72px;
 
   /* Motion. Spring physics, not eased tweens. Width is crisp; height a little
      softer, so the drop swells and settles like liquid. Both settle within the
@@ -77,22 +83,28 @@
   --ev-fade-reduced: 150ms;
   --ev-fade-content: 120ms;
 
-  /* Island drop geometry, logical px: body width / height, bottom corner
-     radius, neck (where it meets the screen edge) and corner exponent
-     (2 = round bead, 5 = continuous squircle). The idle drop is a round bead. */
-  --ev-island-idle-width: 16px;
-  --ev-island-idle-height: 13px;
-  --ev-island-idle-radius: 8px;
-  --ev-island-idle-neck: 5px;
+  /* Island geometry, logical px (outline.ts, F-413): body width / height,
+     bottom corner radius, neck (where it meets the screen edge), corner
+     exponent (2 = round, 5 = continuous squircle) and arc blend (1 = circle
+     segment). At rest the island is an arc; its width and depth come from
+     island.arc_width / island.arc_depth, these are the values until settings
+     arrive. The idle body values shape the first frames of the morph. */
+  --ev-island-idle-width: 56px;
+  --ev-island-idle-height: 7px;
+  --ev-island-idle-radius: 28px;
+  --ev-island-idle-neck: 0px;
   --ev-island-idle-exponent: 2;
+  --ev-island-idle-arc: 1;
   --ev-island-hover-width: 168px;
   --ev-island-hover-height: 30px;
   --ev-island-hover-radius: 15px;
   --ev-island-hover-neck: 8px;
   --ev-island-hover-exponent: 3;
+  --ev-island-hover-arc: 0;
   --ev-island-panel-width: 380px;
   --ev-island-panel-height: 264px;
   --ev-island-panel-radius: 26px;
   --ev-island-panel-neck: 12px;
   --ev-island-panel-exponent: 5;
+  --ev-island-panel-arc: 0;
 }
