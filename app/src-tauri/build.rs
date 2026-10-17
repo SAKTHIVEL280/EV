@@ -14,7 +14,30 @@ const SCHEMA: &str = "../../protocol/ev-protocol.schema.json";
 fn main() {
     println!("cargo:rerun-if-changed={SCHEMA}");
     generate_protocol();
-    tauri_build::build();
+    embed_windows_manifest();
+    tauri_build::try_build(
+        tauri_build::Attributes::new()
+            .windows_attributes(tauri_build::WindowsAttributes::new_without_app_manifest()),
+    )
+    .expect("tauri build");
+}
+
+/// Tauri embeds its app manifest only into the app binary, so on Windows the
+/// test binaries start without Common Controls v6 and fail at load time
+/// (`STATUS_ENTRYPOINT_NOT_FOUND`, seen in CI). The same manifest is embedded
+/// through the linker instead, which covers every binary.
+fn embed_windows_manifest() {
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
+    if target_os != "windows" || target_env != "msvc" {
+        return;
+    }
+    let manifest = env::current_dir()
+        .expect("build script directory")
+        .join("windows-app-manifest.xml");
+    println!("cargo:rerun-if-changed={}", manifest.display());
+    println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+    println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.display());
 }
 
 fn generate_protocol() {
