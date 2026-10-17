@@ -18,7 +18,13 @@ class EffortPolicy:
 
 
 POLICIES: Final[dict[EffortLevel, EffortPolicy]] = {
-    EffortLevel.INSTANT: EffortPolicy(ModelRole.SMALL, thinking=False, max_steps=1, max_tokens=512),
+    # Instant answers what the router can't with the default model, not the
+    # small one: the 2B invents facts with every prompt tried (decisions.md,
+    # "Hallucination eval"; provisional). The small model remains the fallback
+    # when it is the only one installed.
+    EffortLevel.INSTANT: EffortPolicy(
+        ModelRole.DEFAULT, thinking=False, max_steps=1, max_tokens=512
+    ),
     EffortLevel.NORMAL: EffortPolicy(
         ModelRole.DEFAULT, thinking=False, max_steps=5, max_tokens=1024
     ),

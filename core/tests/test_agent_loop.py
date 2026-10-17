@@ -109,13 +109,13 @@ async def test_step_limit_stops_tool_loops() -> None:
     assert done.text == STEP_LIMIT_TEXT
 
 
-async def test_instant_gets_no_tools_and_small_model() -> None:
+async def test_instant_gets_no_tools_and_the_default_model() -> None:
     _, backend, provider = await play(
         request("summarize this", EffortLevel.INSTANT), [answer("ok")]
     )
     assert backend.calls[0].tools == []
     assert backend.calls[0].max_tokens == 512
-    assert provider.roles == [ModelRole.SMALL]
+    assert provider.roles == [ModelRole.DEFAULT]
 
 
 @pytest.mark.parametrize("effort", [EffortLevel.DEEP, EffortLevel.MAX])

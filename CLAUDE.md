@@ -161,7 +161,7 @@ Everything in core is a module implementing a small interface, registered in one
 ### 5.5 Effort levels
 | Level | Model | Thinking | Web | Max steps |
 |---|---|---|---|---|
-| Instant | router; else smallest installed model | off | no | 1 |
+| Instant | router; else the default model (provisional 2026-10-17, see decisions.md) | off | no | 1 |
 | Normal (default) | default model | off | auto when unsure | 5 |
 | Deep | largest installed | on | yes, 2-3 searches, ~8 pages | 15 |
 | Max | largest installed | on | yes, iterative | 40, cancellable, progress shown |

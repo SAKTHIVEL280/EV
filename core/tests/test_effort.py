@@ -39,6 +39,7 @@ def test_policies_match_contract() -> None:
     assert not POLICIES[EffortLevel.NORMAL].thinking
     assert POLICIES[EffortLevel.DEEP].thinking
     assert POLICIES[EffortLevel.MAX].thinking
-    assert POLICIES[EffortLevel.INSTANT].role is ModelRole.SMALL
+    # Provisional (decisions.md, "Hallucination eval"): the small model invents facts.
+    assert POLICIES[EffortLevel.INSTANT].role is ModelRole.DEFAULT
     assert POLICIES[EffortLevel.NORMAL].role is ModelRole.DEFAULT
     assert POLICIES[EffortLevel.DEEP].role is ModelRole.LARGE
