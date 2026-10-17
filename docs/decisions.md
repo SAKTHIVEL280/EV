@@ -222,3 +222,35 @@ The user installed the CI build on the Windows 11 laptop. Findings and decisions
 - Linux development note: under XWayland, EV only sees the pointer over X11 windows; Hyprland's
   cursor warp does not reach X11 clients. Pointer tests use `xdotool` over an X11 backdrop.
 
+## Second Windows test (beta build) and fixes (2026-10-17)
+The user tried the build on the Windows 11 laptop: chat, Settings and models worked. Findings:
+- **Hover stopped opening the drop after the hotkey was used.** The only Windows-specific step on that
+  path was the focus return from the first test: when the panel closed while focused (Esc or the
+  hotkey), the island window was hidden and shown again. Clicking outside, which never did that,
+  kept hover working. Decision: no more hide/show. On open, the window that had focus is remembered
+  (`GetForegroundWindow`, unless it is the island). On close, if the island still has focus, that
+  window is re-activated (`SetForegroundWindow`, allowed because the island is in the foreground). If
+  it has closed, focus stays and a log line says so. Why hide/show broke hover was not isolated: tao
+  keeps the click-through and no-activate flags across it, so the likely cause is WebView2 or the
+  layered window not painting again. *Unverified until the next Windows test.*
+- **Scrollbar too wide for the small panel.** Decision: every scroll area uses a 6 px grab area that
+  draws a 2 px line on a 1 px hairline track (the track shows how long the content is). Tokens:
+  `--ev-scrollbar-*`; the Settings window uses its theme colours. In the island the scroll areas
+  reach into the panel's side padding, so the bar takes no width from the text. Built with
+  `::-webkit-scrollbar` (WebView2 is Chromium); `scrollbar-width`/`scrollbar-color` must not be set,
+  because Chromium then ignores these rules. Checked in headless Chromium.
+- **Wrong date and time.** The model only knew the time if it chose to call `current_time`, and
+  Instant effort gives the model no tools at all, so a small model could make up a date. Decision:
+  the current user message starts with a one-line local time (F-001). It goes there, not in the
+  system prompt, so the cached prefix stays the same between requests; history keeps the plain
+  text. The router also answers "what's the date and time". Verified with Qwen3.5-4B on Linux:
+  golden tests 6/6, and replies only mention the time when asked. Still open: the model gets date
+  arithmetic wrong ("days until Christmas" on Oct 17 answered 44, actually 69). A date-math tool is
+  needed (Phase 3).
+- **Voice mode** (user request): Ctrl+Space should open straight into voice, so EV listens and talks
+  back. User decisions on the plan:
+  - Build order stays as documented: Phase 3 (Tools) before Phase 4 (Voice).
+  - Ctrl+Space opens the panel already listening; typing switches to text and turns the mic off.
+  - EV answers out loud when the user spoke (including short acknowledgements such as "Okay, I'll do
+    that" before working); typed messages get text replies.
+
