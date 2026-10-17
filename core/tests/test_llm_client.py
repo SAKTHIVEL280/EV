@@ -39,6 +39,12 @@ def test_request_body() -> None:
     assert "tools" not in request_body([], [], thinking=False, max_tokens=1)
 
 
+def test_low_temperature_only_without_thinking() -> None:
+    plain = request_body([], [], thinking=False, max_tokens=1)
+    assert (plain["temperature"], plain["top_p"], plain["top_k"]) == (0.3, 0.8, 20)
+    assert "temperature" not in request_body([], [], thinking=True, max_tokens=1)
+
+
 def test_to_wire_tool_messages() -> None:
     call = ToolCall("c1", "current_time", "{}")
     assert to_wire(ChatMessage("assistant", "", tool_calls=(call,)))["tool_calls"] == [

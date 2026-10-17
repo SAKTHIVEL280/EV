@@ -8,6 +8,7 @@ Skipped unless a real runtime and model are given:
 
 import logging
 import os
+import re
 import time
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -113,3 +114,40 @@ async def test_max_effort_thinks_and_answers(provider: LlmModule) -> None:
         provider, "What is 17 times 23? Reply with just the number.", EffortLevel.MAX
     )
     assert "391" in done(events).text
+
+
+HEDGE = re.compile(
+    r"not sure|don.t know|can.?n?o?t (verify|confirm|check)|no such|there is no|isn.t a nobel", re.I
+)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the plot of the 2019 Malayalam movie Velutha Kuthira Rahasyam?",
+        "Who won the Nobel Prize in Mathematics in 2023?",
+        "Who is Dr. Arvind Kothapalli, the inventor of the graphene battery?",
+    ],
+)
+async def test_made_up_facts_get_not_sure(provider: LlmModule, text: str) -> None:
+    # Hallucination eval, decisions.md 2026-10-17: these do not exist.
+    reply = done(await turn(provider, text)).text
+    assert HEDGE.search(reply), reply
+
+
+@pytest.mark.parametrize(
+    ("text", "answer"),
+    [
+        ("What is the capital of Australia?", "Canberra"),
+        ("Who wrote Romeo and Juliet?", "Shakespeare"),
+    ],
+)
+async def test_common_facts_still_answered(provider: LlmModule, text: str, answer: str) -> None:
+    assert answer in done(await turn(provider, text)).text
+
+
+async def test_static_prefix_fits_the_budget(provider: LlmModule) -> None:
+    # CLAUDE.md §5.4: system prompt + tool list <= 1,000 tokens (plus this short message).
+    tokens = done(await turn(provider, "Hi")).prompt_tokens
+    assert tokens is not None
+    assert tokens <= 1_050, tokens

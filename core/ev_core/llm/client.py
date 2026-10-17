@@ -1,7 +1,7 @@
 """llama-server client: OpenAI-compatible streaming chat completions over SSE."""
 
 import json
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any, Final
 
 import aiohttp
@@ -35,6 +35,9 @@ def to_wire(message: ChatMessage) -> dict[str, Any]:
     return wire
 
 
+FACTUAL_SAMPLING: Final[Mapping[str, float | int]] = {"temperature": 0.3, "top_p": 0.8, "top_k": 20}
+
+
 def request_body(
     messages: Sequence[ChatMessage],
     tools: Sequence[ToolSpec],
@@ -52,6 +55,10 @@ def request_body(
         # Qwen chat templates switch thinking on and off with this flag.
         "chat_template_kwargs": {"enable_thinking": thinking},
     }
+    if not thinking:
+        # Fewer invented facts at low temperature (hallucination eval, decisions.md 2026-10-17).
+        # Thinking keeps the server defaults: low temperature there was not measured.
+        body.update(FACTUAL_SAMPLING)
     if tools:
         body["tools"] = [
             {
