@@ -30,8 +30,6 @@
     switch (llm.state) {
       case "loading":
         return "Waking up";
-      case "ready":
-        return "Ready";
       case "failed":
         return llm.detail ?? "Couldn't load the model.";
       default:
@@ -110,7 +108,7 @@
           </p>
         {/if}
       {:else}
-        <p class="hint">Type a question and press Enter.</p>
+        <p class="hint">Ask anything. Press Enter to send.</p>
       {/if}
     </div>
 
@@ -145,6 +143,11 @@
     color: var(--ev-island-fg-1);
   }
 
+  .hint {
+    font-size: var(--ev-text-13);
+    color: var(--ev-island-fg-2);
+  }
+
   .setup .hint {
     margin-bottom: var(--ev-space-1);
   }
@@ -164,7 +167,6 @@
   /* Text uses fg-1 / fg-2 only: fg-3 (40%) is below WCAG AA on black. */
   .model,
   .meta,
-  .hint,
   .user {
     font-size: var(--ev-text-11);
     color: var(--ev-island-fg-2);

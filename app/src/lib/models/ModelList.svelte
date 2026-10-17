@@ -14,7 +14,14 @@
   const { variant }: Props = $props();
 
   let errors = $state<Record<string, string>>({});
-  const list = $derived(ordered(models.state));
+  let showAll = $state(false);
+  const all = $derived(ordered(models.state));
+  // The island leads with the recommended model; the others are one click away.
+  const compact = $derived(variant === "island" && !showAll);
+  const list = $derived(
+    compact ? all.filter((m) => m.recommended || m.state !== "available") : all,
+  );
+  const hidden = $derived(all.length - list.length);
 
   async function act(id: string, action: "download" | "cancel"): Promise<void> {
     const error = await (action === "download" ? models.download(id) : models.cancel(id));
@@ -97,6 +104,11 @@
     </li>
   {/each}
 </ul>
+{#if hidden > 0}
+  <button class="more {variant}" type="button" onclick={() => (showAll = true)}>
+    Other sizes
+  </button>
+{/if}
 
 <style>
   .models {
@@ -107,7 +119,31 @@
     flex-direction: column;
   }
 
+  .more {
+    align-self: flex-start;
+    padding: var(--ev-space-1) 0;
+    font: inherit;
+    font-size: var(--ev-text-11);
+    font-weight: var(--ev-weight-medium);
+    color: var(--ev-island-fg-2);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .more:hover {
+    color: var(--ev-island-fg-1);
+  }
+
+  .more:focus-visible {
+    outline: 2px solid var(--ev-focus-ring);
+    outline-offset: 2px;
+  }
+
   .island {
+    --name-size: var(--ev-text-13);
+    --small-size: var(--ev-text-11);
+    --row-gap: var(--ev-space-2);
     --fg-1: var(--ev-island-fg-1);
     --fg-2: var(--ev-island-fg-2);
     --line: var(--ev-island-hairline);
@@ -119,6 +155,9 @@
   }
 
   .settings {
+    --name-size: var(--ev-text-15);
+    --small-size: var(--ev-text-13);
+    --row-gap: var(--ev-space-3);
     --fg-1: var(--ev-fg-1);
     --fg-2: var(--ev-fg-2);
     --line: var(--ev-hairline);
@@ -130,7 +169,7 @@
   }
 
   li {
-    padding: var(--ev-space-2) 0;
+    padding: var(--row-gap) 0;
     display: flex;
     flex-direction: column;
     gap: var(--ev-space-1);
@@ -156,7 +195,7 @@
   }
 
   .name {
-    font-size: var(--ev-text-13);
+    font-size: var(--name-size);
     font-weight: var(--ev-weight-semibold);
     color: var(--fg-1);
     display: flex;
@@ -169,7 +208,7 @@
   .size,
   .done,
   .meta {
-    font-size: var(--ev-text-11);
+    font-size: var(--small-size);
     color: var(--fg-2);
     font-variant-numeric: tabular-nums;
   }

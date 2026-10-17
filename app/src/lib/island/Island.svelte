@@ -185,6 +185,11 @@
     void commands.islandSetPanelOpen(false);
   }
 
+  function openSettings(): void {
+    closePanel();
+    void commands.settingsOpen();
+  }
+
   function onKeydown(event: KeyboardEvent): void {
     if (event.key === "Escape") closePanel();
   }
@@ -281,7 +286,7 @@
           <button
             class="icon-button"
             type="button"
-            onclick={() => void commands.settingsOpen()}
+            onclick={openSettings}
             aria-label="Settings"
             title="Settings"
           >
