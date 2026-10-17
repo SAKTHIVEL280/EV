@@ -236,7 +236,37 @@ async def test_pc_tools_only_for_pc_requests_and_their_follow_ups(tmp_path: Path
         return [t.name for t in backend.calls[0].tools]
 
     assert await tools_for("Who wrote Hamlet?", [*answer("Shakespeare.")]) == ["date_math"]
-    assert await tools_for("Open Notepad", tool_step("apps")) == ["date_math", "apps"]
+    # Not a router phrase, so the model gets it, with the PC tools.
+    assert await tools_for("Could you open Notepad for me", tool_step("apps")) == [
+        "date_math",
+        "apps",
+    ]
     # The last turn used a tool: a follow-up keeps the tools.
     assert await tools_for("and the other one", [*answer("Done.")]) == ["date_math", "apps"]
     assert await tools_for("thanks", [*answer("Welcome.")]) == ["date_math"]
+
+
+async def test_router_answers_pc_commands_and_hands_failures_to_the_model(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ev_core.tools import pc_tools
+
+    monkeypatch.setattr(pc_tools, "OPEN_WAIT_S", 0.2)
+    monkeypatch.setattr(pc_tools, "POLL_S", 0.01)
+    box = Toolbox([DateMathTool(), AppsTool(FakePcControl(tmp_path))])
+    events: list[Event] = []
+    backend = FakeBackend([answer("I couldn't find Photoshop on this PC.")])
+    provider = FakeProvider(backend)
+    await run_turn(
+        request("open notepad"), provider, box, History(), events.append, now=lambda: NOW
+    )
+    assert backend.calls == []  # instant, no model
+    done = events[-1]
+    assert isinstance(done, ChatDone)
+    assert (done.text, done.effort) == ("Opened Notepad.", EffortLevel.INSTANT)
+    events.clear()
+    await run_turn(
+        request("open photoshop"), provider, box, History(), events.append, now=lambda: NOW
+    )
+    assert len(backend.calls) == 1  # not an installed app: the model takes it
+    assert not any(isinstance(e, ChatToolChanged) and e.name == "apps" for e in events)

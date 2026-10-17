@@ -130,7 +130,7 @@ export function apply(state: ChatState, update: ChatUpdateKind): ChatState {
       turn.status = "streaming";
       break;
     case "tool":
-      turn.tool = update.state === "running" ? update.name : null;
+      turn.tool = update.state === "running" || update.state === "asking" ? update.name : null;
       break;
     case "done":
       turn.reply = update.text;

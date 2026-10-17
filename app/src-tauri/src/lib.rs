@@ -10,6 +10,7 @@ pub mod island;
 pub mod logging;
 pub mod models;
 pub mod paths;
+pub mod pc;
 pub mod platform;
 pub mod protocol;
 pub mod secrets;
@@ -64,6 +65,8 @@ pub fn specta_builder<R: Runtime>() -> tauri_specta::Builder<R> {
             commands::chat_cancel,
             commands::chat_reset,
             commands::pick_folder::<tauri::Wry>,
+            commands::tool_answer,
+            commands::action_undo,
             commands::llm_status,
             commands::settings_refresh,
             commands::settings_set,
@@ -90,7 +93,8 @@ pub fn specta_builder<R: Runtime>() -> tauri_specta::Builder<R> {
             settings::SettingRejected,
             models::ModelsChanged,
             hotkey::HotkeyStatusChanged,
-            hotkey::IslandToggleRequested
+            hotkey::IslandToggleRequested,
+            pc::PcUpdate
         ])
 }
 
@@ -286,6 +290,22 @@ impl<R: Runtime> CoreObserver for AppObserver<R> {
     }
 
     fn message(&self, message: Message) {
+        if matches!(
+            message,
+            Message::ToolConfirm(_)
+                | Message::ToolConfirmClosed(_)
+                | Message::ActionRecorded(_)
+                | Message::ActionUndone(_)
+                | Message::TimerFired(_)
+                | Message::FocusChanged(_)
+        ) {
+            if let Some(update) = pc::update(message)
+                && let Err(e) = pc::PcUpdate(update).emit(&self.app)
+            {
+                tracing::warn!(error = %e, "emit PcUpdate failed");
+            }
+            return;
+        }
         if let Message::ModelsState(_) = message {
             if let Some(state) = models::update(message) {
                 self.app.state::<AppState>().set_models(state.clone());

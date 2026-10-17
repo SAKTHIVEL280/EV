@@ -19,7 +19,7 @@ from ev_core.agent.prompt import SYSTEM_PROMPT
 from ev_core.agent.toolbox import Toolbox
 from ev_core.bus import Event
 from ev_core.config import EffortLevel
-from ev_core.interfaces.events import ChatDelta, ChatDone, ChatFailed, ChatStarted, ChatToolChanged
+from ev_core.interfaces.events import ChatDelta, ChatDone, ChatFailed, ChatStarted
 from ev_core.interfaces.llm import (
     ChatMessage,
     Finished,
@@ -31,7 +31,6 @@ from ev_core.interfaces.llm import (
 )
 from ev_core.interfaces.tools import Risk
 
-ROUTER_FAILED_TEXT: Final = "Couldn't do that."
 STEP_LIMIT_TEXT: Final = (
     "I stopped there: this request needs more steps than this effort level allows."
 )
@@ -47,8 +46,9 @@ class TurnRequest:
     """time.monotonic() when the request arrived."""
 
 
-def _ms(since: float) -> int:
-    return round((time.monotonic() - since) * 1000)
+def _ms(since: float, waited_ms: int = 0) -> int:
+    """Milliseconds since `since`, minus time spent waiting for the user."""
+    return max(0, round((time.monotonic() - since) * 1000) - waited_ms)
 
 
 async def run_turn(
@@ -60,8 +60,7 @@ async def run_turn(
     now: Callable[[], datetime] = localtime.now,
 ) -> None:
     rule = router.match(request.text)
-    if rule is not None:
-        await _run_router(request, rule, toolbox, history, emit)
+    if rule is not None and await _run_router(request, rule, toolbox, history, emit):
         return
 
     policy = POLICIES[request.effort]
@@ -96,7 +95,7 @@ async def run_turn(
             ):
                 if isinstance(event, TextDelta):
                     if first_token_ms is None:
-                        first_token_ms = _ms(request.received_at)
+                        first_token_ms = _ms(request.received_at, state.waited_ms)
                     step_text.append(event.text)
                     reply.append(event.text)
                     emit(ChatDelta(request.turn_id, event.text))
@@ -129,6 +128,7 @@ async def run_turn(
             generated_tokens,
             emit,
             cancelled=True,
+            waited_ms=state.waited_ms,
         )
         history.add_turn([user, ChatMessage("assistant", "".join(reply))])
         raise
@@ -142,6 +142,7 @@ async def run_turn(
         generated_tokens,
         emit,
         cancelled=False,
+        waited_ms=state.waited_ms,
     )
     history.add_turn(turn)
 
@@ -156,6 +157,7 @@ def _done(
     emit: Callable[[Event], None],
     *,
     cancelled: bool,
+    waited_ms: int = 0,
 ) -> None:
     emit(
         ChatDone(
@@ -163,7 +165,7 @@ def _done(
             text="".join(reply),
             effort=request.effort,
             model=model,
-            total_ms=_ms(request.received_at),
+            total_ms=_ms(request.received_at, waited_ms),
             cancelled=cancelled,
             first_token_ms=first_token_ms,
             prompt_tokens=prompt_tokens or None,
@@ -178,17 +180,22 @@ async def _run_router(
     toolbox: Toolbox,
     history: History,
     emit: Callable[[Event], None],
-) -> None:
-    tool_name = rule.rule.tool
+) -> bool:
+    """Answer from a rule. False (nothing emitted) when the model should take the
+    request instead: the action isn't safe, or the tool couldn't do it (for
+    example "open my report", which is a file, not an app)."""
+    tool = toolbox.get(rule.rule.tool)
+    if tool is None or tool.risk_for(rule.args) is not Risk.SAFE:
+        return False
+    held: list[Event] = []
+    call = ToolCall(id="router", name=tool.name, arguments=json.dumps(dict(rule.args)))
+    result = await toolbox.execute(request.turn_id, call, held.append)
+    if not result.ok:
+        return False
+    text = rule.rule.reply(result)
     emit(ChatStarted(request.turn_id, EffortLevel.INSTANT, None))
-    call = ToolCall(id="router", name=tool_name, arguments=json.dumps(dict(rule.rule.args)))
-    tool = toolbox.get(tool_name)
-    if tool is None or tool.risk is not Risk.SAFE:
-        emit(ChatToolChanged(request.turn_id, tool_name, "failed"))
-        text = ROUTER_FAILED_TEXT
-    else:
-        result = await toolbox.execute(request.turn_id, call, emit)
-        text = rule.rule.reply(json.loads(result.content)) if result.ok else ROUTER_FAILED_TEXT
+    for event in held:
+        emit(event)
     emit(ChatDelta(request.turn_id, text))
     emit(
         ChatDone(
@@ -202,3 +209,4 @@ async def _run_router(
         )
     )
     history.add_turn([ChatMessage("user", request.text), ChatMessage("assistant", text)])
+    return True

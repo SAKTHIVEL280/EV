@@ -107,4 +107,11 @@
   --ev-island-panel-neck: 12px;
   --ev-island-panel-exponent: 5;
   --ev-island-panel-arc: 0;
+  /* Alert: a question (yes / no) or a timer notice while the panel is closed. */
+  --ev-island-alert-width: 344px;
+  --ev-island-alert-height: 64px;
+  --ev-island-alert-radius: 22px;
+  --ev-island-alert-neck: 10px;
+  --ev-island-alert-exponent: 4;
+  --ev-island-alert-arc: 0;
 }

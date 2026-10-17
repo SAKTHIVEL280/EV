@@ -22,7 +22,7 @@ use crate::core::launch::LaunchSpec;
 use crate::core::link::CoreLink;
 use crate::error::AppError;
 use crate::protocol::generated::{HelloAckMessage, ShutdownPayloadReason};
-use crate::protocol::{self, Message, PROTOCOL_VERSION};
+use crate::protocol::{self, Direction, Message, PROTOCOL_VERSION};
 use crate::secrets::session_token;
 
 /// Core rejected its environment (bad token format); restarting cannot help.
@@ -230,17 +230,7 @@ async fn drive(
                     Ok(Message::Error(e)) => {
                         tracing::warn!(code = %*e.payload.code, "core reported error");
                     }
-                    Ok(
-                        m @ (Message::ChatStarted(_)
-                        | Message::ChatDelta(_)
-                        | Message::ChatTool(_)
-                        | Message::ChatDone(_)
-                        | Message::ChatFailed(_)
-                        | Message::LlmStatus(_)
-                        | Message::ConfigState(_)
-                        | Message::ConfigRejected(_)
-                        | Message::ModelsState(_)),
-                    ) => (hooks.on_message)(m),
+                    Ok(m) if m.direction() == Direction::FromCore => (hooks.on_message)(m),
                     Ok(m) => tracing::warn!(kind = m.kind(), "unexpected message from core"),
                     Err(e) => tracing::warn!(error = %e, "undecodable message from core"),
                 },

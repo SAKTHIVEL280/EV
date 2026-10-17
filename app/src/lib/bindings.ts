@@ -64,6 +64,20 @@ export const commands = {
 	 *  When the dialog cannot be shown or returns a path that isn't a folder path.
 	 */
 	pickFolder: (title: string, start: string | null) => typedError<string | null, CommandError>(__TAURI_INVOKE("pick_folder", { title, start })),
+	/**
+	 *  Answer a confirmation question (F-418).
+	 * 
+	 *  # Errors
+	 *  When core is not connected or `request_id` is not a message id.
+	 */
+	toolAnswer: (requestId: string, allowed: boolean) => typedError<null, CommandError>(__TAURI_INVOKE("tool_answer", { requestId, allowed })),
+	/**
+	 *  Undo one logged action, or the latest when `action_id` is null (F-111).
+	 * 
+	 *  # Errors
+	 *  When core is not connected.
+	 */
+	actionUndo: (actionId: number | null) => typedError<null, CommandError>(__TAURI_INVOKE("action_undo", { actionId })),
 	llmStatus: () => __TAURI_INVOKE<LlmStatus>("llm_status"),
 	/**
 	 *  Ask core for the current settings; the answer arrives as `SettingsChanged`.
@@ -166,6 +180,7 @@ export const events = {
 	islandVisibility: makeEvent<IslandVisibility>("island-visibility"),
 	llmStatusChanged: makeEvent<LlmStatusChanged>("llm-status-changed"),
 	modelsChanged: makeEvent<ModelsChanged>("models-changed"),
+	pcUpdate: makeEvent<PcUpdate>("pc-update"),
 	settingRejected: makeEvent<SettingRejected>("setting-rejected"),
 	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
 };
@@ -283,6 +298,22 @@ export type ModuleInfo = {
 	state: string,
 	detail: string | null,
 };
+
+export type PcUpdate = PcUpdateKind;
+
+export type PcUpdateKind = 
+/**  A step waits for the user's yes or no. */
+{ kind: "confirm"; turn_id: string; request_id: string; tool: string; question: string; 
+/**  confirm | dangerous */
+risk: string } | 
+/**  The question is gone (answered, timed out or cancelled). */
+{ kind: "confirm_closed"; request_id: string; allowed: boolean } | 
+/**  An action changed something; `undoable` shows the Undo button. */
+{ kind: "action"; turn_id: string; action_id: number; tool: string; summary: string; undoable: boolean } | { kind: "undone"; action_id: number; ok: boolean; message: string } | 
+/**  A timer, reminder or alarm came due. */
+{ kind: "timer"; timer_id: number; 
+/**  timer | reminder | alarm */
+timer_kind: string; label: string; missed: boolean } | { kind: "focus"; on: boolean; minutes: number | null };
 
 export type SettingItem = {
 	section: string,

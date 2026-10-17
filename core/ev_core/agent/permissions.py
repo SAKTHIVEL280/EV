@@ -30,6 +30,8 @@ class TurnState:
     """Outside text (files, screen, clipboard, web) was read in this turn."""
     approved: set[str] = field(default_factory=set)
     """Tools the user said yes to in this turn (for `confirm_once` tools)."""
+    waited_ms: int = 0
+    """Time spent waiting for the user's answers; left out of the reply timings."""
 
 
 def decide(

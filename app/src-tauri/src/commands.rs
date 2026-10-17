@@ -191,6 +191,30 @@ pub fn chat_reset(state: State<'_, AppState>) -> Result<(), CommandError> {
     send(&state, protocol::chat_reset())
 }
 
+/// Answer a confirmation question (F-418).
+///
+/// # Errors
+/// When core is not connected or `request_id` is not a message id.
+#[tauri::command]
+#[specta::specta]
+pub fn tool_answer(
+    state: State<'_, AppState>,
+    request_id: String,
+    allowed: bool,
+) -> Result<(), CommandError> {
+    send(&state, protocol::tool_answer(&request_id, allowed))
+}
+
+/// Undo one logged action, or the latest when `action_id` is null (F-111).
+///
+/// # Errors
+/// When core is not connected.
+#[tauri::command]
+#[specta::specta]
+pub fn action_undo(state: State<'_, AppState>, action_id: Option<u32>) -> Result<(), CommandError> {
+    send(&state, protocol::action_undo(action_id))
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn llm_status(state: State<'_, AppState>) -> LlmStatus {

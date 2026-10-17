@@ -118,6 +118,68 @@ messages! {
     ModelsDownload(ModelsDownloadMessage) = "models.download",
     ModelsCancel(ModelsCancelMessage) = "models.cancel",
     ModelsState(ModelsStateMessage) = "models.state",
+    ToolConfirm(ToolConfirmMessage) = "tool.confirm",
+    ToolAnswer(ToolAnswerMessage) = "tool.answer",
+    ToolConfirmClosed(ToolConfirmClosedMessage) = "tool.confirm_closed",
+    ActionRecorded(ActionRecordedMessage) = "action.recorded",
+    ActionUndo(ActionUndoMessage) = "action.undo",
+    ActionUndone(ActionUndoneMessage) = "action.undone",
+    TimerFired(TimerFiredMessage) = "timer.fired",
+    FocusChanged(FocusChangedMessage) = "focus.changed",
+}
+
+/// Who sends a message type.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Direction {
+    /// Core to app: forwarded to the app's observers.
+    FromCore,
+    /// App to core.
+    ToCore,
+    /// Handshake and session control, handled by the session itself.
+    Session,
+}
+
+impl Message {
+    /// Exhaustive on purpose: a new message type does not compile until it says
+    /// which way it goes (found in beta 2: new core messages were dropped as
+    /// "unexpected" because the session's list missed them).
+    #[must_use]
+    pub fn direction(&self) -> Direction {
+        match self {
+            Self::Hello(_)
+            | Self::HelloAck(_)
+            | Self::Ping(_)
+            | Self::Pong(_)
+            | Self::Error(_)
+            | Self::Shutdown(_) => Direction::Session,
+            Self::ChatSend(_)
+            | Self::ChatCancel(_)
+            | Self::ChatReset(_)
+            | Self::ConfigGet(_)
+            | Self::ConfigSet(_)
+            | Self::ConfigReset(_)
+            | Self::ModelsGet(_)
+            | Self::ModelsDownload(_)
+            | Self::ModelsCancel(_)
+            | Self::ToolAnswer(_)
+            | Self::ActionUndo(_) => Direction::ToCore,
+            Self::ChatStarted(_)
+            | Self::ChatDelta(_)
+            | Self::ChatTool(_)
+            | Self::ChatDone(_)
+            | Self::ChatFailed(_)
+            | Self::LlmStatus(_)
+            | Self::ConfigState(_)
+            | Self::ConfigRejected(_)
+            | Self::ModelsState(_)
+            | Self::ToolConfirm(_)
+            | Self::ToolConfirmClosed(_)
+            | Self::ActionRecorded(_)
+            | Self::ActionUndone(_)
+            | Self::TimerFired(_)
+            | Self::FocusChanged(_) => Direction::FromCore,
+        }
+    }
 }
 
 #[derive(Debug, Error)]
@@ -240,6 +302,45 @@ pub fn chat_reset() -> Result<Message, AppError> {
     }))
 }
 
+/// The user's answer to `tool.confirm` (F-418).
+///
+/// # Errors
+/// When the OS random source fails or `request_id` is not a message id.
+pub fn tool_answer(request_id: &str, allowed: bool) -> Result<Message, AppError> {
+    let request_id: generated::MessageId =
+        request_id
+            .parse()
+            .map_err(|e: generated::error::ConversionError| {
+                AppError::ProtocolMismatch(e.to_string())
+            })?;
+    Ok(Message::ToolAnswer(generated::ToolAnswerMessage {
+        id: id()?,
+        payload: generated::ToolAnswerPayload {
+            allowed,
+            request_id,
+        },
+        reply_to: None,
+        type_: "tool.answer".into(),
+        v: version(),
+    }))
+}
+
+/// Undo one action, or the latest when `action_id` is `None` (F-111).
+///
+/// # Errors
+/// When the OS random source fails.
+pub fn action_undo(action_id: Option<u32>) -> Result<Message, AppError> {
+    Ok(Message::ActionUndo(generated::ActionUndoMessage {
+        id: id()?,
+        payload: generated::ActionUndoPayload {
+            action_id: action_id.and_then(|n| NonZeroU64::new(u64::from(n))),
+        },
+        reply_to: None,
+        type_: "action.undo".into(),
+        v: version(),
+    }))
+}
+
 fn setting_name(name: &str) -> Result<SettingName, AppError> {
     name.parse()
         .map_err(|e: generated::error::ConversionError| AppError::ProtocolMismatch(e.to_string()))
@@ -335,6 +436,41 @@ pub fn models_cancel(model: &str) -> Result<Message, AppError> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn every_fixture_has_a_direction_matching_its_description() {
+        let schema: serde_json::Value =
+            serde_json::from_str(include_str!("../../../../protocol/ev-protocol.schema.json"))
+                .unwrap();
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/valid");
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let raw = std::fs::read_to_string(entry.unwrap().path()).unwrap();
+            let Ok(message) = decode(&raw) else { continue };
+            if message.direction() == Direction::Session {
+                continue;
+            }
+            let kind = message.kind();
+            // Each message definition's description starts with its direction.
+            let description = schema["$defs"]
+                .as_object()
+                .unwrap()
+                .values()
+                .find(|d| d["properties"]["type"]["const"] == kind)
+                .and_then(|d| d["description"].as_str())
+                .unwrap_or_default()
+                .to_lowercase();
+            let expected = if description.starts_with("core ->") {
+                Direction::FromCore
+            } else if description.starts_with("rust ->") {
+                Direction::ToCore
+            } else {
+                continue;
+            };
+            assert_eq!(message.direction(), expected, "{kind}");
+        }
+    }
+
     use std::fs;
     use std::path::{Path, PathBuf};
 

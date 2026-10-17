@@ -157,3 +157,12 @@ describe("chat state", () => {
     expect(busy(s)).toBe(false);
   });
 });
+
+describe("tool states", () => {
+  it("keeps the tool while EV waits for the user's answer", () => {
+    let s = run({ kind: "tool", turn_id: A, name: "files", state: "asking" });
+    expect(latest(s)?.tool).toBe("files");
+    s = apply(s, { kind: "tool", turn_id: A, name: "files", state: "declined" });
+    expect(latest(s)?.tool).toBeNull();
+  });
+});

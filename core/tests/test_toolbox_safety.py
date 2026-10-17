@@ -258,3 +258,15 @@ async def test_cancelled_turn_closes_the_question(cancelled_before_answer: bool)
         await task
     await bus.drain()
     assert [c.allowed for c in closed] == [False]
+
+
+async def test_time_waiting_for_the_user_is_recorded(tmp_path: Path) -> None:
+    class SlowAnswer(Answerer):
+        async def ask(self, turn_id: str, tool: str, question: str, risk: Risk) -> bool:
+            await asyncio.sleep(0.05)
+            return True
+
+    box, _, events, _ = await make(tmp_path, SlowAnswer(allowed=True))
+    turn = TurnState()
+    await box.execute("t", call("apps", action="close", name="Notepad"), events.append, turn)
+    assert turn.waited_ms >= 50

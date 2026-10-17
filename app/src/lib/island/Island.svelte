@@ -18,11 +18,13 @@
   import Icon from "../icons/Icon.svelte";
   import { downloadStatus } from "../models/models";
   import { models } from "../models/store.svelte";
+  import { pc } from "../pc/store.svelte";
   import { outlineBounds, outlinePath, type Outline } from "./outline";
   import { FrameRecorder } from "./frames";
   import { Spring, type SpringConfig } from "./spring";
 
-  type Mode = "idle" | "hover" | "panel";
+  /** `alert`: a question (F-418) or a timer notice (F-108) while the panel is closed. */
+  type Mode = "idle" | "hover" | "panel" | "alert";
   interface Shape {
     width: number;
     height: number;
@@ -39,6 +41,8 @@
 
   let chatPanel: { focus: () => void } | undefined = $state();
   let panelError = $state<string | null>(null);
+  /** Springs exist (set at the end of mount setup). */
+  let ready = $state(false);
   /** island.arc_width / island.arc_depth; null until settings arrive (tokens apply). */
   let arcSize: { width: number; depth: number } | null = null;
 
@@ -206,11 +210,26 @@
     void commands.islandSetPanelOpen(true).then(() => chatPanel?.focus());
   }
 
+  /** Where the island goes when nothing is open. */
+  function resting(): Mode {
+    if (alerting) return "alert";
+    return pointerInside ? "hover" : "idle";
+  }
+
   function closePanel(): void {
     if (mode !== "panel") return;
-    setMode(pointerInside ? "hover" : "idle");
+    setMode(resting());
     void commands.islandSetPanelOpen(false);
   }
+
+  // Questions and timer notices show in the compact alert shape unless the
+  // panel is open (then they appear inside it). No focus is taken.
+  const alerting = $derived(pc.question !== null || pc.notices.length > 0);
+  $effect(() => {
+    if (!ready) return;
+    if (alerting && (mode === "idle" || mode === "hover")) setMode("alert");
+    else if (!alerting && mode === "alert") setMode(pointerInside ? "hover" : "idle");
+  });
 
   async function newChat(): Promise<void> {
     panelError = await chat.newChat();
@@ -249,9 +268,11 @@
     };
     draw();
     report(idle, false);
+    ready = true;
     models.init();
     // The session outlives the panel (F-414): listen from the start.
     chat.init();
+    pc.init();
     // Spike S2: two frames later the first island frame has been painted.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => void commands.spikeIslandPainted());
@@ -276,6 +297,7 @@
         pointerInside = event.payload.inside;
         if (pointerInside && mode === "idle") setMode("hover");
         if (!pointerInside && mode === "hover") setMode("idle");
+        // The alert stays until answered or dismissed.
       }),
       // Hotkey and tray (F-004, F-412): open with focus, or close if open.
       events.islandToggleRequested.listen(() => {
@@ -315,7 +337,36 @@
     <path d={path} />
   </svg>
 
-  {#if mode === "hover"}
+  {#if mode === "alert"}
+    <div class="alert" role="alertdialog" aria-live="assertive">
+      {#if pc.question}
+        <p class="alert-text">{pc.question.text}</p>
+        <div class="alert-actions">
+          <button class="alert-button" type="button" onclick={() => void pc.answer(false)}
+            >No</button
+          >
+          <button
+            class="alert-button primary"
+            class:danger={pc.question.dangerous}
+            type="button"
+            onclick={() => void pc.answer(true)}>Yes</button
+          >
+        </div>
+      {:else if pc.notices[0]}
+        {@const notice = pc.notices[0]}
+        <p class="alert-text">{notice.text}</p>
+        <div class="alert-actions">
+          <button
+            class="alert-button primary"
+            type="button"
+            onclick={() => {
+              pc.dismiss(notice.id);
+            }}>Dismiss</button
+          >
+        </div>
+      {/if}
+    </div>
+  {:else if mode === "hover"}
     <button class="hover" type="button" onclick={openPanel} aria-label="Open EV">
       <span class="status" aria-live="polite">{statusText}</span>
     </button>
@@ -383,7 +434,8 @@
   }
 
   .hover,
-  .panel {
+  .panel,
+  .alert {
     position: absolute;
     left: 50%;
     top: 0;
@@ -402,6 +454,62 @@
     color: inherit;
     font: inherit;
     cursor: pointer;
+  }
+
+  .alert {
+    width: var(--ev-island-alert-width);
+    height: var(--ev-island-alert-height);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: var(--ev-space-3);
+    padding: 0 var(--ev-space-3) 0 var(--ev-space-5);
+  }
+
+  .alert-text {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: var(--ev-text-13);
+    line-height: 1.3;
+    color: var(--ev-island-fg-1);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .alert-actions {
+    display: flex;
+    gap: var(--ev-space-1);
+  }
+
+  .alert-button {
+    font: inherit;
+    font-size: var(--ev-text-13);
+    font-weight: var(--ev-weight-medium);
+    color: var(--ev-island-fg-1);
+    background: var(--ev-island-control-bg);
+    border: 0;
+    border-radius: var(--ev-radius-control);
+    padding: var(--ev-space-1) var(--ev-space-3);
+    min-height: var(--ev-control-height);
+    cursor: pointer;
+  }
+
+  .alert-button:hover {
+    background: var(--ev-island-control-bg-hover);
+  }
+
+  .alert-button.primary {
+    color: var(--ev-island-bg);
+    background: var(--ev-island-fg-1);
+  }
+
+  /* Dangerous steps: the yes button reads differently, not by colour alone. */
+  .alert-button.primary.danger {
+    text-decoration: underline;
   }
 
   .status {

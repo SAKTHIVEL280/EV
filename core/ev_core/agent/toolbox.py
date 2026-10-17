@@ -4,6 +4,7 @@ events, and the action log with undo (F-111)."""
 import asyncio
 import json
 import logging
+import time
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ClassVar, Final
 
@@ -103,7 +104,10 @@ class Toolbox:
                 emit(ChatToolChanged(turn_id, tool.name, "blocked"))
                 return ToolResult(False, BLOCKED_RESULT)
             emit(ChatToolChanged(turn_id, tool.name, "asking"))
-            if not await self._confirmer.ask(turn_id, tool.name, tool.question(args), risk):
+            asked_at = time.monotonic()
+            allowed = await self._confirmer.ask(turn_id, tool.name, tool.question(args), risk)
+            turn.waited_ms += round((time.monotonic() - asked_at) * 1000)
+            if not allowed:
                 emit(ChatToolChanged(turn_id, tool.name, "declined"))
                 return ToolResult(False, DECLINED_RESULT)
             if tool.confirm_once and risk is Risk.CONFIRM:
