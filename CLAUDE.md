@@ -416,7 +416,8 @@ risks) and show it before coding non-trivial changes. 3. Implement in small comm
   `package.json`, and `core/pyproject.toml` must match (CI check fails on mismatch).
 - Every release: update `CHANGELOG.md` (Keep a Changelog format), git tag `vX.Y.Z[-beta.N]`,
   GitHub Release marked "pre-release" for betas, installer + SHA-256 checksums attached.
-- Model files are versioned separately in `models/manifest.json` (name, URL, size, SHA-256).
+- Model files are versioned separately in `core/ev_core/models/manifest.json` (name, pinned URL,
+  size, SHA-256), bundled with core.
 
 ### 10.7 Git
 - Remote: https://github.com/SAKTHIVEL280/EV (default branch `main`).

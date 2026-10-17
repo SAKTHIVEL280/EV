@@ -55,6 +55,8 @@
   --ev-radius-control: 8px;
   --ev-control-height: 28px;
   --ev-model-action-width: 88px;
+  --ev-number-input-width: 96px;
+  --ev-unit-width: 44px;
 
   /* Motion. Spring physics, not eased tweens. Width is crisp; height a little
      softer, so the drop swells and settles like liquid. Both settle within the

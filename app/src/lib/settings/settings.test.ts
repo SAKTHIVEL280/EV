@@ -16,6 +16,7 @@ function item(overrides: Partial<SettingItem>): SettingItem {
     options: [],
     minimum: 2048,
     maximum: 131072,
+    unit: null,
     ...overrides,
   };
 }
@@ -60,6 +61,9 @@ describe("settings", () => {
     expect(displayValue(flag, true)).toBe("On");
     expect(displayValue(flag, false)).toBe("Off");
     expect(displayValue(item({ kind: "text" }), "")).toBe("Empty");
+    expect(displayValue(item({ unit: "px" }), 6)).toBe("6 px");
+    expect(displayValue(item({ unit: null }), 6)).toBe("6");
+    expect(displayValue(item({ kind: "choice" }), "normal")).toBe("Normal");
   });
 
   it("parses integers within bounds", () => {

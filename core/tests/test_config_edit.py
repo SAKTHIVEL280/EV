@@ -103,6 +103,12 @@ def test_descriptors_cover_every_key_with_metadata(tmp_path: Path) -> None:
         "island.reveal_delay_ms",
     }
     assert items["island.reveal_distance"].nav is Nav.APPEARANCE
+    assert (items["island.reveal_distance"].unit, items["island.reveal_delay_ms"].unit) == (
+        "px",
+        "ms",
+    )
+    assert items["llm.context"].unit == "tokens"
+    assert items["agent.default_effort"].unit is None
     context = items["llm.context"]
     assert (context.kind, context.minimum, context.maximum) == ("integer", 2048, 131072)
     assert (context.default, context.value, context.nav) == (8192, 4096, Nav.MODELS)

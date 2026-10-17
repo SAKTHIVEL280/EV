@@ -273,6 +273,8 @@ export type SettingItem = {
 	options: string[],
 	minimum: number | null,
 	maximum: number | null,
+	/**  Shown after integer values (px, ms, min, tokens). */
+	unit: string | null,
 };
 
 export type SettingRejected = {

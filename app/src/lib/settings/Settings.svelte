@@ -210,17 +210,20 @@
                   {/each}
                 </div>
               {:else}
-                <input
-                  type="text"
-                  inputmode={item.kind === "integer" ? "numeric" : "text"}
-                  value={String(item.value)}
-                  aria-labelledby={`label-${itemId(item)}`}
-                  aria-invalid={errors[itemId(item)] ? "true" : undefined}
-                  disabled={!coreUp}
-                  onchange={(event) => {
-                    commitInput(item, event);
-                  }}
-                />
+                <span class="field" class:number={item.kind === "integer"}>
+                  <input
+                    type="text"
+                    inputmode={item.kind === "integer" ? "numeric" : "text"}
+                    value={String(item.value)}
+                    aria-labelledby={`label-${itemId(item)}`}
+                    aria-invalid={errors[itemId(item)] ? "true" : undefined}
+                    disabled={!coreUp}
+                    onchange={(event) => {
+                      commitInput(item, event);
+                    }}
+                  />
+                  {#if item.unit}<span class="unit">{item.unit}</span>{/if}
+                </span>
               {/if}
               {#if !isDefault(item)}
                 <button
@@ -450,6 +453,23 @@
     grid-column: 1 / -1;
     color: var(--ev-fg-1);
     font-weight: var(--ev-weight-medium);
+  }
+
+  .field {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ev-space-2);
+  }
+
+  .unit {
+    min-width: var(--ev-unit-width);
+    font-size: var(--ev-text-13);
+    color: var(--ev-fg-2);
+  }
+
+  .number input {
+    width: var(--ev-number-input-width);
+    text-align: right;
   }
 
   input {

@@ -919,6 +919,11 @@
         },
         "maximum": {
           "type": "integer"
+        },
+        "unit": {
+          "description": "Unit shown after integer values, such as px, ms, min or tokens.",
+          "type": "string",
+          "maxLength": 16
         }
       }
     },

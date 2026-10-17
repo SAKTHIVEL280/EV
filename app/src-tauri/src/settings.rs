@@ -55,6 +55,8 @@ pub struct SettingItem {
     pub options: Vec<String>,
     pub minimum: Option<i32>,
     pub maximum: Option<i32>,
+    /// Shown after integer values (px, ms, min, tokens).
+    pub unit: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Type)]
@@ -108,6 +110,7 @@ pub fn update(message: Message) -> Option<Update> {
                     options: i.options.into_iter().map(|o| o.to_string()).collect(),
                     minimum: i.minimum.map(clamp),
                     maximum: i.maximum.map(clamp),
+                    unit: i.unit.map(|u| u.to_string()),
                 })
                 .collect(),
             warnings: m
@@ -169,6 +172,7 @@ mod tests {
             (Some(2048), Some(131_072))
         );
         assert_eq!(context.options.len(), 0);
+        assert_eq!(context.unit.as_deref(), Some("tokens"));
         assert_eq!(state.items[1].options, ["instant", "normal", "deep", "max"]);
         assert_eq!(state.items[1].value, SettingValue::Text("deep".into()));
         assert_eq!(state.warnings[0].key, "logging.level");

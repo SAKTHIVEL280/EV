@@ -94,14 +94,16 @@ class LlmSection(BaseModel):
         ge=2048,
         le=131072,
         title="Context window",
-        description="Context window in tokens.",
+        description="How much of the conversation the model can read at once.",
+        json_schema_extra={"unit": "tokens"},
     )
     idle_unload_minutes: int = Field(
         default=10,
         ge=0,
         le=1440,
         title="Unload when idle",
-        description="Unload the model after this many idle minutes. 0: never.",
+        description="Free the model's memory after this long without use. 0: never.",
+        json_schema_extra={"unit": "min"},
     )
 
 
@@ -149,14 +151,16 @@ class IslandSection(BaseModel):
         ge=0,
         le=64,
         title="Reveal distance",
-        description="How near the pointer must come to open the drop, in pixels. 0: touch it.",
+        description="How near the pointer must come to open the drop. 0: touch it.",
+        json_schema_extra={"unit": "px"},
     )
     reveal_delay_ms: int = Field(
         default=150,
         ge=0,
         le=1000,
         title="Reveal delay",
-        description="How long the pointer must stay that close before the drop opens, in ms.",
+        description="How long the pointer must stay that close before the drop opens.",
+        json_schema_extra={"unit": "ms"},
     )
 
 

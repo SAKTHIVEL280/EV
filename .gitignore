@@ -4,9 +4,8 @@
 *.ort
 *.bin
 *.safetensors
-models/
-# ...except the code package that downloads them (catalog, downloader).
-!core/ev_core/models/
+# Only the repo-root folder: code folders named models/ (core, app) are tracked.
+/models/
 vendor/llama.cpp/
 # Build output
 target/

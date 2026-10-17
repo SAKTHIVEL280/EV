@@ -81,6 +81,10 @@ export function isDefault(item: SettingItem): boolean {
 export function displayValue(item: SettingItem, value: SettingValue): string {
   if (item.kind === "boolean") return value === true ? "On" : "Off";
   if (item.kind === "text" && value === "") return "Empty";
+  if (item.kind === "choice" && typeof value === "string") {
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  }
+  if (item.kind === "integer" && item.unit) return `${String(value)} ${item.unit}`;
   return String(value);
 }
 

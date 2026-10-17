@@ -27,6 +27,8 @@ class SettingItem:
     options: tuple[str, ...] = ()
     minimum: int | None = None
     maximum: int | None = None
+    unit: str | None = None
+    """Shown after integer values (px, ms, min, tokens)."""
 
 
 def _plain(value: object) -> SettingValue:
@@ -40,6 +42,12 @@ def _plain(value: object) -> SettingValue:
 def _declared_nav(extra: object) -> Nav | None:
     if isinstance(extra, dict) and isinstance(nav := extra.get("nav"), str):
         return Nav(nav)
+    return None
+
+
+def _declared_unit(extra: object) -> str | None:
+    if isinstance(extra, dict) and isinstance(unit := extra.get("unit"), str):
+        return unit
     return None
 
 
@@ -80,6 +88,7 @@ def describe(config: EvConfig) -> list[SettingItem]:
                     options=options,
                     minimum=low,
                     maximum=high,
+                    unit=_declared_unit(field.json_schema_extra),
                 )
             )
     return items

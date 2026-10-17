@@ -733,6 +733,13 @@ class SettingItem(BaseModel):
     options: list[Option] | None = None
     minimum: int | None = None
     maximum: int | None = None
+    unit: Annotated[
+        str | None,
+        Field(
+            description="Unit shown after integer values, such as px, ms, min or tokens.",
+            max_length=16,
+        ),
+    ] = None
 
 
 class ConfigWarningItem(BaseModel):

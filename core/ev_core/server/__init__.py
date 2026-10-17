@@ -111,6 +111,7 @@ def to_message(event: Event) -> protocol.AnyMessage | None:
                     options=list(i.options) or None,
                     minimum=i.minimum,
                     maximum=i.maximum,
+                    unit=i.unit,
                 )
                 for i in event.items
             ]
