@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
   import { getVersion } from "@tauri-apps/api/app";
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
 
   import {
     commands,
@@ -83,7 +83,19 @@
     if (result.status === "error") errors = { ...errors, [which]: result.error.message };
   }
 
+  // Smoke test (CI): report once core's settings are on screen.
+  let smokeTest = $state(false);
+  let smokeReported = false;
+  $effect(() => {
+    if (!smokeTest || smokeReported || !settings || settings.items.length === 0) return;
+    smokeReported = true;
+    void tick().then(() => commands.smokeTestStep("settings-rendered"));
+  });
+
   onMount(() => {
+    void commands.smokeTestMode().then((enabled) => {
+      smokeTest = enabled;
+    });
     const unlisteners = [
       events.settingsChanged.listen((event) => {
         settings = event.payload;

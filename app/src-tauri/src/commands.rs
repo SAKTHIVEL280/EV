@@ -17,6 +17,7 @@ use crate::island::geometry::HitRect;
 use crate::protocol::{self, Message};
 use crate::settings::{SettingValue, SettingsState};
 use crate::settings_window;
+use crate::smoke;
 use crate::started_at;
 use crate::state::AppState;
 
@@ -229,12 +230,30 @@ pub fn settings_state(state: State<'_, AppState>) -> Option<SettingsState> {
     state.settings()
 }
 
+/// Async on purpose: creating a window inside a synchronous command deadlocks
+/// on Windows (the new window stays white and stops responding; tauri #4121,
+/// found in the first Windows test).
+///
 /// # Errors
 /// When the window cannot be created.
 #[tauri::command]
 #[specta::specta]
-pub fn settings_open<R: Runtime>(app: AppHandle<R>) -> Result<(), CommandError> {
+pub async fn settings_open<R: Runtime>(app: AppHandle<R>) -> Result<(), CommandError> {
     settings_window::open(&app).map_err(CommandError::from)
+}
+
+/// Whether this run is the end-to-end smoke test (`EV_SMOKE_TEST=1`).
+#[tauri::command]
+#[specta::specta]
+pub fn smoke_test_mode() -> bool {
+    smoke::enabled()
+}
+
+/// The UI reached a smoke-test checkpoint.
+#[tauri::command]
+#[specta::specta]
+pub fn smoke_test_step<R: Runtime>(app: AppHandle<R>, step: String) {
+    smoke::step(&app, &step);
 }
 
 /// Open config.toml in the user's default editor.

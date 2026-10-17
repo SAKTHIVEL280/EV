@@ -85,7 +85,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
-            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup show active-toolchain || rustup toolchain install
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -116,6 +116,21 @@ jobs:
         working-directory: app/src-tauri
       - run: cargo test --locked
         working-directory: app/src-tauri
+      # End to end: the real app starts core, opens Settings through the same
+      # command as the button, waits for core's settings on screen, then quits.
+      # A hang (window deadlock, blocked shutdown) fails here via the watchdog.
+      - name: Smoke test (app → core → Settings → quit)
+        shell: bash
+        run: |
+          cargo build --locked --features custom-protocol
+          run=(timeout 180)
+          if [ "$RUNNER_OS" = Linux ]; then run+=(xvfb-run -a); fi
+          EV_SMOKE_TEST=1 EV_DATA_DIR="$RUNNER_TEMP/ev-smoke" "${run[@]}" target/debug/ev
+        working-directory: app/src-tauri
+      - name: Smoke test logs
+        if: failure()
+        shell: bash
+        run: cat "$RUNNER_TEMP"/ev-smoke/logs/*.log || true
       - name: Third-party notices and license policy
         if: runner.os == 'Linux'
         run: uv run --frozen python ../scripts/third-party-notices --check

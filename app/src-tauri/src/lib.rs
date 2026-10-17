@@ -14,6 +14,7 @@ pub mod protocol;
 pub mod secrets;
 pub mod settings;
 pub mod settings_window;
+pub mod smoke;
 pub mod state;
 pub mod tray;
 
@@ -69,6 +70,8 @@ pub fn specta_builder<R: Runtime>() -> tauri_specta::Builder<R> {
             commands::open_config_file::<tauri::Wry>,
             commands::open_logs_folder::<tauri::Wry>,
             commands::hotkey_status,
+            commands::smoke_test_mode,
+            commands::smoke_test_step::<tauri::Wry>,
         ])
         .events(collect_events![
             CoreStatusChanged,
@@ -97,6 +100,9 @@ pub fn run() -> Result<(), AppError> {
     };
     logging::init(&data_dir.join("logs"), level)?;
     tracing::info!(version = APP_VERSION, "app starting");
+    if smoke::enabled() {
+        smoke::start_watchdog();
+    }
 
     let builder = specta_builder::<tauri::Wry>();
     let app = tauri::Builder::default()
@@ -120,10 +126,23 @@ pub fn run() -> Result<(), AppError> {
         .build(tauri::generate_context!())
         .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
 
-    app.run(|handle, event| {
-        if let RunEvent::Exit = event {
-            stop_supervisor(handle);
+    app.run(|handle, event| match event {
+        // Shut core down before exiting, without blocking the event loop:
+        // background tasks (cursor loop, event emits) need the main thread,
+        // so blocking it here deadlocked Quit (found by the smoke test).
+        RunEvent::ExitRequested { code, api, .. } => {
+            if let Some(supervisor) = take_supervisor(handle) {
+                api.prevent_exit();
+                let handle = handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    stop_supervisor(&handle, supervisor).await;
+                    // The supervisor is gone now, so this request goes through.
+                    handle.exit(code.unwrap_or(0));
+                });
+            }
         }
+        RunEvent::Exit => tracing::info!("app exiting"),
+        _ => {}
     });
     Ok(())
 }
@@ -274,25 +293,29 @@ fn start_supervisor<R: Runtime>(
 }
 
 /// Ask core to stop and wait briefly so it can exit cleanly.
-fn stop_supervisor<R: Runtime>(app: &AppHandle<R>) {
-    let state = app.state::<AppState>();
-    if state.shutdown.send(true).is_err() {
-        return;
-    }
-    let handle = state
+/// The running supervisor task, taken so shutdown happens once.
+fn take_supervisor<R: Runtime>(app: &AppHandle<R>) -> Option<tauri::async_runtime::JoinHandle<()>> {
+    app.state::<AppState>()
         .supervisor
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .take();
-    if let Some(handle) = handle {
-        let finished = tauri::async_runtime::block_on(async {
-            tokio::time::timeout(SHUTDOWN_WAIT, handle).await
-        });
-        if finished.is_err() {
-            tracing::warn!("core did not stop in time");
-        }
+        .take()
+}
+
+/// Ask core to stop and wait for the supervisor, at most `SHUTDOWN_WAIT`.
+async fn stop_supervisor<R: Runtime>(
+    app: &AppHandle<R>,
+    supervisor: tauri::async_runtime::JoinHandle<()>,
+) {
+    // An error only means the supervisor already ended.
+    let _ = app.state::<AppState>().shutdown.send(true);
+    if tokio::time::timeout(SHUTDOWN_WAIT, supervisor)
+        .await
+        .is_err()
+    {
+        tracing::warn!("core did not stop in time");
     }
-    tracing::info!("app exiting");
+    tracing::info!("core supervisor stopped");
 }
 
 #[cfg(test)]

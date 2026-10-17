@@ -69,6 +69,10 @@ export const commands = {
 	warnings: ConfigWarning[],
 } | null>("settings_state"),
 	/**
+	 *  Async on purpose: creating a window inside a synchronous command deadlocks
+	 *  on Windows (the new window stays white and stops responding; tauri #4121,
+	 *  found in the first Windows test).
+	 * 
 	 *  # Errors
 	 *  When the window cannot be created.
 	 */
@@ -94,6 +98,10 @@ export const commands = {
 	state: string,
 	detail: string | null,
 } | null>("hotkey_status"),
+	/**  Whether this run is the end-to-end smoke test (`EV_SMOKE_TEST=1`). */
+	smokeTestMode: () => __TAURI_INVOKE<boolean>("smoke_test_mode"),
+	/**  The UI reached a smoke-test checkpoint. */
+	smokeTestStep: (step: string) => __TAURI_INVOKE<void>("smoke_test_step", { step }),
 };
 
 /** Events */

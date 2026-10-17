@@ -235,9 +235,20 @@
       requestAnimationFrame(() => void commands.spikeIslandPainted());
     });
 
+    // Smoke test (CI): once core runs, open Settings exactly like the button does.
+    let smokeTest = false;
+    let smokeStarted = false;
+    function smokeOnStatus(next: CoreStatus): void {
+      if (!smokeTest || smokeStarted || next.state !== "running") return;
+      smokeStarted = true;
+      void commands.smokeTestStep("core-running");
+      void commands.settingsOpen();
+    }
+
     const unlisteners = [
       events.coreStatusChanged.listen((event) => {
         status = event.payload;
+        smokeOnStatus(event.payload);
       }),
       events.islandPointer.listen((event) => {
         pointerInside = event.payload.inside;
@@ -253,8 +264,10 @@
         if (!event.payload) closePanel();
       }),
     ];
-    void commands.coreStatus().then((initial) => {
-      status = initial;
+    void commands.smokeTestMode().then(async (enabled) => {
+      smokeTest = enabled;
+      status = await commands.coreStatus();
+      smokeOnStatus(status);
     });
 
     return () => {
