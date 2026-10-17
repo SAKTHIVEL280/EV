@@ -2,11 +2,11 @@
 //!
 //! One transparent, undecorated, always-on-top window sized to the largest
 //! panel, placed top-center. It never takes focus unless the panel is opened.
-//! Outside the pill it is click-through: a cursor loop compares the global
-//! cursor with the interactive rectangle reported by the UI and toggles
-//! `set_ignore_cursor_events`.
+//! A cursor loop compares the global cursor with the shape the UI reports and
+//! toggles `set_ignore_cursor_events`; the rules are in [`pointer`].
 
 pub mod geometry;
+pub mod pointer;
 
 use std::sync::Mutex;
 use std::time::Duration;
@@ -19,7 +19,8 @@ use tauri::{
 use tauri_specta::Event;
 
 use crate::platform;
-use geometry::{HitRect, PhysRect, cursor_inside, cursor_near, top_center};
+use geometry::{HitRect, PhysRect, cursor_distance, cursor_near, top_center};
+use pointer::{Reveal, Sample, Tracker};
 
 pub const LABEL: &str = "island";
 /// Largest panel plus room for spring overshoot, logical px.
@@ -31,30 +32,54 @@ const POLL_NEAR: Duration = Duration::from_millis(16);
 const POLL_FAR: Duration = Duration::from_millis(100);
 const FULLSCREEN_POLL: Duration = Duration::from_secs(1);
 
+/// The shape the UI shows and how the drop reveals; shared with the cursor loop.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Shape {
+    pub rect: HitRect,
+    /// Hover or panel (takes clicks); `false` for the idle drop (never does).
+    pub clickable: bool,
+}
+
 #[derive(Debug, Default)]
 pub struct IslandState {
-    pub hit_rect: Mutex<HitRect>,
+    shape: Mutex<Shape>,
+    reveal: Mutex<Reveal>,
 }
 
 impl IslandState {
     #[must_use]
-    pub fn hit_rect(&self) -> HitRect {
+    pub fn shape(&self) -> Shape {
         *self
-            .hit_rect
+            .shape
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
-    pub fn set_hit_rect(&self, rect: HitRect) {
+    pub fn set_shape(&self, shape: Shape) {
         *self
-            .hit_rect
+            .shape
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = rect;
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = shape;
+    }
+
+    #[must_use]
+    pub fn reveal(&self) -> Reveal {
+        *self
+            .reveal
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    pub fn set_reveal(&self, reveal: Reveal) {
+        *self
+            .reveal
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = reveal;
     }
 }
 
-/// The cursor entered or left the interactive area (the UI cannot see this
-/// itself while the window ignores cursor events).
+/// The pointer revealed the drop (`inside`) or left the open shape. The UI
+/// cannot see this itself while the window ignores cursor events.
 #[derive(Clone, Debug, Serialize, Type, tauri_specta::Event)]
 pub struct IslandPointer {
     pub inside: bool,
@@ -140,9 +165,12 @@ fn physical(logical_px: f64) -> u32 {
 }
 
 async fn cursor_loop<R: Runtime>(window: WebviewWindow<R>) {
+    let mut tracker = Tracker::default();
     let mut interactive = false;
     loop {
-        let (inside, near) = match sample(&window) {
+        let state = window.state::<IslandState>();
+        let shape = state.shape();
+        let (distance, near) = match sample(&window, shape.rect) {
             Ok(sampled) => sampled,
             Err(e) => {
                 // e.g. Wayland exposes no global cursor: keep the window usable.
@@ -153,25 +181,40 @@ async fn cursor_loop<R: Runtime>(window: WebviewWindow<R>) {
                 return;
             }
         };
-        if inside != interactive {
-            interactive = inside;
-            if let Err(e) = window.set_ignore_cursor_events(!inside) {
+        let decision = tracker.update(
+            Sample {
+                distance,
+                clickable: shape.clickable,
+                button_down: platform::pointer_button_down(),
+                now: std::time::Instant::now(),
+            },
+            state.reveal(),
+        );
+        if decision.interactive != interactive {
+            interactive = decision.interactive;
+            if let Err(e) = window.set_ignore_cursor_events(!interactive) {
                 tracing::warn!(error = %e, "set_ignore_cursor_events failed");
             }
-            if let Err(e) = (IslandPointer { inside }).emit(&window) {
-                tracing::warn!(error = %e, "emit IslandPointer failed");
-            }
+        }
+        if let Some(inside) = decision.pointer
+            && let Err(e) = (IslandPointer { inside }).emit(&window)
+        {
+            tracing::warn!(error = %e, "emit IslandPointer failed");
         }
         tokio::time::sleep(if near { POLL_NEAR } else { POLL_FAR }).await;
     }
 }
 
-fn sample<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<(bool, bool)> {
+/// Distance from the cursor to `rect` (logical px) and whether the cursor is
+/// close to the window at all (poll faster then).
+fn sample<R: Runtime>(
+    window: &WebviewWindow<R>,
+    rect: HitRect,
+) -> tauri::Result<(Option<f64>, bool)> {
     let cursor = window.cursor_position()?;
     let origin = window.outer_position()?;
     let size = window.outer_size()?;
     let scale = window.scale_factor()?;
-    let state = window.state::<IslandState>();
     let cursor = (cursor.x, cursor.y);
     let bounds = PhysRect {
         x: origin.x,
@@ -179,9 +222,8 @@ fn sample<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<(bool, bool)> 
         width: size.width,
         height: size.height,
     };
-    let inside = cursor_inside(cursor, (origin.x, origin.y), scale, state.hit_rect());
     Ok((
-        inside,
+        cursor_distance(cursor, (origin.x, origin.y), scale, rect),
         cursor_near(cursor, bounds, NEAR_MARGIN_LOGICAL * scale),
     ))
 }

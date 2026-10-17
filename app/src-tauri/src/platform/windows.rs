@@ -12,7 +12,9 @@ use windows_sys::Win32::Foundation::{HWND, RECT};
 use windows_sys::Win32::Graphics::Gdi::{
     GetMonitorInfoW, MONITOR_DEFAULTTONULL, MONITORINFO, MonitorFromWindow,
 };
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetKeyboardLayoutList, HKL};
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+    GetAsyncKeyState, GetKeyboardLayoutList, HKL, VK_LBUTTON, VK_MBUTTON, VK_RBUTTON,
+};
 use windows_sys::Win32::UI::Shell::{
     QUERY_USER_NOTIFICATION_STATE, QUNS_BUSY, QUNS_PRESENTATION_MODE, QUNS_RUNNING_D3D_FULL_SCREEN,
     SHQueryUserNotificationState,
@@ -20,6 +22,16 @@ use windows_sys::Win32::UI::Shell::{
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     GetClassNameW, GetDesktopWindow, GetForegroundWindow, GetShellWindow, GetWindowRect,
 };
+
+/// Physical button state (also correct with swapped buttons, since all three are checked).
+pub fn pointer_button_down() -> bool {
+    [VK_LBUTTON, VK_RBUTTON, VK_MBUTTON].into_iter().any(|key| {
+        // SAFETY: GetAsyncKeyState takes a virtual-key code and has no other preconditions.
+        let state = unsafe { GetAsyncKeyState(i32::from(key)) };
+        // The high bit (sign) set means the key is down.
+        state < 0
+    })
+}
 
 pub fn fullscreen_active() -> bool {
     notification_state_busy() || foreground_covers_monitor()

@@ -31,21 +31,25 @@ pub fn top_center(work_area: PhysRect, window_width: u32) -> (i32, i32) {
     (i32::try_from(x).unwrap_or(work_area.x), work_area.y)
 }
 
-/// Whether the cursor (physical desktop coordinates) is inside `rect`.
+/// Distance in logical px from the cursor (physical desktop coordinates) to
+/// `rect`; 0 when inside. `None` for an empty rect or an invalid scale.
 #[must_use]
-pub fn cursor_inside(
+pub fn cursor_distance(
     cursor: (f64, f64),
     window_origin: (i32, i32),
     scale: f64,
     rect: HitRect,
-) -> bool {
+) -> Option<f64> {
     if scale <= 0.0 || rect.width <= 0 || rect.height <= 0 {
-        return false;
+        return None;
     }
     let lx = (cursor.0 - f64::from(window_origin.0)) / scale;
     let ly = (cursor.1 - f64::from(window_origin.1)) / scale;
-    let (x, y) = (f64::from(rect.x), f64::from(rect.y));
-    lx >= x && lx < x + f64::from(rect.width) && ly >= y && ly < y + f64::from(rect.height)
+    let (left, top) = (f64::from(rect.x), f64::from(rect.y));
+    let (right, bottom) = (left + f64::from(rect.width), top + f64::from(rect.height));
+    let dx = (left - lx).max(0.0).max(lx - right);
+    let dy = (top - ly).max(0.0).max(ly - bottom);
+    Some(dx.hypot(dy))
 }
 
 /// Whether the cursor is within `margin` physical pixels of the window bounds.
@@ -83,31 +87,32 @@ mod tests {
     }
 
     #[test]
-    fn hit_test_respects_scale_and_origin() {
+    fn distance_respects_scale_and_origin() {
         let rect = HitRect {
             x: 150,
             y: 0,
             width: 120,
             height: 14,
         };
+        let d = |x, y| cursor_distance((x, y), (1000, 0), 1.5, rect).unwrap_or(f64::NAN);
         // 150% DPI, window at (1000, 0): logical x 150..270 => physical 1225..1405.
-        assert!(cursor_inside((1225.0, 0.0), (1000, 0), 1.5, rect));
-        assert!(cursor_inside((1404.0, 20.0), (1000, 0), 1.5, rect));
-        assert!(!cursor_inside((1405.5, 0.0), (1000, 0), 1.5, rect));
-        assert!(!cursor_inside((1300.0, 21.0), (1000, 0), 1.5, rect));
-        assert!(!cursor_inside((1224.0, 0.0), (1000, 0), 1.5, rect));
+        assert!(d(1225.0, 0.0).abs() < 1e-9);
+        assert!(d(1404.0, 20.0).abs() < 1e-9);
+        assert!((d(1300.0, 30.0) - 6.0).abs() < 1e-9); // 9 px below the bottom (21 phys)
+        assert!((d(1219.0, 0.0) - 4.0).abs() < 1e-9); // 6 phys px left
+        assert!((d(1405.0 + 4.5, 21.0 + 6.0) - 5.0).abs() < 1e-9); // corner: 3-4-5
     }
 
     #[test]
-    fn empty_rect_or_bad_scale_never_hits() {
-        assert!(!cursor_inside((0.0, 0.0), (0, 0), 1.0, HitRect::default()));
+    fn empty_rect_or_bad_scale_has_no_distance() {
+        assert!(cursor_distance((0.0, 0.0), (0, 0), 1.0, HitRect::default()).is_none());
         let rect = HitRect {
             x: 0,
             y: 0,
             width: 10,
             height: 10,
         };
-        assert!(!cursor_inside((1.0, 1.0), (0, 0), 0.0, rect));
+        assert!(cursor_distance((1.0, 1.0), (0, 0), 0.0, rect).is_none());
     }
 
     #[test]

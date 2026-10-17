@@ -141,6 +141,25 @@ class HotkeysSection(BaseModel):
     )
 
 
+class IslandSection(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    reveal_distance: int = Field(
+        default=6,
+        ge=0,
+        le=64,
+        title="Reveal distance",
+        description="How near the pointer must come to open the drop, in pixels. 0: touch it.",
+    )
+    reveal_delay_ms: int = Field(
+        default=150,
+        ge=0,
+        le=1000,
+        title="Reveal delay",
+        description="How long the pointer must stay that close before the drop opens, in ms.",
+    )
+
+
 class EvConfig(BaseModel):
     """Root of config.toml. Each field is one [section]."""
 
@@ -160,6 +179,11 @@ class EvConfig(BaseModel):
         default_factory=AgentSection,
         description="How EV answers.",
         json_schema_extra=_nav(Nav.GENERAL),
+    )
+    island: IslandSection = Field(
+        default_factory=IslandSection,
+        description="The drop at the top of the screen.",
+        json_schema_extra=_nav(Nav.APPEARANCE),
     )
     hotkeys: HotkeysSection = Field(
         default_factory=HotkeysSection,

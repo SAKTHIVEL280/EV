@@ -4,9 +4,10 @@ Expands `CLAUDE.md` §6 into an implementable system. `CLAUDE.md` wins on any co
 marked **(tune P2)** are starting points to be tuned in Phase 2 and then locked here.
 
 ## 1. Art direction: "quiet hardware"
-EV is a physical object built into the screen. The island is pure black (`#000`) in every theme,
-like a camera cutout. Depth comes from motion and blur, never from shadows, gradients or borders.
-One accent color, used only for live states.
+EV is a physical object built into the screen. The island is pure black (`#000`) in every theme:
+a drop of black liquid hanging from the top edge of the screen. Depth comes from motion and blur,
+never from shadows or gradients. The only border is the island's faint rim, which keeps the drop
+visible on black backgrounds (dark browser tabs). One accent color, used only for live states.
 
 ## 2. Tokens
 Tokens are the only source of visual values. Components reference CSS custom properties, and
@@ -24,7 +25,8 @@ component changes.
 | `--ev-island-bg` | `#000` |
 | `--ev-island-fg-1` | `rgb(255 255 255 / 1)` |
 | `--ev-island-fg-2` | `rgb(255 255 255 / 0.64)` |
-| `--ev-island-fg-3` | `rgb(255 255 255 / 0.40)` |
+| `--ev-island-fg-3` | `rgb(255 255 255 / 0.40)` (not for text: 3.7:1) |
+| `--ev-island-rim` | `rgb(255 255 255 / 0.22)`, 1 px |
 
 ### 2.2 Accent
 Default: warm off-white glow (exact value chosen with the font specimen in Phase 2). Curated set of
@@ -45,14 +47,26 @@ Open Sans, `system-ui`. Alternatives on file: Hanken Grotesk, Schibsted Grotesk.
 locked after the Phase 2 specimen (Windows, ClearType, 100/125/150% DPI) is approved by the user.
 
 ### 2.4 Shape
-- Island corners: continuous squircle (superellipse) drawn as an SVG path / `clip-path`, never a
-  plain `border-radius` on the island.
+- The island is one outline (`app/src/lib/island/droplet.ts`): a body hanging from the top edge,
+  bottom corners as superellipses, and concave "neck" fillets where it meets the edge (water held
+  by surface tension). Drawn as an SVG path, never a plain `border-radius`.
+- Per state: width, height, bottom radius, neck and corner exponent (2 = round bead, 5 = squircle).
+
+  | State | Width × height | Radius | Neck | Exponent |
+  |---|---|---|---|---|
+  | idle (drop) | 16 × 13 | 8 | 5 | 2 |
+  | hover (capsule) | 168 × 30 | 15 | 8 | 3 |
+  | panel | 380 × 264 | 26 | 12 | 5 |
 - Hairline: 1 px at 8% opacity of the foreground.
 
 ### 2.5 Motion
 | Token | Value |
 |---|---|
-| `--ev-spring-stiffness` / `-damping` / `-mass` | 400 / 32 / 1 **(tune P2)**. Measured in Phase 0: ~417 ms to settle the 240 px idle → panel morph, over the 350 ms budget; 500 / 40 settles in ~300 ms (PERFORMANCE.md §4.3). |
+| `--ev-spring-width-*` | stiffness 700, damping 44, mass 1: crisp; idle → panel settles in ~336 ms |
+| `--ev-spring-height-*` | stiffness 650, damping 38, mass 1: ~2.7% overshoot, settles in ~336 ms, so the drop swells and settles like liquid |
+
+The Phase 0 default (400 / 32) settled in ~430 ms, over the 350 ms budget; replaced 2026-10-17.
+Radius, neck and exponent follow the height spring.
 | Reduced motion | cross-fade only, ≤ 150 ms |
 | Animation strength | Full / Subtle / Reduced (scales spring displacement; Reduced = cross-fade) |
 
@@ -64,8 +78,8 @@ Windows "Animation effects" setting.
 ## 3. Island states
 | State | Shape | Content |
 |---|---|---|
-| `idle` | tiny pill, few px tall, low contrast | none |
-| `hover` | slightly larger | hint text (13 px, fg-2) |
+| `idle` | the drop (16 × 13), click-through | none |
+| `hover` | capsule (168 × 30), takes clicks | status text (13 px, fg-2); click opens the panel |
 | `listening` | medium | live level / captions (accent) |
 | `thinking` | medium | breathing / edge shimmer (no spinner) |
 | `speaking` | medium | captions |
@@ -75,9 +89,10 @@ Windows "Animation effects" setting.
 Every surface also designs: empty, loading, error, offline, permission denied, disabled.
 Feedback lives in the island only — no toasts.
 
-Exact geometry per state is defined in Phase 2. The Phase 0 spike implements `idle`, `hover` and
-`panel` (starting values in `base.css`) to measure frame times, latency and click-through. The
-panel contains spike controls (morph test, quit) that are replaced in Phase 2.
+Reveal (CLAUDE.md §6.1): the drop opens when the pointer stays within `island.reveal_distance`
+(default 6 px) for `island.reveal_delay_ms` (default 150 ms) with no mouse button held. Leaving the
+capsule by more than 8 px closes it, and the drop is click-through again at once. Rules and tests:
+`app/src-tauri/src/island/pointer.rs`. Every morph's frame times are logged to `app.log`.
 
 ## 4. Icons
 Custom EV set, ~30 icons, 20 px grid, 1.5 px stroke, rounded joins, stored as SVG in

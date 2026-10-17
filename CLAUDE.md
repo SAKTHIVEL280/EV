@@ -203,13 +203,16 @@ from available signals.
 
 ### 6.1 The island
 - Position: top-center, below the camera area. Never top-right (window controls live there).
-- States: `idle` (tiny pill, few px tall, low contrast) → `hover` (slightly grows, shows hint) →
+- States: `idle` (a tiny drop of black liquid hanging from the top edge, ~16 × 13 px; user decision
+  2026-10-17) → `hover` (the drop swells into a small capsule, shows a hint) →
   `listening` (live waveform/captions) → `thinking` → `speaking` → `panel` (~360 px wide,
   input + last reply + quick actions) → `confirm` (inline yes/no) → back to `idle`.
 - Never steals focus except when the user opens it via hotkey or click.
-- Idle: click-through everywhere outside the pill. Implementation decided in Phase 0 spike:
-  window sized to max panel bounds + Rust-side cursor hit-testing toggling `set_ignore_cursor_events`
-  (known Tauri issues #9250, #11461; Tauri shadow bug on transparent windows must be verified off).
+- Idle: the drop itself is click-through too (it sits over browser tabs and title bars). It opens
+  only when the pointer stays within a user-set distance for a user-set delay with no mouse button
+  held (`island.reveal_distance`, `island.reveal_delay_ms`). An open shape takes clicks only inside
+  itself. Implementation: window sized to max panel bounds + Rust-side cursor hit-testing toggling
+  `set_ignore_cursor_events` (known Tauri issues #9250, #11461; shadow verified off).
 - Auto-hide when a fullscreen app, game, or screen share/recording is active (setting).
 - Multi-monitor: island on primary display by default; setting to choose. Handle DPI changes and
   display hot-plug without restart.
@@ -232,6 +235,8 @@ from available signals.
 EV should feel like a physical object built into the screen, not a web app floating on it.
 - **The island is always pure black (#000), in every theme**, like a camera cutout. Content on it is
   white at 3 opacity steps (100 / 64 / 40%). This is the signature; themes never change it.
+  A faint light rim (1 px, 22% white) keeps it visible on black backgrounds such as dark browser
+  tabs (user report, 2026-10-17); it is the one allowed border.
 - Exactly **one accent color**, used only for live states (listening level, progress). Default is a
   warm off-white glow, not blue/purple. User may pick from a curated set of 6 or follow Windows accent.
 - Depth comes from motion and blur, not from shadows, gradients or borders.

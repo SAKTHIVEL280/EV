@@ -8,8 +8,11 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 
 /** Commands */
 export const commands = {
-	/**  The UI reports the pill's current interactive area after every shape change. */
-	islandSetHitRect: (rect: HitRect) => __TAURI_INVOKE<void>("island_set_hit_rect", { rect }),
+	/**
+	 *  The UI reports its current shape after every change: the rectangle, and
+	 *  whether it takes clicks (hover, panel) or is the click-through idle drop.
+	 */
+	islandSetHitRect: (rect: HitRect, clickable: boolean) => __TAURI_INVOKE<void>("island_set_hit_rect", { rect, clickable }),
 	/**
 	 *  Opening the panel makes the island focusable and focuses it so the input
 	 *  can take typing; closing returns to never-focus and, on Windows, hands
@@ -175,8 +178,8 @@ export type HotkeyStatus = {
 export type HotkeyStatusChanged = HotkeyStatus;
 
 /**
- *  The cursor entered or left the interactive area (the UI cannot see this
- *  itself while the window ignores cursor events).
+ *  The pointer revealed the drop (`inside`) or left the open shape. The UI
+ *  cannot see this itself while the window ignores cursor events.
  */
 export type IslandPointer = {
 	inside: boolean,

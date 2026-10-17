@@ -13,8 +13,11 @@
 }
 
 :root {
-  /* Island: pure black in every theme; content is white at three opacities. */
+  /* Island: pure black in every theme; content is white at three opacities.
+     The rim keeps the drop visible on black backgrounds (dark browser tabs). */
   --ev-island-bg: #000;
+  --ev-island-rim: rgb(255 255 255 / 0.22);
+  --ev-island-rim-width: 1px;
   --ev-island-fg-1: rgb(255 255 255 / 1);
   --ev-island-fg-2: rgb(255 255 255 / 0.64);
   --ev-island-fg-3: rgb(255 255 255 / 0.4);
@@ -45,23 +48,35 @@
 
   /* Shape. */
   --ev-radius-control: 8px;
-  --ev-squircle-exponent: 5;
+  --ev-control-height: 28px;
 
-  /* Motion (tune P2). Spring physics, not eased tweens. */
-  --ev-spring-stiffness: 400;
-  --ev-spring-damping: 32;
+  /* Motion. Spring physics, not eased tweens. Width is crisp; height a little
+     softer, so the drop swells and settles like liquid. Both settle within the
+     350 ms budget (docs/DESIGN.md §2.5). */
+  --ev-spring-width-stiffness: 700;
+  --ev-spring-width-damping: 44;
+  --ev-spring-height-stiffness: 650;
+  --ev-spring-height-damping: 38;
   --ev-spring-mass: 1;
   --ev-fade-reduced: 150ms;
   --ev-fade-content: 120ms;
 
-  /* Island geometry, logical px (tune P2). */
-  --ev-island-top: 6px;
-  --ev-island-idle-width: 120px;
-  --ev-island-idle-height: 10px;
-  --ev-island-hover-width: 200px;
-  --ev-island-hover-height: 32px;
-  --ev-island-panel-width: 360px;
-  --ev-island-panel-height: 240px;
-  /* Idle pill is a few px tall; the hover target is a bit larger. */
-  --ev-island-hit-slop: 6px;
+  /* Island drop geometry, logical px: body width / height, bottom corner
+     radius, neck (where it meets the screen edge) and corner exponent
+     (2 = round bead, 5 = continuous squircle). The idle drop is a round bead. */
+  --ev-island-idle-width: 16px;
+  --ev-island-idle-height: 13px;
+  --ev-island-idle-radius: 8px;
+  --ev-island-idle-neck: 5px;
+  --ev-island-idle-exponent: 2;
+  --ev-island-hover-width: 168px;
+  --ev-island-hover-height: 30px;
+  --ev-island-hover-radius: 15px;
+  --ev-island-hover-neck: 8px;
+  --ev-island-hover-exponent: 3;
+  --ev-island-panel-width: 380px;
+  --ev-island-panel-height: 264px;
+  --ev-island-panel-radius: 26px;
+  --ev-island-panel-neck: 12px;
+  --ev-island-panel-exponent: 5;
 }

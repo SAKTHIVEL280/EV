@@ -163,6 +163,27 @@ fn launch_spec<R: Runtime>(app: &AppHandle<R>, data_dir: PathBuf) -> Result<Laun
     }
 }
 
+/// `island.reveal_*` from core's settings; defaults for missing values.
+fn island_reveal(state: &settings::SettingsState) -> island::pointer::Reveal {
+    let int = |key: &str| {
+        state
+            .items
+            .iter()
+            .find_map(|i| match (&*i.section, &*i.key, &i.value) {
+                ("island", k, settings::SettingValue::Int(v)) if k == key => Some(*v),
+                _ => None,
+            })
+    };
+    let mut reveal = island::pointer::Reveal::default();
+    if let Some(px) = int("reveal_distance") {
+        reveal.distance = f64::from(px.max(0));
+    }
+    if let Some(ms) = int("reveal_delay_ms") {
+        reveal.delay = Duration::from_millis(u64::try_from(ms).unwrap_or(0));
+    }
+    reveal
+}
+
 /// Forwards core state to app state and UI events.
 struct AppObserver<R: Runtime> {
     app: AppHandle<R>,
@@ -175,6 +196,9 @@ impl<R: Runtime> AppObserver<R> {
                 tracing::debug!(items = state.items.len(), "settings received");
                 self.app.state::<AppState>().set_settings(state.clone());
                 self.reconcile_hotkey(&state);
+                self.app
+                    .state::<IslandState>()
+                    .set_reveal(island_reveal(&state));
                 if let Err(e) = settings::SettingsChanged(state).emit(&self.app) {
                     tracing::warn!(error = %e, "emit SettingsChanged failed");
                 }

@@ -1,9 +1,12 @@
 <!--
-  Island spike (Phase 0, S1). Shapes: idle pill, hover, panel. One black
-  surface morphs through a squircle clip-path driven by springs; content
-  cross-fades on top. Only clip-path and opacity animate (CLAUDE.md §6.2).
-  Exact geometry and the full state set arrive in Phase 2. The panel holds
-  typed chat (Phase 1) and the spike controls (morph test, quit).
+  The island (CLAUDE.md §6.1, docs/DESIGN.md §3): a drop of black liquid
+  hanging from the top edge of the screen. One outline morphs between the
+  idle drop, the hover capsule and the panel, driven by springs; content
+  cross-fades on top.
+
+  The idle drop never takes clicks. Rust reveals it (IslandPointer) when the
+  pointer stays near it; the UI reports its current shape and whether that
+  shape takes clicks after every change (island/pointer.rs).
 -->
 <script lang="ts">
   import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -11,31 +14,25 @@
 
   import { commands, events, type CoreStatus, type HitRect } from "../bindings";
   import ChatPanel from "../chat/ChatPanel.svelte";
-  import { FrameRecorder, type FrameSummary } from "./frames";
+  import Icon from "../icons/Icon.svelte";
+  import { dropletBounds, dropletPath, type Drop } from "./droplet";
+  import { FrameRecorder } from "./frames";
   import { Spring, type SpringConfig } from "./spring";
-  import { squirclePath } from "./squircle";
 
   type Mode = "idle" | "hover" | "panel";
-  interface Size {
+  interface Shape {
     width: number;
     height: number;
+    radius: number;
+    neck: number;
+    exponent: number;
   }
-  interface MorphResult extends FrameSummary {
-    label: string;
-    settleMs: number;
-    firstFrameMs: number;
-  }
-
-  const MORPH_TEST_CYCLES = 3;
-  const PANEL_RADIUS = 28;
 
   let mode = $state<Mode>("idle");
   let status = $state<CoreStatus>({ state: "starting" });
   let pointerInside = $state(false);
-  let testing = $state(false);
-  let lastTest = $state<MorphResult[]>([]);
+  let path = $state("");
 
-  let surface: HTMLDivElement | undefined = $state();
   let chatPanel: { focus: () => void } | undefined = $state();
 
   const statusText = $derived.by(() => {
@@ -51,71 +48,52 @@
     }
   });
 
-  const coreVersion = $derived(status.state === "running" ? status.core_version : null);
-
-  const testSummary = $derived.by(() => {
-    if (lastTest.length === 0) return null;
-    const frames = lastTest.reduce((n, r) => n + r.frames, 0);
-    const dropped = lastTest.reduce((n, r) => n + r.dropped, 0);
-    const worst = Math.max(...lastTest.map((r) => r.worstMs));
-    const settle = Math.max(...lastTest.map((r) => r.settleMs));
-    return `${String(lastTest.length)} morphs · ${String(frames)} frames · ${String(dropped)} dropped · worst ${worst.toFixed(1)} ms · settle ${String(Math.round(settle))} ms`;
-  });
-
   // Tokens are the single source of geometry and motion values.
   function token(name: string): number {
     return Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
   }
 
-  function sizeFor(m: Mode): Size {
+  function shapeFor(m: Mode): Shape {
     return {
       width: token(`--ev-island-${m}-width`),
       height: token(`--ev-island-${m}-height`),
+      radius: token(`--ev-island-${m}-radius`),
+      neck: token(`--ev-island-${m}-neck`),
+      exponent: token(`--ev-island-${m}-exponent`),
     };
   }
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  let widthSpring: Spring;
-  let heightSpring: Spring;
+  let springs: Record<keyof Shape, Spring>;
   let raf = 0;
   let lastFrame = 0;
   let morphStart = 0;
-  let inputAt = 0;
   let firstFrameAt = 0;
   let morphLabel = "";
   const recorder = new FrameRecorder();
-  let settleWaiters: ((result: MorphResult) => void)[] = [];
 
-  function geometry(width: number, height: number): { x: number; y: number; r: number } {
+  function current(): Shape {
     return {
-      x: (window.innerWidth - width) / 2,
-      y: token("--ev-island-top"),
-      r: Math.min(height / 2, PANEL_RADIUS),
+      width: springs.width.value,
+      height: springs.height.value,
+      radius: springs.radius.value,
+      neck: springs.neck.value,
+      exponent: springs.exponent.value,
     };
+  }
+
+  function drop(shape: Shape): Drop {
+    return { cx: window.innerWidth / 2, ...shape };
   }
 
   function draw(): void {
-    if (!surface) return;
-    const width = widthSpring.value;
-    const height = heightSpring.value;
-    const { x, y, r } = geometry(width, height);
-    const path = squirclePath(x, y, width, height, r, token("--ev-squircle-exponent"));
-    surface.style.clipPath = `path("${path}")`;
+    path = dropletPath(drop(current()));
   }
 
-  function hitRect(size: Size): HitRect {
-    const slop = token("--ev-island-hit-slop");
-    const { x, y } = geometry(size.width, size.height);
-    return {
-      x: Math.floor(x - slop),
-      y: 0,
-      width: Math.ceil(size.width + 2 * slop),
-      height: Math.ceil(y + size.height + slop),
-    };
-  }
-
-  function reportHitRect(size: Size): void {
-    void commands.islandSetHitRect(hitRect(size));
+  /** Tell Rust where the shape is and whether it takes clicks. */
+  function report(shape: Shape, clickable: boolean): void {
+    const rect: HitRect = dropletBounds(drop(shape));
+    void commands.islandSetHitRect(rect, clickable);
   }
 
   function frame(now: number): void {
@@ -123,10 +101,10 @@
     const dt = lastFrame === 0 ? 1000 / 60 : now - lastFrame;
     if (lastFrame !== 0) recorder.add(dt);
     lastFrame = now;
-    const doneW = widthSpring.step(dt / 1000);
-    const doneH = heightSpring.step(dt / 1000);
+    let done = true;
+    for (const spring of Object.values(springs)) done = spring.step(dt / 1000) && done;
     draw();
-    if (doneW && doneH) {
+    if (done) {
       raf = 0;
       settled(now);
     } else {
@@ -135,62 +113,63 @@
   }
 
   function settled(now: number): void {
-    const result: MorphResult = {
-      ...recorder.summary(),
-      label: morphLabel,
-      settleMs: now - morphStart,
-      firstFrameMs: Math.max(0, firstFrameAt - inputAt),
-    };
-    reportHitRect({ width: widthSpring.target, height: heightSpring.target });
+    if (mode !== "idle") report(shapeFor(mode), true);
+    const summary = recorder.summary();
+    // Frame times of every morph go to app.log (budget checks, spike S1).
     void commands.spikeReportFrames({
-      label: result.label,
-      frames: result.frames,
-      dropped: result.dropped,
-      worst_us: Math.round(result.worstMs * 1000),
-      p95_us: Math.round(result.p95Ms * 1000),
-      first_frame_us: Math.round(result.firstFrameMs * 1000),
-      settle_ms: Math.round(result.settleMs),
+      label: morphLabel,
+      frames: summary.frames,
+      dropped: summary.dropped,
+      worst_us: Math.round(summary.worstMs * 1000),
+      p95_us: Math.round(summary.p95Ms * 1000),
+      first_frame_us: Math.round(Math.max(0, firstFrameAt - morphStart) * 1000),
+      settle_ms: Math.round(now - morphStart),
       dpr_percent: Math.round(window.devicePixelRatio * 100),
     });
-    const waiters = settleWaiters;
-    settleWaiters = [];
-    for (const resolve of waiters) resolve(result);
   }
 
   /** Morph to `next`, interrupting any morph in flight from its current value. */
-  function morph(next: Mode, label: string): Promise<MorphResult> {
-    const target = sizeFor(next);
-    const current = { width: widthSpring.value, height: heightSpring.value };
-    // While growing, the target area must already accept the cursor.
-    reportHitRect({
-      width: Math.max(current.width, target.width),
-      height: Math.max(current.height, target.height),
-    });
+  function morph(next: Mode, label: string): void {
+    const target = shapeFor(next);
+    if (next === "idle") {
+      // Click-through at once, not when the drop has finished shrinking.
+      report(target, false);
+    } else {
+      // While growing, the area the shape is growing into already takes clicks.
+      const now = current();
+      report(
+        {
+          width: Math.max(now.width, target.width),
+          height: Math.max(now.height, target.height),
+          radius: target.radius,
+          neck: Math.max(now.neck, target.neck),
+          exponent: target.exponent,
+        },
+        true,
+      );
+    }
     morphLabel = label;
-    inputAt = performance.now();
-    morphStart = inputAt;
+    morphStart = performance.now();
     firstFrameAt = 0;
     lastFrame = 0;
     recorder.reset();
-    const done = new Promise<MorphResult>((resolve) => settleWaiters.push(resolve));
+    for (const key of Object.keys(springs) as (keyof Shape)[]) {
+      if (reducedMotion.matches) springs[key].jump(target[key]);
+      else springs[key].target = target[key];
+    }
     if (reducedMotion.matches) {
-      widthSpring.jump(target.width);
-      heightSpring.jump(target.height);
       draw();
       settled(performance.now());
-      return done;
+    } else if (raf === 0) {
+      raf = requestAnimationFrame(frame);
     }
-    widthSpring.target = target.width;
-    heightSpring.target = target.height;
-    if (raf === 0) raf = requestAnimationFrame(frame);
-    return done;
   }
 
   function setMode(next: Mode): void {
     if (next === mode) return;
     const label = `${mode}->${next}`;
     mode = next;
-    void morph(next, label);
+    morph(next, label);
   }
 
   function openPanel(): void {
@@ -204,32 +183,31 @@
     void commands.islandSetPanelOpen(false);
   }
 
-  async function runMorphTest(): Promise<void> {
-    testing = true;
-    const results: MorphResult[] = [];
-    for (let i = 0; i < MORPH_TEST_CYCLES; i += 1) {
-      results.push(await morph("idle", "test panel->idle"));
-      results.push(await morph("panel", "test idle->panel"));
-    }
-    lastTest = results;
-    testing = false;
-  }
-
   function onKeydown(event: KeyboardEvent): void {
     if (event.key === "Escape") closePanel();
   }
 
   onMount(() => {
-    const config: SpringConfig = {
-      stiffness: token("--ev-spring-stiffness"),
-      damping: token("--ev-spring-damping"),
+    const width: SpringConfig = {
+      stiffness: token("--ev-spring-width-stiffness"),
+      damping: token("--ev-spring-width-damping"),
       mass: token("--ev-spring-mass"),
     };
-    const idle = sizeFor("idle");
-    widthSpring = new Spring(idle.width, config);
-    heightSpring = new Spring(idle.height, config);
+    const height: SpringConfig = {
+      stiffness: token("--ev-spring-height-stiffness"),
+      damping: token("--ev-spring-height-damping"),
+      mass: token("--ev-spring-mass"),
+    };
+    const idle = shapeFor("idle");
+    springs = {
+      width: new Spring(idle.width, width),
+      height: new Spring(idle.height, height),
+      radius: new Spring(idle.radius, height),
+      neck: new Spring(idle.neck, height),
+      exponent: new Spring(idle.exponent, height),
+    };
     draw();
-    reportHitRect(idle);
+    report(idle, false);
     // Spike S2: two frames later the first island frame has been painted.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => void commands.spikeIslandPainted());
@@ -283,31 +261,41 @@
 <svelte:window onkeydown={onKeydown} />
 
 <div class="island" data-mode={mode}>
-  <div class="surface" bind:this={surface}></div>
+  <svg class="surface" aria-hidden="true">
+    <path d={path} />
+  </svg>
 
   {#if mode === "hover"}
     <button class="hover" type="button" onclick={openPanel} aria-label="Open EV">
       <span class="status" aria-live="polite">{statusText}</span>
     </button>
   {:else if mode === "panel"}
-    <div class="panel" class:testing role="dialog" aria-label="EV">
+    <div class="panel" role="dialog" aria-label="EV">
       <header>
         <span class="title">EV</span>
-        <span class="meta" aria-live="polite"
-          >{coreVersion ? `core ${coreVersion}` : statusText}</span
-        >
+        <span class="meta" aria-live="polite">{statusText}</span>
+        <div class="actions">
+          <button
+            class="icon-button"
+            type="button"
+            onclick={() => void commands.settingsOpen()}
+            aria-label="Settings"
+            title="Settings"
+          >
+            <Icon name="settings" size={18} />
+          </button>
+          <button
+            class="icon-button"
+            type="button"
+            onclick={() => void commands.appQuit()}
+            aria-label="Quit EV"
+            title="Quit EV"
+          >
+            <Icon name="power" size={18} />
+          </button>
+        </div>
       </header>
       <ChatPanel bind:this={chatPanel} />
-      <footer aria-label="Island spike">
-        <button type="button" onclick={() => void runMorphTest()} disabled={testing}>
-          {testing ? "Testing" : "Morph test"}
-        </button>
-        {#if testSummary}<p class="result">{testSummary}</p>{/if}
-        <button class="quit" type="button" onclick={() => void commands.settingsOpen()}>
-          Settings
-        </button>
-        <button type="button" onclick={() => void commands.appQuit()}>Quit EV</button>
-      </footer>
     </div>
   {/if}
 </div>
@@ -323,15 +311,22 @@
   .surface {
     position: absolute;
     inset: 0;
-    background: var(--ev-island-bg);
-    will-change: clip-path;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .surface path {
+    fill: var(--ev-island-bg);
+    stroke: var(--ev-island-rim);
+    stroke-width: var(--ev-island-rim-width);
   }
 
   .hover,
   .panel {
     position: absolute;
     left: 50%;
-    top: var(--ev-island-top);
+    top: 0;
     transform: translateX(-50%);
     animation: fade-in var(--ev-fade-content) ease-out both;
   }
@@ -363,21 +358,17 @@
     width: var(--ev-island-panel-width);
     height: var(--ev-island-panel-height);
     box-sizing: border-box;
-    padding: var(--ev-space-4) var(--ev-space-5);
+    padding: var(--ev-space-3) var(--ev-space-5) var(--ev-space-5);
     display: flex;
     flex-direction: column;
-    gap: var(--ev-space-2);
-  }
-
-  /* The morph test shrinks the surface under the panel; hide its content meanwhile. */
-  .panel.testing {
-    opacity: 0;
+    gap: var(--ev-space-3);
   }
 
   header {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
+    align-items: center;
+    gap: var(--ev-space-2);
+    min-height: var(--ev-control-height);
   }
 
   .title {
@@ -386,59 +377,43 @@
   }
 
   /* Text uses fg-1 / fg-2 only: fg-3 (40%) is 3.7:1 on black, below WCAG AA. */
-  .meta,
-  .result {
+  .meta {
     font-size: var(--ev-text-13);
     color: var(--ev-island-fg-2);
     font-variant-numeric: tabular-nums;
-  }
-
-  .result {
-    margin: 0;
-    font-size: var(--ev-text-11);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
-  footer {
-    display: flex;
-    align-items: center;
-    gap: var(--ev-space-2);
-    padding-top: var(--ev-space-2);
-    border-top: 1px solid var(--ev-island-hairline);
-  }
-
-  .quit {
+  .actions {
     margin-left: auto;
+    display: flex;
+    gap: var(--ev-space-1);
   }
 
-  footer button {
-    flex-shrink: 0;
-    font: inherit;
-    font-size: var(--ev-text-11);
-    font-weight: var(--ev-weight-medium);
-    color: var(--ev-island-fg-1);
-    background: var(--ev-island-control-bg);
+  .icon-button {
+    width: var(--ev-control-height);
+    height: var(--ev-control-height);
+    display: grid;
+    place-items: center;
+    padding: 0;
+    color: var(--ev-island-fg-2);
+    background: transparent;
     border: 0;
     border-radius: var(--ev-radius-control);
-    padding: var(--ev-space-1) var(--ev-space-3);
     cursor: pointer;
   }
 
-  footer button:hover {
-    background: var(--ev-island-control-bg-hover);
+  .icon-button:hover {
+    color: var(--ev-island-fg-1);
+    background: var(--ev-island-control-bg);
   }
 
   button:focus-visible {
     outline: 2px solid var(--ev-focus-ring);
     outline-offset: 2px;
-  }
-
-  button:disabled {
-    color: var(--ev-island-fg-3);
-    cursor: default;
   }
 
   @keyframes fade-in {

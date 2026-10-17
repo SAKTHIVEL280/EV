@@ -99,7 +99,10 @@ def test_descriptors_cover_every_key_with_metadata(tmp_path: Path) -> None:
         "llm.idle_unload_minutes",
         "agent.default_effort",
         "hotkeys.open_panel",
+        "island.reveal_distance",
+        "island.reveal_delay_ms",
     }
+    assert items["island.reveal_distance"].nav is Nav.APPEARANCE
     context = items["llm.context"]
     assert (context.kind, context.minimum, context.maximum) == ("integer", 2048, 131072)
     assert (context.default, context.value, context.nav) == (8192, 4096, Nav.MODELS)

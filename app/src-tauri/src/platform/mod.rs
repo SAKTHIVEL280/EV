@@ -17,6 +17,20 @@ pub fn fullscreen_active() -> bool {
     }
 }
 
+/// Whether a mouse button is held (e.g. dragging a browser tab). The island
+/// does not reveal meanwhile. Linux development: always `false`.
+#[must_use]
+pub fn pointer_button_down() -> bool {
+    #[cfg(windows)]
+    {
+        windows::pointer_button_down()
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
 /// Whether a Chinese, Japanese or Korean keyboard layout (input method) is
 /// installed; Ctrl+Space toggles some of those input methods (F-004).
 #[must_use]

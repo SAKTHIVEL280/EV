@@ -12,8 +12,8 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::chat::{Effort, LlmStatus};
 use crate::core::CoreStatus;
-use crate::island::IslandState;
 use crate::island::geometry::HitRect;
+use crate::island::{IslandState, Shape};
 use crate::protocol::{self, Message};
 use crate::settings::{SettingValue, SettingsState};
 use crate::settings_window;
@@ -36,11 +36,12 @@ impl From<tauri::Error> for CommandError {
     }
 }
 
-/// The UI reports the pill's current interactive area after every shape change.
+/// The UI reports its current shape after every change: the rectangle, and
+/// whether it takes clicks (hover, panel) or is the click-through idle drop.
 #[tauri::command]
 #[specta::specta]
-pub fn island_set_hit_rect(state: State<'_, IslandState>, rect: HitRect) {
-    state.set_hit_rect(rect);
+pub fn island_set_hit_rect(state: State<'_, IslandState>, rect: HitRect, clickable: bool) {
+    state.set_shape(Shape { rect, clickable });
 }
 
 /// Opening the panel makes the island focusable and focuses it so the input

@@ -192,3 +192,33 @@ Quality gates
 ## Git workflow change (2026-10-17)
 - User decision: all work goes directly onto `main` under the user's account; no feature branches and no pull requests. The provisional Phase 0–2 work (previously the stacked branches `feat/phase-0-foundation`, `feat/phase-1-brain`, `feat/phase-2-island`) was moved onto `main` in one step. The Phase 0 gate and the Windows checks for Phases 1–2 are still open; that status is tracked in this log and in docs/FEATURES.md, not by branches.
 - User decision: commits carry no `Co-Authored-By` or other AI attribution. Existing commit messages were rewritten to remove it (contents unchanged).
+
+## First Windows test and fixes (2026-10-17)
+The user installed the CI build on the Windows 11 laptop. Findings and decisions:
+- **Settings window froze** (white, "not responding", black areas when moved). Cause: the window was
+  created inside a synchronous Tauri command, which deadlocks on Windows (tauri #4121). Fixed by an
+  async command.
+- **EV could not be closed.** Cause: the exit handler blocked the event-loop thread with `block_on`
+  while background tasks needed that thread (reproduced on Linux, 6 of 6 runs hung). Fixed by
+  deferring the exit, stopping core asynchronously, then exiting (8 of 8 clean exits, ~1.6 s).
+- **Smoke test added** so this class of bug fails CI: `EV_SMOKE_TEST=1` runs the real app, opens
+  Settings through the button's command, waits for core's settings on screen and quits; a watchdog
+  fails the run on a hang. CI runs it on Linux (xvfb) and Windows. First run: green on both.
+- **The island blocked browser tabs.** The hover area (212 × 44 px from the top edge) caught clicks
+  meant for Chrome's middle tabs. Decision: the idle drop never takes clicks; it opens only when the
+  pointer stays near it (`island.reveal_distance` 6 px, `island.reveal_delay_ms` 150 ms, both in
+  Settings → Appearance) with no mouse button held (Windows `GetAsyncKeyState`); open shapes take
+  clicks only inside themselves, and closing restores click-through at once.
+- **Invisible on dark backgrounds** (black island on a black Chrome tab strip). Decision: a faint
+  rim (1 px, 22% white) on the island outline. This is an exception to "no borders" (CLAUDE.md §6.3
+  updated).
+- **Shape: a water drop** (user request). The idle state is a round bead hanging from the top edge
+  with a meniscus neck; the same outline grows into the capsule and the panel (DESIGN.md §2.4).
+  Width and height use different springs so the morph reads as liquid; both settle within budget.
+- **Models must download in the app** (user request): the model downloader (F-403, Phase 8) is
+  pulled forward, because nothing else can be tried without a model.
+- The user's logs were not readable from Linux (the Windows system drive is personal data); the
+  causes above were found from the description, the code and Linux reproduction.
+- Linux development note: under XWayland, EV only sees the pointer over X11 windows; Hyprland's
+  cursor warp does not reach X11 clients. Pointer tests use `xdotool` over an X11 backdrop.
+
