@@ -103,7 +103,21 @@ def test_descriptors_cover_every_key_with_metadata(tmp_path: Path) -> None:
         "island.reveal_delay_ms",
         "island.arc_width",
         "island.arc_depth",
+        "permissions.apps",
+        "permissions.window",
+        "permissions.system",
+        "permissions.screenshot",
+        "permissions.clipboard",
+        "permissions.files",
+        "permissions.timer",
+        "permissions.focus_mode",
+        "permissions.ui",
+        "clipboard.history",
+        "clipboard.actions",
     }
+    assert items["permissions.files"].options == ("allow", "ask", "block")
+    assert items["permissions.files"].nav is Nav.PERMISSIONS
+    assert items["clipboard.actions"].default is False
     assert items["island.reveal_distance"].nav is Nav.APPEARANCE
     assert (items["island.reveal_distance"].unit, items["island.reveal_delay_ms"].unit) == (
         "px",

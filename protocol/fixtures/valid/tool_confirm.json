@@ -1,0 +1,1 @@
+{"v": 1, "type": "tool.confirm", "id": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d", "payload": {"turn_id": "36c14c5d-6e7f-4a8b-9c0d-1e2f3a4b5c6d", "request_id": "9b1c2d3e-4f50-4a6b-8c7d-8e9f0a1b2c3d", "tool": "apps", "question": "Close Notepad?", "risk": "confirm"}}

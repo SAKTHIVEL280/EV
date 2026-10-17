@@ -157,6 +157,70 @@ class HotkeysSection(BaseModel):
     )
 
 
+class Permission(StrEnum):
+    ALLOW = "allow"
+    ASK = "ask"
+    BLOCK = "block"
+
+
+def _permission(title: str, description: str, default: Permission = Permission.ASK) -> Permission:
+    return Field(default=default, title=title, description=description)
+
+
+class PermissionsSection(BaseModel):
+    """Per-tool permissions (F-418). Allow runs actions that normally ask; actions that
+    could lose data (deleting files, typing "Send" or "Buy") always ask."""
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    apps: Permission = _permission(
+        "Apps", "Open, switch to and close apps. Closing asks unless allowed."
+    )
+    window: Permission = _permission(
+        "Windows", "Move, snap, maximize and minimize windows.", Permission.ALLOW
+    )
+    system: Permission = _permission(
+        "Sound, screen and radios",
+        "Volume, brightness, media keys, Wi-Fi and Bluetooth. Turning Wi-Fi off asks.",
+    )
+    screenshot: Permission = _permission(
+        "Screenshots", "Save screenshots to your Pictures folder.", Permission.ALLOW
+    )
+    clipboard: Permission = _permission(
+        "Clipboard", "Read and replace the text you copied.", Permission.ALLOW
+    )
+    files: Permission = _permission(
+        "Files", "Find, open and move files. Deleting always asks and goes to the Recycle Bin."
+    )
+    timer: Permission = _permission(
+        "Timers and reminders",
+        "Set, list and cancel timers, reminders and alarms.",
+        Permission.ALLOW,
+    )
+    focus_mode: Permission = _permission(
+        "Focus mode", "Keep EV quiet for a while.", Permission.ALLOW
+    )
+    ui: Permission = _permission(
+        "Control apps",
+        "Click, type and press keys in other apps. Asks once per request.",
+    )
+
+
+class ClipboardSection(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    history: bool = Field(
+        default=True,
+        title="Clipboard history",
+        description="Remember the last 25 texts you copied, in memory only, for this session.",
+    )
+    actions: bool = Field(
+        default=False,
+        title="Clipboard actions",
+        description="Offer to fix, shorten or translate text right after you copy it.",
+    )
+
+
 class IslandSection(BaseModel):
     model_config = ConfigDict(frozen=True, extra="ignore")
 
@@ -227,4 +291,14 @@ class EvConfig(BaseModel):
         default_factory=HotkeysSection,
         description="Keyboard shortcuts.",
         json_schema_extra=_nav(Nav.HOTKEYS),
+    )
+    permissions: PermissionsSection = Field(
+        default_factory=PermissionsSection,
+        description="What EV may do on this PC.",
+        json_schema_extra=_nav(Nav.PERMISSIONS),
+    )
+    clipboard: ClipboardSection = Field(
+        default_factory=ClipboardSection,
+        description="Copied text.",
+        json_schema_extra=_nav(Nav.MEMORY),
     )

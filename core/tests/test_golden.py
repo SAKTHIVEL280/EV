@@ -25,7 +25,12 @@ from ev_core.config import EffortLevel, LlmSection
 from ev_core.interfaces.events import ChatDone, ChatFailed, ChatStarted, ChatToolChanged
 from ev_core.llm import LlmModule
 from ev_core.modules import ModuleContext
-from ev_core.tools.clock import CurrentTimeTool
+from ev_core.platform.fake_pc import FakePcControl
+from ev_core.storage import Database
+from ev_core.tools import build_tools
+from ev_core.tools.clipboard import ClipboardHistory
+from ev_core.tools.focus import FocusMode
+from ev_core.tools.timers import Timers
 
 
 def _path(name: str) -> Path | None:
@@ -55,19 +60,44 @@ async def provider(tmp_path_factory: pytest.TempPathFactory) -> AsyncIterator[Ll
         LLAMA_DIR,
     )
     await module.start(ModuleContext(bus=EventBus(), logger=logging.getLogger("golden")))
+    data = tmp_path_factory.mktemp("pc")
+    db = Database(data / "ev.db")
+    await db.open()
+    pc = FakePcControl(data / "home")
+    global BOX  # one toolbox for the module, like the model
+    BOX = Toolbox(
+        build_tools(
+            pc, Timers(db, lambda _e: None), ClipboardHistory(pc), FocusMode(lambda _e: None)
+        )
+    )
     yield module
     await module.stop()
+    await db.close()
+
+
+BOX: Toolbox | None = None
+"""Every tool the app offers, on the fake PC (set by the `provider` fixture)."""
 
 
 async def turn(
     provider: LlmModule, text: str, effort: EffortLevel = EffortLevel.NORMAL
 ) -> list[Event]:
+    assert BOX is not None
     events: list[Event] = []
     request = TurnRequest(
         "00000000-0000-4000-8000-000000000000", text, effort, 8192, time.monotonic()
     )
-    await run_turn(request, provider, Toolbox([CurrentTimeTool()]), History(), events.append)
+    await run_turn(request, provider, BOX, History(), events.append)
     return events
+
+
+def calls(events: list[Event]) -> list[str]:
+    """Tools that ran or were asked for, in order."""
+    return [
+        e.name
+        for e in events
+        if isinstance(e, ChatToolChanged) and e.state in ("running", "blocked", "asking")
+    ]
 
 
 def tools_used(events: list[Event]) -> set[str]:
@@ -151,3 +181,27 @@ async def test_static_prefix_fits_the_budget(provider: LlmModule) -> None:
     tokens = done(await turn(provider, "Hi")).prompt_tokens
     assert tokens is not None
     assert tokens <= 1_050, tokens
+
+
+@pytest.mark.parametrize(
+    ("text", "tool"),
+    [
+        ("Open Notepad", "apps"),
+        ("Set the volume to 30 percent", "system"),
+        ("Remind me at 5 pm to call mom", "timer"),
+        ("Snap my window to the left half of the screen", "window"),
+        ("Find the file called quarterly report", "files"),
+        ("Take a screenshot", "screenshot"),
+    ],
+)
+async def test_pc_requests_pick_the_right_tool(provider: LlmModule, text: str, tool: str) -> None:
+    events = await turn(provider, text)
+    assert calls(events)[:1] == [tool], calls(events)
+
+
+async def test_date_arithmetic_uses_the_tool(provider: LlmModule) -> None:
+    events = await turn(provider, "How many days are left until December 25 this year?")
+    assert "date_math" in calls(events), calls(events)
+    today = localtime.now().date()
+    days = (today.replace(month=12, day=25) - today).days
+    assert str(days) in done(events).text

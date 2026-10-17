@@ -39,6 +39,9 @@ class Endpoint:
     api_key: str
 
 
+PROMPT_CACHE_MIB: Final = 512
+
+
 class ServerStartError(Exception):
     """llama-server exited or never became healthy; ``tail`` is its last stderr lines."""
 
@@ -67,6 +70,10 @@ def arguments(config: LaunchConfig, port: int, api_key: str) -> list[str]:
         "--cache-type-v", "q8_0",
         "--jinja",
         "--no-webui",
+        # Saved prompts for other requests (the general and PC variants, agent.intent).
+        # Measured: both fit in ~230 MB and switching reads ~16 new tokens instead of
+        # the whole prompt (15 s for the PC one). The default cap is 8192 MiB.
+        "--cache-ram", str(PROMPT_CACHE_MIB),
     ]  # fmt: skip
 
 

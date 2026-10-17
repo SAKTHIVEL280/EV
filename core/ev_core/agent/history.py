@@ -50,3 +50,7 @@ class History:
 
     def clear(self) -> None:
         self._turns.clear()
+
+    def last_turn_used_tools(self) -> bool:
+        """Whether the latest turn called a tool (its follow-ups keep the tools)."""
+        return bool(self._turns) and any(m.role == "tool" for m in self._turns[-1])

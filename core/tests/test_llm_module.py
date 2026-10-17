@@ -25,7 +25,7 @@ import argparse, json, sys
 from aiohttp import web
 p = argparse.ArgumentParser()
 for flag in ("--model", "--alias", "--host", "--port", "--api-key", "--load-mode", "--ctx-size",
-             "--threads", "--parallel", "--cache-type-k", "--cache-type-v"):
+             "--threads", "--parallel", "--cache-type-k", "--cache-type-v", "--cache-ram"):
     p.add_argument(flag)
 p.add_argument("--jinja", action="store_true")
 p.add_argument("--no-webui", action="store_true")

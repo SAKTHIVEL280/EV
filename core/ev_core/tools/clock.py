@@ -15,9 +15,10 @@ class CurrentTimeTool(Tool):
     parameters: ClassVar[Mapping[str, Any]] = {
         "type": "object",
         "properties": {},
-        "additionalProperties": False,
     }
     risk = Risk.SAFE
+    # Every message already starts with the local time; only the router calls this.
+    offered = False
 
     def __init__(self, now: Callable[[], datetime] = localtime.now) -> None:
         self._now = now

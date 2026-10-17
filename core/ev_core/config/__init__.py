@@ -8,6 +8,8 @@ from ev_core.config.schema import (
     LlmSection,
     LoggingSection,
     LogLevel,
+    Permission,
+    PermissionsSection,
 )
 from ev_core.config.store import ConfigStore, ConfigWarning, LoadedConfig
 from ev_core.config.watcher import ConfigChanged, ConfigWatcher
@@ -25,4 +27,6 @@ __all__ = [
     "LoadedConfig",
     "LogLevel",
     "LoggingSection",
+    "Permission",
+    "PermissionsSection",
 ]

@@ -27,6 +27,8 @@ from ev_core.bus import Event, EventBus
 from ev_core.config import EffortLevel
 from ev_core.errors import StartupError
 from ev_core.interfaces.events import (
+    ActionRecorded,
+    ActionUndone,
     ChatCancelRequested,
     ChatDelta,
     ChatDone,
@@ -40,11 +42,17 @@ from ev_core.interfaces.events import (
     ConfigResetRequested,
     ConfigSetRequested,
     ConfigStateChanged,
+    FocusModeChanged,
     LlmStatusChanged,
     ModelCancelRequested,
     ModelDownloadRequested,
     ModelsGetRequested,
     ModelsStateChanged,
+    TimerFired,
+    ToolAnswered,
+    ToolConfirmClosed,
+    ToolConfirmRequested,
+    UndoRequested,
 )
 from ev_core.modules import ModuleStatus
 
@@ -145,6 +153,22 @@ def to_message(event: Event) -> protocol.AnyMessage | None:
             return protocol.models_state(
                 event.models_dir, models, event.reply_to, list(event.other_files)
             )
+        case ToolConfirmRequested():
+            return protocol.tool_confirm(
+                event.turn_id, event.request_id, event.tool, event.question, event.risk
+            )
+        case ToolConfirmClosed():
+            return protocol.tool_confirm_closed(event.request_id, event.allowed)
+        case ActionRecorded():
+            return protocol.action_recorded(
+                event.turn_id, event.action_id, event.tool, event.summary, event.undoable
+            )
+        case ActionUndone():
+            return protocol.action_undone(event.action_id, event.ok, event.message)
+        case TimerFired():
+            return protocol.timer_fired(event.timer_id, event.kind, event.label, event.missed)
+        case FocusModeChanged():
+            return protocol.focus_changed(event.on, event.minutes)
     return None
 
 
@@ -158,6 +182,12 @@ OUTBOUND_EVENTS: tuple[type[Event], ...] = (
     ConfigStateChanged,
     ConfigRejected,
     ModelsStateChanged,
+    ToolConfirmRequested,
+    ToolConfirmClosed,
+    ActionRecorded,
+    ActionUndone,
+    TimerFired,
+    FocusModeChanged,
 )
 
 
@@ -347,6 +377,11 @@ class CoreServer:
                     self._bus.publish(ModelDownloadRequested(message.id, message.payload.model_id))
                 case protocol.ModelsCancelMessage():
                     self._bus.publish(ModelCancelRequested(message.id, message.payload.model_id))
+                case protocol.ToolAnswerMessage():
+                    answer = message.payload
+                    self._bus.publish(ToolAnswered(str(answer.request_id), answer.allowed))
+                case protocol.ActionUndoMessage():
+                    self._bus.publish(UndoRequested(message.payload.action_id))
                 case (
                     protocol.HelloAckMessage()
                     | protocol.PongMessage()
@@ -359,6 +394,12 @@ class CoreServer:
                     | protocol.ConfigStateMessage()
                     | protocol.ConfigRejectedMessage()
                     | protocol.ModelsStateMessage()
+                    | protocol.ToolConfirmMessage()
+                    | protocol.ToolConfirmClosedMessage()
+                    | protocol.ActionRecordedMessage()
+                    | protocol.ActionUndoneMessage()
+                    | protocol.TimerFiredMessage()
+                    | protocol.FocusChangedMessage()
                 ):
                     await self._send_error(
                         connection,

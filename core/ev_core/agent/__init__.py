@@ -14,22 +14,26 @@ import asyncio
 import contextlib
 import logging
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Final
 
+from ev_core.agent.actions import ActionLog
+from ev_core.agent.confirm import Confirmer
 from ev_core.agent.effort import POLICIES, parse_prefix
 from ev_core.agent.history import History
 from ev_core.agent.loop import TurnRequest, run_turn
 from ev_core.agent.prompt import SYSTEM_PROMPT
 from ev_core.agent.toolbox import Toolbox
 from ev_core.bus import EventBus
-from ev_core.config import AgentSection, ConfigChanged, LlmSection
+from ev_core.config import AgentSection, ConfigChanged, LlmSection, PermissionsSection
 from ev_core.interfaces.events import (
+    ActionUndone,
     ChatCancelRequested,
     ChatFailed,
     ChatRequested,
     ChatResetRequested,
     LlmStatusChanged,
+    UndoRequested,
 )
 from ev_core.interfaces.llm import ChatMessage, LlmError, LlmProvider
 from ev_core.interfaces.tools import Tool
@@ -51,11 +55,17 @@ class AgentModule(Module):
         llm_settings: LlmSection,
         provider: LlmProvider,
         tools: Sequence[Tool],
+        *,
+        permissions: Callable[[], PermissionsSection] | None = None,
+        confirmer: Confirmer | None = None,
+        actions: ActionLog | None = None,
     ) -> None:
         self._settings = settings
         self._llm_settings = llm_settings
         self._provider = provider
-        self._toolbox = Toolbox(tools)
+        self._toolbox = Toolbox(
+            tools, permissions=permissions, confirmer=confirmer, actions=actions
+        )
         self._history = History()
         self._bus: EventBus | None = None
         self._task: asyncio.Task[None] | None = None
@@ -67,6 +77,7 @@ class AgentModule(Module):
         ctx.bus.subscribe(ChatRequested, self._on_request)
         ctx.bus.subscribe(ChatCancelRequested, self._on_cancel)
         ctx.bus.subscribe(ChatResetRequested, self._on_reset)
+        ctx.bus.subscribe(UndoRequested, self._on_undo)
         ctx.bus.subscribe(ConfigChanged, self._on_config)
         ctx.bus.subscribe(LlmStatusChanged, self._on_llm_status)
 
@@ -82,9 +93,13 @@ class AgentModule(Module):
             if backend.model_name != event.model:
                 return
             messages = [ChatMessage("system", SYSTEM_PROMPT), ChatMessage("user", "")]
-            tools = self._toolbox.specs() if policy.max_steps > 1 else []
-            async for _ in backend.stream(messages, tools=tools, thinking=False, max_tokens=1):
-                pass
+            # Both prompt variants (agent.intent): llama-server keeps each in its prompt
+            # cache, so neither kind of request reads its prefix from scratch.
+            variants = [False, True] if policy.max_steps > 1 else [None]
+            for pc in variants:
+                tools = self._toolbox.specs(pc=pc) if pc is not None else []
+                async for _ in backend.stream(messages, tools=tools, thinking=False, max_tokens=1):
+                    pass
         except LlmError as exc:
             logger.info("prompt prefix warm-up skipped", extra={"fields": {"code": exc.code}})
             return
@@ -130,6 +145,13 @@ class AgentModule(Module):
             await self._cancel_running()
             self._history.clear()
         logger.info("chat reset")
+
+    async def _on_undo(self, event: UndoRequested) -> None:
+        # The island's Undo button (F-111).
+        result = await self._toolbox.undo(event.action_id)
+        message = result.user_message or ("Done." if result.ok else "Couldn't undo that.")
+        if self._bus is not None:
+            self._bus.publish(ActionUndone(event.action_id or 0, result.ok, message))
 
     async def _cancel_running(self) -> None:
         task, self._task = self._task, None

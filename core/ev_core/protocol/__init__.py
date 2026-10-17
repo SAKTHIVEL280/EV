@@ -13,6 +13,11 @@ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from ev_core.errors import EvError
 from ev_core.protocol.generated import (
+    ActionRecordedMessage,
+    ActionRecordedPayload,
+    ActionUndoMessage,
+    ActionUndoneMessage,
+    ActionUndonePayload,
     ChatCancelMessage,
     ChatCancelPayload,
     ChatDeltaMessage,
@@ -45,6 +50,8 @@ from ev_core.protocol.generated import (
     EmptyPayload,
     ErrorMessage,
     ErrorPayload,
+    FocusChangedMessage,
+    FocusChangedPayload,
     HelloAckMessage,
     HelloAckPayload,
     HelloMessage,
@@ -71,9 +78,22 @@ from ev_core.protocol.generated import (
     SettingNav,
     ShutdownMessage,
     ShutdownPayload,
+    TimerFiredMessage,
+    TimerFiredPayload,
+    ToolAnswerMessage,
+    ToolConfirmClosedMessage,
+    ToolConfirmClosedPayload,
+    ToolConfirmMessage,
+    ToolConfirmPayload,
 )
 from ev_core.protocol.generated import (
     Kind as SettingKind,
+)
+from ev_core.protocol.generated import (
+    Kind1 as TimerKind,
+)
+from ev_core.protocol.generated import (
+    Risk as ToolRisk,
 )
 from ev_core.protocol.generated import (
     Role as SettingRole,
@@ -109,7 +129,15 @@ type AnyMessage = Annotated[
     | ModelsGetMessage
     | ModelsDownloadMessage
     | ModelsCancelMessage
-    | ModelsStateMessage,
+    | ModelsStateMessage
+    | ToolConfirmMessage
+    | ToolAnswerMessage
+    | ToolConfirmClosedMessage
+    | ActionRecordedMessage
+    | ActionUndoMessage
+    | ActionUndoneMessage
+    | TimerFiredMessage
+    | FocusChangedMessage,
     Field(discriminator="type"),
 ]
 
@@ -379,6 +407,74 @@ def models_state(
     )
 
 
+def tool_confirm(
+    turn_id: str, request_id: str, tool: str, question: str, risk: str
+) -> ToolConfirmMessage:
+    return ToolConfirmMessage(
+        v=PROTOCOL_VERSION,
+        type="tool.confirm",
+        id=new_id(),
+        payload=ToolConfirmPayload(
+            turn_id=turn_id,
+            request_id=request_id,
+            tool=tool,
+            question=question,
+            risk=ToolRisk(risk),
+        ),
+    )
+
+
+def tool_confirm_closed(request_id: str, allowed: bool) -> ToolConfirmClosedMessage:
+    return ToolConfirmClosedMessage(
+        v=PROTOCOL_VERSION,
+        type="tool.confirm_closed",
+        id=new_id(),
+        payload=ToolConfirmClosedPayload(request_id=request_id, allowed=allowed),
+    )
+
+
+def action_recorded(
+    turn_id: str, action_id: int, tool: str, summary: str, undoable: bool
+) -> ActionRecordedMessage:
+    return ActionRecordedMessage(
+        v=PROTOCOL_VERSION,
+        type="action.recorded",
+        id=new_id(),
+        payload=ActionRecordedPayload(
+            turn_id=turn_id, action_id=action_id, tool=tool, summary=summary, undoable=undoable
+        ),
+    )
+
+
+def action_undone(action_id: int, ok: bool, message: str) -> ActionUndoneMessage:
+    return ActionUndoneMessage(
+        v=PROTOCOL_VERSION,
+        type="action.undone",
+        id=new_id(),
+        payload=ActionUndonePayload(action_id=action_id, ok=ok, message=message),
+    )
+
+
+def timer_fired(timer_id: int, kind: str, label: str, missed: bool) -> TimerFiredMessage:
+    return TimerFiredMessage(
+        v=PROTOCOL_VERSION,
+        type="timer.fired",
+        id=new_id(),
+        payload=TimerFiredPayload(
+            timer_id=timer_id, kind=TimerKind(kind), label=label, missed=missed
+        ),
+    )
+
+
+def focus_changed(on: bool, minutes: int | None) -> FocusChangedMessage:
+    return FocusChangedMessage(
+        v=PROTOCOL_VERSION,
+        type="focus.changed",
+        id=new_id(),
+        payload=FocusChangedPayload(on=on, minutes=minutes),
+    )
+
+
 def _readable_id(raw: str | bytes) -> str | None:
     try:
         obj = json.loads(raw)
@@ -393,6 +489,9 @@ def _readable_id(raw: str | bytes) -> str | None:
 
 __all__ = [
     "PROTOCOL_VERSION",
+    "ActionRecordedMessage",
+    "ActionUndoMessage",
+    "ActionUndoneMessage",
     "AnyMessage",
     "ChatCancelMessage",
     "ChatDeltaMessage",
@@ -413,6 +512,7 @@ __all__ = [
     "DecodeError",
     "Effort",
     "ErrorMessage",
+    "FocusChangedMessage",
     "HelloAckMessage",
     "HelloMessage",
     "LlmState",
@@ -435,6 +535,12 @@ __all__ = [
     "SettingRole",
     "SettingWidget",
     "ShutdownMessage",
+    "TimerFiredMessage",
+    "ToolAnswerMessage",
+    "ToolConfirmClosedMessage",
+    "ToolConfirmMessage",
+    "action_recorded",
+    "action_undone",
     "chat_cancel",
     "chat_delta",
     "chat_done",
@@ -451,6 +557,7 @@ __all__ = [
     "decode",
     "encode",
     "error",
+    "focus_changed",
     "hello",
     "hello_ack",
     "llm_status",
@@ -462,4 +569,7 @@ __all__ = [
     "ping",
     "pong",
     "shutdown",
+    "timer_fired",
+    "tool_confirm",
+    "tool_confirm_closed",
 ]

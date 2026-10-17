@@ -76,6 +76,30 @@
     },
     {
       "$ref": "#/$defs/ModelsStateMessage"
+    },
+    {
+      "$ref": "#/$defs/ToolConfirmMessage"
+    },
+    {
+      "$ref": "#/$defs/ToolAnswerMessage"
+    },
+    {
+      "$ref": "#/$defs/ToolConfirmClosedMessage"
+    },
+    {
+      "$ref": "#/$defs/ActionRecordedMessage"
+    },
+    {
+      "$ref": "#/$defs/ActionUndoMessage"
+    },
+    {
+      "$ref": "#/$defs/ActionUndoneMessage"
+    },
+    {
+      "$ref": "#/$defs/TimerFiredMessage"
+    },
+    {
+      "$ref": "#/$defs/FocusChangedMessage"
     }
   ],
   "$defs": {
@@ -473,7 +497,9 @@
         "running",
         "done",
         "failed",
-        "blocked"
+        "blocked",
+        "asking",
+        "declined"
       ]
     },
     "ChatToolPayload": {
@@ -1478,6 +1504,409 @@
         },
         "payload": {
           "$ref": "#/$defs/ModelsStatePayload"
+        }
+      }
+    },
+    "ToolConfirmPayload": {
+      "type": "object",
+      "required": [
+        "turn_id",
+        "request_id",
+        "tool",
+        "question",
+        "risk"
+      ],
+      "properties": {
+        "turn_id": {
+          "$ref": "#/$defs/TurnId"
+        },
+        "request_id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "tool": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "question": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Exactly what will happen, e.g. \"Close Notepad?\"."
+        },
+        "risk": {
+          "type": "string",
+          "enum": [
+            "confirm",
+            "dangerous"
+          ]
+        }
+      }
+    },
+    "ToolConfirmMessage": {
+      "description": "core -> Rust. A confirm/dangerous step waits for the user's yes or no (F-418).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "tool.confirm"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ToolConfirmPayload"
+        }
+      }
+    },
+    "ToolAnswerPayload": {
+      "type": "object",
+      "required": [
+        "request_id",
+        "allowed"
+      ],
+      "properties": {
+        "request_id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "allowed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ToolAnswerMessage": {
+      "description": "Rust -> core. The user's answer to tool.confirm.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "tool.answer"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ToolAnswerPayload"
+        }
+      }
+    },
+    "ToolConfirmClosedPayload": {
+      "type": "object",
+      "required": [
+        "request_id",
+        "allowed"
+      ],
+      "properties": {
+        "request_id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "allowed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ToolConfirmClosedMessage": {
+      "description": "core -> Rust. The question is gone: answered, timed out (no) or its request was cancelled.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "tool.confirm_closed"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ToolConfirmClosedPayload"
+        }
+      }
+    },
+    "ActionRecordedPayload": {
+      "type": "object",
+      "required": [
+        "turn_id",
+        "action_id",
+        "tool",
+        "summary",
+        "undoable"
+      ],
+      "properties": {
+        "turn_id": {
+          "$ref": "#/$defs/TurnId"
+        },
+        "action_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "tool": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "undoable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ActionRecordedMessage": {
+      "description": "core -> Rust. An action that changed something was logged (F-111).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "action.recorded"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ActionRecordedPayload"
+        }
+      }
+    },
+    "ActionUndoPayload": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "action_id": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "ActionUndoMessage": {
+      "description": "Rust -> core. Undo one action, or the latest when action_id is absent.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "action.undo"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ActionUndoPayload"
+        }
+      }
+    },
+    "ActionUndonePayload": {
+      "type": "object",
+      "required": [
+        "action_id",
+        "ok",
+        "message"
+      ],
+      "properties": {
+        "action_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 300
+        }
+      }
+    },
+    "ActionUndoneMessage": {
+      "description": "core -> Rust. Result of action.undo.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "action.undone"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ActionUndonePayload"
+        }
+      }
+    },
+    "TimerFiredPayload": {
+      "type": "object",
+      "required": [
+        "timer_id",
+        "kind",
+        "label",
+        "missed"
+      ],
+      "properties": {
+        "timer_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "timer",
+            "reminder",
+            "alarm"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "missed": {
+          "type": "boolean",
+          "description": "It came due while EV was off."
+        }
+      }
+    },
+    "TimerFiredMessage": {
+      "description": "core -> Rust. A timer, reminder or alarm came due (F-108).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "timer.fired"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/TimerFiredPayload"
+        }
+      }
+    },
+    "FocusChangedPayload": {
+      "type": "object",
+      "required": [
+        "on"
+      ],
+      "properties": {
+        "on": {
+          "type": "boolean"
+        },
+        "minutes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "FocusChangedMessage": {
+      "description": "core -> Rust. Focus mode turned on or off (F-109).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "focus.changed"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/FocusChangedPayload"
         }
       }
     }

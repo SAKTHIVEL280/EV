@@ -26,6 +26,8 @@ from typing import Final, TextIO
 
 from ev_core import __version__, protocol
 from ev_core.agent import AgentModule
+from ev_core.agent.actions import ActionLog
+from ev_core.agent.confirm import Confirmations
 from ev_core.bus import EventBus
 from ev_core.config import ConfigChanged, ConfigStore, ConfigWatcher, LlmSection
 from ev_core.config.service import SettingsService
@@ -37,8 +39,14 @@ from ev_core.models import ModelsModule
 from ev_core.models.catalog import load_catalog
 from ev_core.modules import ModuleRegistry
 from ev_core.paths import data_dir
+from ev_core.platform.pc import make_pc_control
 from ev_core.server import CoreServer
-from ev_core.tools.clock import CurrentTimeTool
+from ev_core.storage import Database
+from ev_core.tools import build_tools
+from ev_core.tools.clipboard import ClipboardHistory
+from ev_core.tools.focus import FocusMode
+from ev_core.tools.pc_module import PcModule
+from ev_core.tools.timers import Timers
 
 logger = logging.getLogger(__name__)
 
@@ -81,18 +89,40 @@ async def run(env: Mapping[str, str], stdout: TextIO, stdin: TextIO | None) -> i
     llama_dir = env.get(LLAMA_DIR_ENV)
     llm = LlmModule(config.llm, root, Path(llama_dir) if llama_dir else None)
     registry.register(llm, enabled=config.llm.enabled)
+    watcher = ConfigWatcher(store, bus, loaded)
+
+    db = Database(root / "ev.db")
+    try:
+        await db.open()
+    except EvError as exc:
+        logger.exception("database unavailable")
+        _stderr_line("startup_failed", exc.user_message)
+        return EXIT_STARTUP_FAILED
+    actions = ActionLog(db)
+    pc = make_pc_control(root)
+    timers = Timers(db, bus.publish)
+    clipboard = ClipboardHistory(pc, enabled=config.clipboard.history)
+    tools = build_tools(pc, timers, clipboard, FocusMode(bus.publish))
     registry.register(
-        AgentModule(config.agent, config.llm, provider=llm, tools=[CurrentTimeTool()]),
+        AgentModule(
+            config.agent,
+            config.llm,
+            provider=llm,
+            tools=tools,
+            permissions=lambda: watcher.current.config.permissions,
+            confirmer=Confirmations(bus),
+            actions=actions,
+        ),
         enabled=True,
     )
     registry.register(ModelsModule(config.llm, root, load_catalog()), enabled=True)
+    registry.register(PcModule(db, root / "backups", actions, timers, clipboard), enabled=True)
 
     async def on_config_changed(event: ConfigChanged) -> None:
         if "logging" in event.sections:
             set_level(event.config.logging.level.value)
 
     bus.subscribe(ConfigChanged, on_config_changed)
-    watcher = ConfigWatcher(store, bus, loaded)
     settings = SettingsService(store, watcher, bus)
 
     async def on_model_installed(event: ModelInstalled) -> None:
@@ -113,6 +143,7 @@ async def run(env: Mapping[str, str], stdout: TextIO, stdin: TextIO | None) -> i
     except (EvError, OSError):
         logger.exception("core failed to start")
         await registry.stop_all()
+        await db.close()
         return EXIT_STARTUP_FAILED
 
     _install_stop_triggers(loop, stop, stdin)
@@ -134,6 +165,7 @@ async def run(env: Mapping[str, str], stdout: TextIO, stdin: TextIO | None) -> i
     await server.close()
     await registry.stop_all()
     await bus.drain()
+    await db.close()
     logger.info("core stopped")
     return EXIT_OK
 

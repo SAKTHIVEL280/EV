@@ -2,6 +2,7 @@ import asyncio
 import time
 from collections.abc import AsyncIterator, Sequence
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
@@ -26,7 +27,10 @@ from ev_core.interfaces.llm import (
     Usage,
 )
 from ev_core.llm.fake import FakeBackend, FakeProvider
+from ev_core.platform.fake_pc import FakePcControl
 from ev_core.tools.clock import CurrentTimeTool
+from ev_core.tools.datemath import DateMathTool
+from ev_core.tools.pc_tools import AppsTool
 
 TURN = "36c14c5d-6e7f-4a8b-9c0d-1e2f3a4b5c6d"
 NOW = datetime(2026, 10, 17, 15, 41, tzinfo=timezone(timedelta(hours=5, minutes=30), "IST"))
@@ -82,7 +86,8 @@ async def test_streams_reply_and_records_usage() -> None:
     assert call.messages[0].content == SYSTEM_PROMPT
     assert call.messages[-1].content == f"{STAMP}\nhello"
     assert not call.thinking
-    assert [t.name for t in call.tools] == ["current_time"]
+    # The time is in every message; the clock tool is for the router only.
+    assert [t.name for t in call.tools] == []
 
 
 async def test_tool_step_then_answer() -> None:
@@ -216,3 +221,22 @@ async def test_every_step_sees_the_stamp_once() -> None:
     _, backend, _ = await play(request("what time"), [tool_step(), answer("3:41 PM.")])
     second = [m.content for m in backend.calls[1].messages]
     assert sum(STAMP in c for c in second) == 1
+
+
+async def test_pc_tools_only_for_pc_requests_and_their_follow_ups(tmp_path: Path) -> None:
+    pc = FakePcControl(tmp_path)
+    box = Toolbox([CurrentTimeTool(), DateMathTool(), AppsTool(pc)])
+    history = History()
+
+    async def tools_for(text: str, script: list[LlmEvent | Exception]) -> list[str]:
+        backend = FakeBackend([script, answer("ok")])
+        await run_turn(
+            request(text), FakeProvider(backend), box, history, lambda _e: None, now=lambda: NOW
+        )
+        return [t.name for t in backend.calls[0].tools]
+
+    assert await tools_for("Who wrote Hamlet?", [*answer("Shakespeare.")]) == ["date_math"]
+    assert await tools_for("Open Notepad", tool_step("apps")) == ["date_math", "apps"]
+    # The last turn used a tool: a follow-up keeps the tools.
+    assert await tools_for("and the other one", [*answer("Done.")]) == ["date_math", "apps"]
+    assert await tools_for("thanks", [*answer("Welcome.")]) == ["date_math"]

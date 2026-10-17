@@ -53,7 +53,7 @@ class ChatToolChanged(Event):
     turn_id: str
     name: str
     state: str
-    """running | done | failed | blocked"""
+    """running | done | failed | blocked | asking | declined"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,3 +172,72 @@ class ModelInstalled(Event):
     model_id: str
     file: str
     role: str
+
+
+@dataclass(frozen=True, slots=True)
+class ToolConfirmRequested(Event):
+    """A confirm/dangerous step waits for the user's yes or no (F-418)."""
+
+    turn_id: str
+    request_id: str
+    tool: str
+    question: str
+    risk: str
+    """confirm | dangerous"""
+
+
+@dataclass(frozen=True, slots=True)
+class ToolAnswered(Event):
+    request_id: str
+    allowed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ToolConfirmClosed(Event):
+    """The question is gone: answered, timed out or its request was cancelled."""
+
+    request_id: str
+    allowed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ActionRecorded(Event):
+    """An action that changed something was logged (F-111)."""
+
+    turn_id: str
+    action_id: int
+    tool: str
+    summary: str
+    undoable: bool
+
+
+@dataclass(frozen=True, slots=True)
+class UndoRequested(Event):
+    """Undo one action (the island's Undo button), or the latest when None."""
+
+    action_id: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class FocusModeChanged(Event):
+    on: bool
+    minutes: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class TimerFired(Event):
+    """A timer, reminder or alarm came due (F-108). `missed`: it came due while EV was off."""
+
+    timer_id: int
+    kind: str
+    label: str
+    missed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ActionUndone(Event):
+    """Result of an undo the island asked for (F-111)."""
+
+    action_id: int
+    ok: bool
+    message: str

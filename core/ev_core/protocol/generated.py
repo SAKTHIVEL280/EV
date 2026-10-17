@@ -351,6 +351,8 @@ class ChatToolState(StrEnum):
     done = "done"
     failed = "failed"
     blocked = "blocked"
+    asking = "asking"
+    declined = "declined"
 
 
 class ChatToolPayload(BaseModel):
@@ -1221,6 +1223,361 @@ class ModelsStateMessage(BaseModel):
     payload: ModelsStatePayload
 
 
+class Risk(StrEnum):
+    confirm = "confirm"
+    dangerous = "dangerous"
+
+
+class ToolConfirmPayload(BaseModel):
+    turn_id: Annotated[
+        str,
+        Field(
+            description="The id of the chat.send message that started the turn.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    request_id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    tool: Annotated[str, Field(max_length=64)]
+    question: Annotated[
+        str, Field(description='Exactly what will happen, e.g. "Close Notepad?".', max_length=300)
+    ]
+    risk: Risk
+
+
+class ToolConfirmMessage(BaseModel):
+    """
+    core -> Rust. A confirm/dangerous step waits for the user's yes or no (F-418).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["tool.confirm"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ToolConfirmPayload
+
+
+class ToolAnswerPayload(BaseModel):
+    request_id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    allowed: bool
+
+
+class ToolAnswerMessage(BaseModel):
+    """
+    Rust -> core. The user's answer to tool.confirm.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["tool.answer"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ToolAnswerPayload
+
+
+class ToolConfirmClosedPayload(BaseModel):
+    request_id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    allowed: bool
+
+
+class ToolConfirmClosedMessage(BaseModel):
+    """
+    core -> Rust. The question is gone: answered, timed out (no) or its request was cancelled.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["tool.confirm_closed"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ToolConfirmClosedPayload
+
+
+class ActionRecordedPayload(BaseModel):
+    turn_id: Annotated[
+        str,
+        Field(
+            description="The id of the chat.send message that started the turn.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    action_id: Annotated[int, Field(ge=1)]
+    tool: Annotated[str, Field(max_length=64)]
+    summary: Annotated[str, Field(max_length=300)]
+    undoable: bool
+
+
+class ActionRecordedMessage(BaseModel):
+    """
+    core -> Rust. An action that changed something was logged (F-111).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["action.recorded"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ActionRecordedPayload
+
+
+class ActionUndoPayload(BaseModel):
+    action_id: Annotated[int | None, Field(ge=1)] = None
+
+
+class ActionUndoMessage(BaseModel):
+    """
+    Rust -> core. Undo one action, or the latest when action_id is absent.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["action.undo"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ActionUndoPayload
+
+
+class ActionUndonePayload(BaseModel):
+    action_id: Annotated[int, Field(ge=0)]
+    ok: bool
+    message: Annotated[str, Field(max_length=300)]
+
+
+class ActionUndoneMessage(BaseModel):
+    """
+    core -> Rust. Result of action.undo.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["action.undone"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ActionUndonePayload
+
+
+class Kind1(StrEnum):
+    timer = "timer"
+    reminder = "reminder"
+    alarm = "alarm"
+
+
+class TimerFiredPayload(BaseModel):
+    timer_id: Annotated[int, Field(ge=1)]
+    kind: Kind1
+    label: Annotated[str, Field(max_length=300)]
+    missed: Annotated[bool, Field(description="It came due while EV was off.")]
+
+
+class TimerFiredMessage(BaseModel):
+    """
+    core -> Rust. A timer, reminder or alarm came due (F-108).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["timer.fired"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: TimerFiredPayload
+
+
+class FocusChangedPayload(BaseModel):
+    on: bool
+    minutes: Annotated[int | None, Field(ge=1)] = None
+
+
+class FocusChangedMessage(BaseModel):
+    """
+    core -> Rust. Focus mode turned on or off (F-109).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["focus.changed"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: FocusChangedPayload
+
+
 class EvMessage(
     RootModel[
         HelloMessage
@@ -1247,6 +1604,14 @@ class EvMessage(
         | ModelsDownloadMessage
         | ModelsCancelMessage
         | ModelsStateMessage
+        | ToolConfirmMessage
+        | ToolAnswerMessage
+        | ToolConfirmClosedMessage
+        | ActionRecordedMessage
+        | ActionUndoMessage
+        | ActionUndoneMessage
+        | TimerFiredMessage
+        | FocusChangedMessage
     ]
 ):
     root: Annotated[
@@ -1273,7 +1638,15 @@ class EvMessage(
         | ModelsGetMessage
         | ModelsDownloadMessage
         | ModelsCancelMessage
-        | ModelsStateMessage,
+        | ModelsStateMessage
+        | ToolConfirmMessage
+        | ToolAnswerMessage
+        | ToolConfirmClosedMessage
+        | ActionRecordedMessage
+        | ActionUndoMessage
+        | ActionUndoneMessage
+        | TimerFiredMessage
+        | FocusChangedMessage,
         Field(
             description="EV wire protocol between the Tauri app (Rust) and ev-core (Python). One JSON object per WebSocket text frame. Changes are additive; removing or renaming a field requires a protocol version bump.",
             title="EvMessage",

@@ -13,6 +13,8 @@ from ev_core import localtime
 from ev_core.agent import router
 from ev_core.agent.effort import POLICIES
 from ev_core.agent.history import History, budget_chars
+from ev_core.agent.intent import needs_pc_tools
+from ev_core.agent.permissions import TurnState
 from ev_core.agent.prompt import SYSTEM_PROMPT
 from ev_core.agent.toolbox import Toolbox
 from ev_core.bus import Event
@@ -80,7 +82,9 @@ async def run_turn(
     first_token_ms: int | None = None
     prompt_tokens = generated_tokens = 0
     # A single step cannot follow up on a tool result, so Instant gets no tools.
-    tools = toolbox.specs() if policy.max_steps > 1 else []
+    pc = needs_pc_tools(request.text, history.last_turn_used_tools())
+    tools = toolbox.specs(pc=pc) if policy.max_steps > 1 else []
+    state = TurnState()
 
     try:
         for _ in range(policy.max_steps):
@@ -105,7 +109,7 @@ async def run_turn(
             if not calls:
                 break
             for call in calls:
-                result = await toolbox.execute(request.turn_id, call, emit)
+                result = await toolbox.execute(request.turn_id, call, emit, state)
                 turn.append(ChatMessage("tool", result.content, tool_call_id=call.id))
         else:
             note = ("\n\n" if reply else "") + STEP_LIMIT_TEXT
