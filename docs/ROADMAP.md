@@ -22,6 +22,75 @@ Status legend: `planned` · `in progress` · `blocked (reason)` · `done (date)`
 
 ---
 
+## Beta 2 (`0.1.0-beta.2`) — plan (proposed 2026-10-17)
+
+The user tested the first build on Windows and asked for beta 2 to finish the project end to end:
+the beta-1 feedback first, then Phases 3–9 in the documented order. Phase gates that need the
+Windows laptop are handled as before: a stage is built and verified on Linux and in CI
+(`windows-latest`), pushed, and a Windows checklist goes to the user; findings are fixed at the
+start of the next stage. Every stage ends with lint, typecheck, all tests, golden tests on
+Qwen3.5-4B, CI green on Linux and Windows, docs updated (FEATURES status, decisions,
+PERFORMANCE numbers) and a push to `main`.
+
+### Stage A — Beta 1 feedback
+- **A1 Arc island.** The idle shape becomes a shallow arc (a circle segment) hanging from the top
+  edge, replacing the drop. Settings → Appearance: arc width and depth, with presets
+  (Small / Default / Large), a live preview and reset. Hover and panel sizes stay fixed. One
+  outline still morphs idle → hover → panel with springs. A rendered specimen goes to the user
+  before the shape is locked (DESIGN.md §7).
+- **A2 Chat stays.** Closing the panel (Esc, click outside, hotkey) keeps the conversation. The
+  panel shows the whole session, scrollable, newest at the bottom. A New chat button next to
+  Settings starts fresh (additive protocol message; core history cleared). Quitting EV starts a
+  new session next launch.
+- **A3 Settings that need no typing.** Model fields become pickers of installed models (name,
+  size, what it is for), with "Download…" when none fits. Models folder: a folder picker.
+  Hotkey: a "press your shortcut" recorder (Ctrl / Alt / Shift / Win plus one key; single keys
+  refused because they would take that key from every app; conflicts shown). Numbers: sliders or
+  steppers with units. Then a design pass over the whole window (DESIGN.md §6): hierarchy,
+  spacing, every state (empty, loading, error, disabled).
+- **A4 Honest answers.** Done in this change: measured honesty prompt and low temperature
+  (decisions.md, "Hallucination eval"). The eval becomes a stored benchmark in `bench/honesty/`
+  so every prompt or model change is measured the same way. Model descriptions in the app say
+  plainly which model is weak on facts.
+- **A5 Model catalog.** Gemma 4 E2B decided from its measurement (decisions.md).
+
+### Stage B — Phase 3 Tools
+As specified below (Phase 3) plus a date tool (days between dates, add days, weekday of a date;
+the 4B answered "days until Christmas" wrong).
+
+### Stage C — Phase 4 Voice
+As specified below, with the user decisions of 2026-10-17: Ctrl+Space opens listening; typing
+switches to text and turns the mic off; spoken replies when the user spoke, including a short
+acknowledgement before longer work; typed messages get text replies. Wake word "Hey EV" plus
+presets, trained with openWakeWord from synthetic speech.
+
+### Stage D — Phase 5 Vision & media
+As specified below.
+
+### Stage E — Phase 6 Memory & search
+As specified below, plus: when EV is not sure of a fact and web is allowed, it searches and
+answers with sources. This turns the honest "not sure" into an answer.
+
+### Stage F — Phase 7 Companion features
+As specified below.
+
+### Stage G — Phase 8 First-run & system
+As specified below, plus auto-hide during screen share and multi-monitor / DPI handling (Phase 2
+items still open).
+
+### Stage H — Phase 9 Polish & release
+As specified below, then version `0.1.0-beta.2` in all four version files, CHANGELOG, tag
+`v0.1.0-beta.2`, GitHub pre-release with the installer and SHA-256 checksums.
+
+### Limits
+- Development is on Linux. Windows-only behavior (UI Automation tools, audio devices, the wake
+  word in a real room, Vulkan on the iGPU, the installer) is proven only by CI on Windows and the
+  user's checklist runs; until then it is marked unverified.
+- Small local models will still be wrong sometimes. EV says "not sure" instead of guessing, and
+  web lookup (Stage E) closes the gap.
+
+---
+
 ## Phase 0 — Foundation & spikes
 
 Goal: a repository where every later module has a home, a stable wire protocol, versioned config,

@@ -254,3 +254,40 @@ The user tried the build on the Windows 11 laptop: chat, Settings and models wor
   - EV answers out loud when the user spoke (including short acknowledgements such as "Okay, I'll do
     that" before working); typed messages get text replies.
 
+
+## Hallucination eval and fix (2026-10-17)
+The user found confident, wrong answers about films (4B: wrong lead actor of *Doctor*; 2B: an
+invented plot for *Kathi*). Measured with 21 fixed questions, two samples each, real llama-server
+(b11696), no tools: 7 made-up people/films/books/prizes (should get "not sure"), 6 real but niche
+facts (Tamil films, IPL 2025), 5 common facts, 3 help requests.
+
+| Model, prompt | Made-up: invented (of 14) | Niche real: wrong (of 12) | Common: plain right (of 10) |
+|---|---|---|---|
+| 4B, old prompt, server default sampling | 10 | 7 | 10 |
+| 4B, strict honesty rule | 0 | 0 | 7 (+2 hedged right) |
+| 4B, strict rule + 2 examples, temperature 0.3 | 0 | 0 | 8 (+1 hedged right) |
+| 4B, balanced rule ("answer common knowledge") + examples | 4 | 5 | 10 |
+| 2B, old prompt | 13 | 8 | 10 |
+| 2B, strict rule + examples, temperature 0.3 | 2 | 7 | 10 |
+| 2B, balanced rule + examples, temperature 0.3 | 1 | 6 | 10 |
+
+- The models cannot tell what they know from what they don't: any prompt that answers niche facts
+  also invents them. Decision: the strict rule with two examples (one "not sure", one plain answer)
+  and, without thinking, temperature 0.3 / top_p 0.8 / top_k 20. A "not sure" is acceptable; a
+  confident wrong answer is not (user priority). Help requests were never refused.
+- The 2B model stays wrong on niche facts with every prompt (it answers instead of hedging). It is
+  not fit for factual questions; see the Instant decision in the Beta 2 plan.
+- Thinking (Deep/Max) keeps the server's default sampling: low temperature there was not measured.
+- "Not sure" becomes a real answer with web lookup (Phase 6): when EV is unsure of a fact and web
+  is allowed, it searches and answers with sources (CLAUDE.md §5.4 step 7).
+- Golden tests added (made-up facts get "not sure", common facts answered, static prefix within
+  budget): 12/12 on Qwen3.5-4B, Linux.
+- **Gemma 4 E2B** (user question; Apache-2.0, unsloth Q4_K_M, 3.11 GB file), same eval and the
+  same machine: 0 invented and 0 wrong with the new prompt, and honest even with the old one
+  (0 of 14 invented). But it knew almost no niche facts (12 of 12 "not sure", including the Roja
+  composer), it echoed the `[Local time: …]` line at the start of 84 of 84 replies, and its
+  per-layer embeddings make it heavy: llama-server RSS 3,380 MB (`--load-mode none`, ctx 8192,
+  q8 KV) versus 1,458 MB for Qwen3.5-2B, with prompt 229 vs 310 tok/s and generation 26.4 vs
+  29.3 tok/s (llama-bench, 8 threads). Decision: not added to the catalog. It costs more memory
+  than Qwen3.5-4B, which answers more. Revisit if a lighter build or mmap'd embeddings change the
+  memory picture.
