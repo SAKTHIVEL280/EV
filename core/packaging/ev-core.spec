@@ -8,8 +8,10 @@ from PyInstaller.utils.hooks import collect_data_files, copy_metadata
 a = Analysis(
     ["entry.py"],
     pathex=[".."],
-    # Package data: the model catalog (ev_core/models/manifest.json).
-    datas=copy_metadata("ev-core") + collect_data_files("ev_core", includes=["**/*.json"]),
+    # Package data: the model catalog (ev_core/models/manifest.json) and the
+    # database migrations (ev_core/storage/migrations/*.sql).
+    datas=copy_metadata("ev-core")
+    + collect_data_files("ev_core", includes=["**/*.json", "**/*.sql"]),
     hiddenimports=[],
     excludes=["tkinter", "unittest", "pydoc", "test"],
     noarchive=False,
