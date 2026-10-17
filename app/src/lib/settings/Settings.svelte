@@ -25,6 +25,8 @@
     sectionById,
     type SectionId,
   } from "./settings";
+  import ModelList from "../models/ModelList.svelte";
+  import { models } from "../models/store.svelte";
 
   let settings = $state<SettingsState | null>(null);
   let core = $state<CoreStatus>({ state: "starting" });
@@ -93,6 +95,7 @@
   });
 
   onMount(() => {
+    models.init();
     void commands.smokeTestMode().then((enabled) => {
       smokeTest = enabled;
     });
@@ -157,6 +160,17 @@
 
     {#if !coreUp}
       <p class="notice" role="status">EV's core isn't running. Settings can't be changed now.</p>
+    {/if}
+
+    {#if current === "models"}
+      <section class="block">
+        <h2>Models</h2>
+        <p class="description">
+          Models run on this PC. Downloads come from Hugging Face and are checked before use.
+        </p>
+        <ModelList variant="settings" />
+        {#if models.state}<p class="path">{models.state.models_dir}</p>{/if}
+      </section>
     {/if}
 
     {#if items.length > 0}

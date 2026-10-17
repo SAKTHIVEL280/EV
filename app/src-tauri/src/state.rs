@@ -10,6 +10,7 @@ use crate::chat::LlmStatus;
 use crate::core::CoreStatus;
 use crate::core::link::CoreLink;
 use crate::hotkey::HotkeyStatus;
+use crate::models::ModelsState;
 use crate::settings::SettingsState;
 
 #[derive(Debug)]
@@ -18,6 +19,7 @@ pub struct AppState {
     llm_status: Mutex<LlmStatus>,
     pub link: Arc<CoreLink>,
     settings: Mutex<Option<SettingsState>>,
+    models: Mutex<Option<ModelsState>>,
     hotkey: Mutex<Option<HotkeyStatus>>,
     pub data_dir: PathBuf,
     pub shutdown: watch::Sender<bool>,
@@ -33,6 +35,7 @@ impl AppState {
             llm_status: Mutex::new(LlmStatus::unloaded()),
             link: Arc::new(CoreLink::default()),
             settings: Mutex::new(None),
+            models: Mutex::new(None),
             hotkey: Mutex::new(None),
             data_dir,
             shutdown,
@@ -70,6 +73,21 @@ impl AppState {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
+    }
+
+    #[must_use]
+    pub fn models(&self) -> Option<ModelsState> {
+        self.models
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    pub fn set_models(&self, state: ModelsState) {
+        *self
+            .models
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(state);
     }
 
     pub fn set_settings(&self, state: SettingsState) {

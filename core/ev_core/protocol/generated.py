@@ -934,6 +934,202 @@ class ConfigRejectedMessage(BaseModel):
     payload: ConfigRejectedPayload
 
 
+class ModelRole(StrEnum):
+    small = "small"
+    default = "default"
+    large = "large"
+
+
+class ModelState(StrEnum):
+    available = "available"
+    partial = "partial"
+    downloading = "downloading"
+    verifying = "verifying"
+    installed = "installed"
+    failed = "failed"
+
+
+class ModelEntry(BaseModel):
+    """
+    One catalog model and its state on this PC (docs/FEATURES.md F-403).
+    """
+
+    id: Annotated[
+        str,
+        Field(
+            description="Catalog model id (core/ev_core/models/manifest.json).",
+            pattern="^[a-z0-9][a-z0-9.\\-]{1,63}$",
+        ),
+    ]
+    name: Annotated[str, Field(max_length=40)]
+    summary: Annotated[str, Field(max_length=80)]
+    role: ModelRole
+    recommended: bool
+    file: Annotated[
+        str, Field(description="Model file name, as configured.", max_length=256, min_length=1)
+    ]
+    size_bytes: Annotated[int, Field(ge=0)]
+    state: ModelState
+    received_bytes: Annotated[int, Field(ge=0)]
+    bytes_per_second: Annotated[int, Field(ge=0)]
+    error: Annotated[
+        str | None, Field(description="User-facing reason when state is failed.", max_length=300)
+    ] = None
+
+
+class ModelsGetPayload(BaseModel):
+    pass
+
+
+class ModelRequestPayload(BaseModel):
+    model_id: Annotated[
+        str,
+        Field(
+            description="Catalog model id (core/ev_core/models/manifest.json).",
+            pattern="^[a-z0-9][a-z0-9.\\-]{1,63}$",
+        ),
+    ]
+
+
+class ModelsStatePayload(BaseModel):
+    models_dir: Annotated[
+        str, Field(description="Absolute path of the models folder.", max_length=4096)
+    ]
+    models: list[ModelEntry]
+
+
+class ModelsGetMessage(BaseModel):
+    """
+    Rust -> core. Ask for the model list; core answers models.state.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["models.get"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ModelsGetPayload
+
+
+class ModelsDownloadMessage(BaseModel):
+    """
+    Rust -> core. Download a catalog model (resumes a partial download). Core answers models.state.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["models.download"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ModelRequestPayload
+
+
+class ModelsCancelMessage(BaseModel):
+    """
+    Rust -> core. Stop a download; the partial file is kept for a later resume.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["models.cancel"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ModelRequestPayload
+
+
+class ModelsStateMessage(BaseModel):
+    """
+    core -> Rust. Every catalog model with its state; also sent on download progress (at most 4/s).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["models.state"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ModelsStatePayload
+
+
 class EvMessage(
     RootModel[
         HelloMessage
@@ -955,6 +1151,10 @@ class EvMessage(
         | ConfigResetMessage
         | ConfigStateMessage
         | ConfigRejectedMessage
+        | ModelsGetMessage
+        | ModelsDownloadMessage
+        | ModelsCancelMessage
+        | ModelsStateMessage
     ]
 ):
     root: Annotated[
@@ -976,7 +1176,11 @@ class EvMessage(
         | ConfigSetMessage
         | ConfigResetMessage
         | ConfigStateMessage
-        | ConfigRejectedMessage,
+        | ConfigRejectedMessage
+        | ModelsGetMessage
+        | ModelsDownloadMessage
+        | ModelsCancelMessage
+        | ModelsStateMessage,
         Field(
             description="EV wire protocol between the Tauri app (Rust) and ev-core (Python). One JSON object per WebSocket text frame. Changes are additive; removing or renaming a field requires a protocol version bump.",
             title="EvMessage",

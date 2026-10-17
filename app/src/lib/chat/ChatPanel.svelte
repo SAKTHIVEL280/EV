@@ -1,11 +1,16 @@
 <!--
   Typed chat (docs/FEATURES.md F-001): one input and the current exchange.
   Replies stream in; a new message replaces a reply that is still streaming.
+  Until a model is installed, the panel offers the models instead
+  (docs/FEATURES.md F-403).
 -->
 <script lang="ts">
   import { onMount } from "svelte";
 
   import { commands, events, type LlmStatus } from "../bindings";
+  import ModelList from "../models/ModelList.svelte";
+  import { needsModel } from "../models/models";
+  import { models } from "../models/store.svelte";
   import { apply, begin, busy, empty, sendFailed, sent, type ChatState } from "./chat";
 
   const TOOL_TEXT: Record<string, string> = { current_time: "Checking the time" };
@@ -14,6 +19,8 @@
   let llm = $state<LlmStatus>({ state: "unloaded", model: null, detail: null });
   let draft = $state("");
   let input: HTMLInputElement | undefined = $state();
+
+  const setup = $derived(needsModel(models.state));
 
   export function focus(): void {
     input?.focus();
@@ -53,6 +60,7 @@
   }
 
   onMount(() => {
+    models.init();
     const unlisteners = [
       events.chatUpdate.listen((event) => {
         chat = apply(chat, event.payload);
@@ -73,47 +81,74 @@
   });
 </script>
 
-<div class="chat">
-  {#if modelText}<p class="model" aria-live="polite">{modelText}</p>{/if}
-
-  <div class="exchange" aria-live="polite">
-    {#if turn}
-      <p class="user">{turn.user}</p>
-      {#if turn.status === "failed"}
-        <p class="reply error">{turn.error}</p>
-      {:else if placeholder}
-        <p class="reply waiting">{placeholder}</p>
-      {:else}
-        <p class="reply">{turn.reply}</p>
-      {/if}
-      {#if turn.status === "cancelled"}<p class="meta">Stopped</p>{/if}
-      {#if turn.status === "done" && turn.totalMs !== null}
-        <p class="meta">
-          {turn.firstTokenMs !== null ? `first word ${String(turn.firstTokenMs)} ms · ` : ""}total {String(
-            turn.totalMs,
-          )} ms
-        </p>
-      {/if}
-    {:else}
-      <p class="hint">Type a question and press Enter.</p>
-    {/if}
+{#if setup}
+  <div class="setup">
+    <p class="lead">Choose a model to start.</p>
+    <p class="hint">It runs on this PC. Nothing you type leaves it.</p>
+    <ModelList variant="island" />
   </div>
+{:else}
+  <div class="chat">
+    {#if modelText}<p class="model" aria-live="polite">{modelText}</p>{/if}
 
-  <form onsubmit={submit}>
-    <input
-      bind:this={input}
-      bind:value={draft}
-      type="text"
-      maxlength="8000"
-      placeholder="Ask EV"
-      aria-label="Message"
-      autocomplete="off"
-      spellcheck="true"
-    />
-  </form>
-</div>
+    <div class="exchange" aria-live="polite">
+      {#if turn}
+        <p class="user">{turn.user}</p>
+        {#if turn.status === "failed"}
+          <p class="reply error">{turn.error}</p>
+        {:else if placeholder}
+          <p class="reply waiting">{placeholder}</p>
+        {:else}
+          <p class="reply">{turn.reply}</p>
+        {/if}
+        {#if turn.status === "cancelled"}<p class="meta">Stopped</p>{/if}
+        {#if turn.status === "done" && turn.totalMs !== null}
+          <p class="meta">
+            {turn.firstTokenMs !== null ? `first word ${String(turn.firstTokenMs)} ms · ` : ""}total {String(
+              turn.totalMs,
+            )} ms
+          </p>
+        {/if}
+      {:else}
+        <p class="hint">Type a question and press Enter.</p>
+      {/if}
+    </div>
+
+    <form onsubmit={submit}>
+      <input
+        bind:this={input}
+        bind:value={draft}
+        type="text"
+        maxlength="8000"
+        placeholder="Ask EV"
+        aria-label="Message"
+        autocomplete="off"
+        spellcheck="true"
+      />
+    </form>
+  </div>
+{/if}
 
 <style>
+  .setup {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--ev-space-1);
+  }
+
+  .lead {
+    font-size: var(--ev-text-15);
+    font-weight: var(--ev-weight-semibold);
+    color: var(--ev-island-fg-1);
+  }
+
+  .setup .hint {
+    margin-bottom: var(--ev-space-1);
+  }
+
   .chat {
     flex: 1;
     min-height: 0;

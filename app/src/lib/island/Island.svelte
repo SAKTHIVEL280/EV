@@ -15,6 +15,8 @@
   import { commands, events, type CoreStatus, type HitRect } from "../bindings";
   import ChatPanel from "../chat/ChatPanel.svelte";
   import Icon from "../icons/Icon.svelte";
+  import { downloadStatus } from "../models/models";
+  import { models } from "../models/store.svelte";
   import { dropletBounds, dropletPath, type Drop } from "./droplet";
   import { FrameRecorder } from "./frames";
   import { Spring, type SpringConfig } from "./spring";
@@ -40,7 +42,7 @@
       case "starting":
         return "Starting";
       case "running":
-        return "Ready";
+        return downloadStatus(models.state) ?? "Ready";
       case "restarting":
         return `Reconnecting in ${String(Math.max(1, Math.round(status.delay_ms / 1000)))} s`;
       case "failed":
@@ -208,6 +210,7 @@
     };
     draw();
     report(idle, false);
+    models.init();
     // Spike S2: two frames later the first island frame has been painted.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => void commands.spikeIslandPainted());

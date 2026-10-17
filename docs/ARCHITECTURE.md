@@ -72,6 +72,12 @@ Phase 0 message set:
 | `error` | either | `code`, `message` (user-facing), `detail` (technical, logged) |
 | `shutdown` | Rust → core | `reason` |
 
+Later additions (all additive, same version): chat (`chat.*`, `llm.status`, Phase 1), settings
+(`config.get/set/reset/state/rejected`, Phase 2) and models (`models.get`, `models.download`,
+`models.cancel` Rust → core; `models.state` core → Rust, F-403). Every core → Rust type must also
+be listed in the session's forward list (`app/src-tauri/src/core/session.rs`); a real-core test
+per feature checks it arrives.
+
 ## 4. Core (`ev_core`)
 
 ```
@@ -211,6 +217,11 @@ app (Rust)                         core (Python)
 - `agent` module: one turn at a time; a new request cancels the running one first. A turn is the
   rule router (no model) or up to N model steps (effort) with native tool calls; replies stream
   as `ChatDelta`. When a model becomes ready, the agent pre-reads the static prompt prefix.
+- `models` module (F-403): offers the catalog (`ev_core/models/manifest.json`: pinned Hugging Face
+  URLs, sizes, SHA-256) and downloads into the models folder (`.part` file, Range resume,
+  retries, disk-space check, SHA-256 before rename). It publishes `ModelsStateChanged` (throttled
+  progress) and `ModelInstalled`; the composition root then fills the model's empty
+  `llm.model_*` slot, and the `llm` module warms a newly usable default model.
 - Server: `chat.send` / `chat.cancel` become bus events; outbound events pass through one ordered
   outbox per connection; the latest model status is replayed after `hello.ack`.
 - Rust: `CoreLink` sends messages only while a session is connected (commands fail fast

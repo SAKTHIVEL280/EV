@@ -224,6 +224,14 @@ class LlmModule(Module, LlmProvider):
         if "llm" in event.sections:
             # The next acquire() compares launch configs and reloads if needed.
             self._settings = event.config.llm
+            # A model that just became available (e.g. downloaded) warms at once.
+            if (
+                self._server is not None
+                and self._client is None
+                and not self._lock.locked()
+                and resolve_model(self._settings, self.models_dir, ModelRole.DEFAULT) is not None
+            ):
+                self._tasks.append(asyncio.create_task(self._warm()))
 
     def _publish(self, state: str, model: str | None, detail: str | None = None) -> None:
         if self._bus is not None:

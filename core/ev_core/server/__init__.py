@@ -40,6 +40,10 @@ from ev_core.interfaces.events import (
     ConfigSetRequested,
     ConfigStateChanged,
     LlmStatusChanged,
+    ModelCancelRequested,
+    ModelDownloadRequested,
+    ModelsGetRequested,
+    ModelsStateChanged,
 )
 from ev_core.modules import ModuleStatus
 
@@ -116,6 +120,24 @@ def to_message(event: Event) -> protocol.AnyMessage | None:
             return protocol.config_state(event.path, items, warnings, event.reply_to)
         case ConfigRejected():
             return protocol.config_rejected(event.section, event.key, event.message, event.reply_to)
+        case ModelsStateChanged():
+            models = [
+                protocol.ModelEntry(
+                    id=m.id,
+                    name=m.name,
+                    summary=m.summary,
+                    role=protocol.ModelRole(m.role),
+                    recommended=m.recommended,
+                    file=m.file,
+                    size_bytes=m.size_bytes,
+                    state=protocol.ModelState(m.state),
+                    received_bytes=m.received_bytes,
+                    bytes_per_second=m.bytes_per_second,
+                    error=m.error,
+                )
+                for m in event.models
+            ]
+            return protocol.models_state(event.models_dir, models, event.reply_to)
     return None
 
 
@@ -128,6 +150,7 @@ OUTBOUND_EVENTS: tuple[type[Event], ...] = (
     LlmStatusChanged,
     ConfigStateChanged,
     ConfigRejected,
+    ModelsStateChanged,
 )
 
 
@@ -309,6 +332,12 @@ class CoreServer:
                 case protocol.ConfigResetMessage():
                     reset = message.payload
                     self._bus.publish(ConfigResetRequested(message.id, reset.section, reset.key))
+                case protocol.ModelsGetMessage():
+                    self._bus.publish(ModelsGetRequested(message.id))
+                case protocol.ModelsDownloadMessage():
+                    self._bus.publish(ModelDownloadRequested(message.id, message.payload.model_id))
+                case protocol.ModelsCancelMessage():
+                    self._bus.publish(ModelCancelRequested(message.id, message.payload.model_id))
                 case (
                     protocol.HelloAckMessage()
                     | protocol.PongMessage()
@@ -320,6 +349,7 @@ class CoreServer:
                     | protocol.LlmStatusMessage()
                     | protocol.ConfigStateMessage()
                     | protocol.ConfigRejectedMessage()
+                    | protocol.ModelsStateMessage()
                 ):
                     await self._send_error(
                         connection,

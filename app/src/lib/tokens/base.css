@@ -25,6 +25,11 @@
   --ev-island-control-bg: rgb(255 255 255 / 0.08);
   --ev-island-control-bg-hover: rgb(255 255 255 / 0.14);
   --ev-focus-ring: rgb(255 255 255 / 0.64);
+  /* The one accent: a warm off-white glow, only for live states (progress,
+     listening level). Never for decoration. */
+  --ev-accent: rgb(243 234 216);
+  --ev-progress-track: rgb(255 255 255 / 0.12);
+  --ev-progress-height: 2px;
 
   /* Typography. Weights 400 / 500 / 600 only. */
   --ev-font-sans: "Instrument Sans", sans-serif;
@@ -49,6 +54,7 @@
   /* Shape. */
   --ev-radius-control: 8px;
   --ev-control-height: 28px;
+  --ev-model-action-width: 88px;
 
   /* Motion. Spring physics, not eased tweens. Width is crisp; height a little
      softer, so the drop swells and settles like liquid. Both settle within the

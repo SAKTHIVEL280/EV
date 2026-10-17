@@ -101,6 +101,32 @@ export const commands = {
 	state: string,
 	detail: string | null,
 } | null>("hotkey_status"),
+	/**  The last model list core reported, if any. */
+	modelsState: () => __TAURI_INVOKE<{
+	models_dir: string,
+	models: ModelInfo[],
+} | null>("models_state"),
+	/**
+	 *  Ask core for the model list; the answer arrives as `ModelsChanged`.
+	 * 
+	 *  # Errors
+	 *  When core is not connected.
+	 */
+	modelsRefresh: () => typedError<null, CommandError>(__TAURI_INVOKE("models_refresh")),
+	/**
+	 *  Start (or resume) downloading a catalog model; progress arrives as `ModelsChanged`.
+	 * 
+	 *  # Errors
+	 *  When core is not connected.
+	 */
+	modelsDownload: (modelId: string) => typedError<null, CommandError>(__TAURI_INVOKE("models_download", { modelId })),
+	/**
+	 *  Stop a download; the partial file is kept for a later resume.
+	 * 
+	 *  # Errors
+	 *  When core is not connected.
+	 */
+	modelsCancel: (modelId: string) => typedError<null, CommandError>(__TAURI_INVOKE("models_cancel", { modelId })),
 	/**  Whether this run is the end-to-end smoke test (`EV_SMOKE_TEST=1`). */
 	smokeTestMode: () => __TAURI_INVOKE<boolean>("smoke_test_mode"),
 	/**  The UI reached a smoke-test checkpoint. */
@@ -116,6 +142,7 @@ export const events = {
 	islandToggleRequested: makeEvent<IslandToggleRequested>("island-toggle-requested"),
 	islandVisibility: makeEvent<IslandVisibility>("island-visibility"),
 	llmStatusChanged: makeEvent<LlmStatusChanged>("llm-status-changed"),
+	modelsChanged: makeEvent<ModelsChanged>("models-changed"),
 	settingRejected: makeEvent<SettingRejected>("setting-rejected"),
 	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
 };
@@ -201,6 +228,30 @@ export type LlmStatus = {
 };
 
 export type LlmStatusChanged = LlmStatus;
+
+export type ModelInfo = {
+	id: string,
+	name: string,
+	summary: string,
+	/**  small | default | large */
+	role: string,
+	recommended: boolean,
+	file: string,
+	size_kb: number,
+	/**  available | partial | downloading | verifying | installed | failed */
+	state: string,
+	received_kb: number,
+	kb_per_second: number,
+	/**  User-facing reason when `state` is failed. */
+	error: string | null,
+};
+
+export type ModelsChanged = ModelsState;
+
+export type ModelsState = {
+	models_dir: string,
+	models: ModelInfo[],
+};
 
 export type ModuleInfo = {
 	name: string,

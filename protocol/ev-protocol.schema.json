@@ -61,6 +61,18 @@
     },
     {
       "$ref": "#/$defs/ConfigRejectedMessage"
+    },
+    {
+      "$ref": "#/$defs/ModelsGetMessage"
+    },
+    {
+      "$ref": "#/$defs/ModelsDownloadMessage"
+    },
+    {
+      "$ref": "#/$defs/ModelsCancelMessage"
+    },
+    {
+      "$ref": "#/$defs/ModelsStateMessage"
     }
   ],
   "$defs": {
@@ -1157,6 +1169,242 @@
         },
         "payload": {
           "$ref": "#/$defs/ConfigRejectedPayload"
+        }
+      }
+    },
+    "ModelId": {
+      "description": "Catalog model id (core/ev_core/models/manifest.json).",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9.\\-]{1,63}$"
+    },
+    "Bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ModelRole": {
+      "type": "string",
+      "enum": [
+        "small",
+        "default",
+        "large"
+      ]
+    },
+    "ModelState": {
+      "type": "string",
+      "enum": [
+        "available",
+        "partial",
+        "downloading",
+        "verifying",
+        "installed",
+        "failed"
+      ]
+    },
+    "ModelEntry": {
+      "description": "One catalog model and its state on this PC (docs/FEATURES.md F-403).",
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "summary",
+        "role",
+        "recommended",
+        "file",
+        "size_bytes",
+        "state",
+        "received_bytes",
+        "bytes_per_second"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ModelId"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "role": {
+          "$ref": "#/$defs/ModelRole"
+        },
+        "recommended": {
+          "type": "boolean"
+        },
+        "file": {
+          "$ref": "#/$defs/ModelName"
+        },
+        "size_bytes": {
+          "$ref": "#/$defs/Bytes"
+        },
+        "state": {
+          "$ref": "#/$defs/ModelState"
+        },
+        "received_bytes": {
+          "$ref": "#/$defs/Bytes"
+        },
+        "bytes_per_second": {
+          "$ref": "#/$defs/Bytes"
+        },
+        "error": {
+          "description": "User-facing reason when state is failed.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 300
+        }
+      }
+    },
+    "ModelsGetPayload": {
+      "type": "object"
+    },
+    "ModelRequestPayload": {
+      "type": "object",
+      "required": [
+        "model_id"
+      ],
+      "properties": {
+        "model_id": {
+          "$ref": "#/$defs/ModelId"
+        }
+      }
+    },
+    "ModelsStatePayload": {
+      "type": "object",
+      "required": [
+        "models_dir",
+        "models"
+      ],
+      "properties": {
+        "models_dir": {
+          "description": "Absolute path of the models folder.",
+          "type": "string",
+          "maxLength": 4096
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ModelEntry"
+          }
+        }
+      }
+    },
+    "ModelsGetMessage": {
+      "description": "Rust -> core. Ask for the model list; core answers models.state.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "models.get"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ModelsGetPayload"
+        }
+      }
+    },
+    "ModelsDownloadMessage": {
+      "description": "Rust -> core. Download a catalog model (resumes a partial download). Core answers models.state.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "models.download"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ModelRequestPayload"
+        }
+      }
+    },
+    "ModelsCancelMessage": {
+      "description": "Rust -> core. Stop a download; the partial file is kept for a later resume.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "models.cancel"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ModelRequestPayload"
+        }
+      }
+    },
+    "ModelsStateMessage": {
+      "description": "core -> Rust. Every catalog model with its state; also sent on download progress (at most 4/s).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "models.state"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ModelsStatePayload"
         }
       }
     }

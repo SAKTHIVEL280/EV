@@ -23,8 +23,8 @@ use std::num::NonZeroU64;
 
 use generated::{
     ChatCancelPayload, ChatSendPayload, ConfigGetPayload, ConfigResetPayload, ConfigSetPayload,
-    Effort, EmptyPayload, HelloPayload, ProtocolVersion, SettingName, SettingValue,
-    ShutdownPayload, ShutdownPayloadReason,
+    Effort, EmptyPayload, HelloPayload, ModelId, ModelRequestPayload, ModelsGetPayload,
+    ProtocolVersion, SettingName, SettingValue, ShutdownPayload, ShutdownPayloadReason,
 };
 use serde_json::Value;
 use thiserror::Error;
@@ -113,6 +113,10 @@ messages! {
     ConfigReset(ConfigResetMessage) = "config.reset",
     ConfigState(ConfigStateMessage) = "config.state",
     ConfigRejected(ConfigRejectedMessage) = "config.rejected",
+    ModelsGet(ModelsGetMessage) = "models.get",
+    ModelsDownload(ModelsDownloadMessage) = "models.download",
+    ModelsCancel(ModelsCancelMessage) = "models.cancel",
+    ModelsState(ModelsStateMessage) = "models.state",
 }
 
 #[derive(Debug, Error)]
@@ -265,6 +269,51 @@ pub fn config_reset(section: &str, key: &str) -> Result<Message, AppError> {
         },
         reply_to: None,
         type_: "config.reset".into(),
+        v: version(),
+    }))
+}
+
+/// # Errors
+/// When the OS random source fails.
+pub fn models_get() -> Result<Message, AppError> {
+    Ok(Message::ModelsGet(generated::ModelsGetMessage {
+        id: id()?,
+        payload: ModelsGetPayload(serde_json::Map::new()),
+        reply_to: None,
+        type_: "models.get".into(),
+        v: version(),
+    }))
+}
+
+fn model_id(id: &str) -> Result<ModelId, AppError> {
+    id.parse()
+        .map_err(|e: generated::error::ConversionError| AppError::ProtocolMismatch(e.to_string()))
+}
+
+/// # Errors
+/// When the OS random source fails or `model` is not a model id.
+pub fn models_download(model: &str) -> Result<Message, AppError> {
+    Ok(Message::ModelsDownload(generated::ModelsDownloadMessage {
+        id: id()?,
+        payload: ModelRequestPayload {
+            model_id: model_id(model)?,
+        },
+        reply_to: None,
+        type_: "models.download".into(),
+        v: version(),
+    }))
+}
+
+/// # Errors
+/// When the OS random source fails or `model` is not a model id.
+pub fn models_cancel(model: &str) -> Result<Message, AppError> {
+    Ok(Message::ModelsCancel(generated::ModelsCancelMessage {
+        id: id()?,
+        payload: ModelRequestPayload {
+            model_id: model_id(model)?,
+        },
+        reply_to: None,
+        type_: "models.cancel".into(),
         v: version(),
     }))
 }

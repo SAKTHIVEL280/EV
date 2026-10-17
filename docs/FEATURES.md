@@ -78,7 +78,7 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 |---|---|---|---|
 | F-401 | First-run setup (models, mic test, voice, wake word, personality, benchmark) | 8 | index |
 | F-402 | Compute benchmark and backend selection | 8 | index |
-| F-403 | Model downloader (SHA-256, resume, offline folder) | 8 | index |
+| F-403 | Model downloader (SHA-256, resume, offline folder) | 2 (pulled forward) | built (Linux-verified) |
 | F-404 | Performance HUD (optional) | 8 | index |
 | F-405 | Privacy mode (mic + screen off, visible indicator) | 8 | index |
 | F-406 | Battery saver | 8 | index |
@@ -207,3 +207,33 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
   work.
 - Tests: manual on Windows (light and dark taskbar: the icon must be visible on both; tracked for
   the Phase 2 design pass).
+
+### F-403 Model downloader
+- Phase / status: pulled forward from Phase 8 to the Phase 2 fix round (user request after the
+  first Windows test, 2026-10-17: nothing can be tried without a model).
+- Behavior: when no model is installed, the island panel shows the model choices instead of the
+  chat. Settings → Models & Performance shows the same list at any time. Choosing Download starts
+  it; the row shows percent, speed and time left, and a Stop control. A dropped connection is
+  retried automatically (3 times, resuming where it stopped). A stopped or interrupted download
+  keeps its partial file and resumes from there, also after EV restarts. The finished file is
+  checked against its SHA-256, then renamed into place. If the model's slot (`llm.model_small`,
+  `model_default` or `model_large`) is empty, it is filled, and the default model warms at once.
+- Catalog (`core/ev_core/models/manifest.json`, CLAUDE.md §10.6): Qwen3.5 2B / 4B / 9B Q4_K_M from
+  `unsloth/Qwen3.5-*-GGUF` at pinned revisions, with size and SHA-256. 4B is recommended.
+- Effort level: n/a.
+- Permissions & risk: network to huggingface.co (and its CDN redirect) only, for files in the
+  catalog. Writes only inside the models folder. Never deletes a finished model.
+- Settings: `llm.models_dir` (empty: `<data>/models`), `llm.model_*` slots.
+- Island states used: panel (choices, progress), hover status ("Downloading 42%").
+- Edge cases: not enough disk space; offline; server ignores the resume request (restart from
+  zero); file damaged (checksum); file already present (checked by size, shown as installed);
+  models folder not writable; two download requests for the same model (second ignored).
+- Failure messages: "Not enough free space. EV needs {n} GB more." · "Couldn't reach Hugging Face.
+  Check the connection and try again." · "The download was damaged. Try again." · "Couldn't save
+  the model. Check the models folder in Settings."
+- Performance: hashing and file writes run off the event loop; progress is sent at most 4 times a
+  second.
+- Tests: downloader against a local HTTP server (full, resume with Range, server ignores Range,
+  checksum mismatch, cancel, retry after a dropped connection, disk space); catalog validation;
+  module state and config filling; protocol fixtures; Rust conversion; UI formatting.
+

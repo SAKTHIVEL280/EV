@@ -14,6 +14,7 @@ use crate::chat::{Effort, LlmStatus};
 use crate::core::CoreStatus;
 use crate::island::geometry::HitRect;
 use crate::island::{IslandState, Shape};
+use crate::models::ModelsState;
 use crate::protocol::{self, Message};
 use crate::settings::{SettingValue, SettingsState};
 use crate::settings_window;
@@ -193,6 +194,43 @@ fn send(
 #[specta::specta]
 pub fn settings_refresh(state: State<'_, AppState>) -> Result<(), CommandError> {
     send(&state, protocol::config_get())
+}
+
+/// The last model list core reported, if any.
+#[tauri::command]
+#[specta::specta]
+pub fn models_state(state: State<'_, AppState>) -> Option<ModelsState> {
+    state.models()
+}
+
+/// Ask core for the model list; the answer arrives as `ModelsChanged`.
+///
+/// # Errors
+/// When core is not connected.
+#[tauri::command]
+#[specta::specta]
+pub fn models_refresh(state: State<'_, AppState>) -> Result<(), CommandError> {
+    send(&state, protocol::models_get())
+}
+
+/// Start (or resume) downloading a catalog model; progress arrives as `ModelsChanged`.
+///
+/// # Errors
+/// When core is not connected.
+#[tauri::command]
+#[specta::specta]
+pub fn models_download(state: State<'_, AppState>, model_id: String) -> Result<(), CommandError> {
+    send(&state, protocol::models_download(&model_id))
+}
+
+/// Stop a download; the partial file is kept for a later resume.
+///
+/// # Errors
+/// When core is not connected.
+#[tauri::command]
+#[specta::specta]
+pub fn models_cancel(state: State<'_, AppState>, model_id: String) -> Result<(), CommandError> {
+    send(&state, protocol::models_cancel(&model_id))
 }
 
 /// Change one setting; core answers with `SettingsChanged` or `SettingRejected`.

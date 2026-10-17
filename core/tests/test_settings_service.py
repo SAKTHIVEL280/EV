@@ -1,5 +1,6 @@
 """Settings over the wire: server + SettingsService + store (docs/FEATURES.md F-410)."""
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -26,7 +27,7 @@ class Rig:
         self.bus = EventBus()
         self.store = ConfigStore(tmp_path / "config.toml")
         self.watcher = ConfigWatcher(self.store, self.bus, self.store.load())
-        SettingsService(self.store, self.watcher, self.bus)
+        self.service = SettingsService(self.store, self.watcher, self.bus)
         self.server = CoreServer(
             bus=self.bus,
             token=TOKEN,
@@ -118,3 +119,14 @@ async def test_config_messages_satisfy_schema(rig: Rig) -> None:
         validator.validate(await recv_type(ws, "config.state"))
         await ws.send(protocol.encode(protocol.config_set("agent", "default_effort", "nope")))
         validator.validate(await recv_type(ws, "config.rejected"))
+
+
+async def test_change_from_core_reaches_the_app(rig: Rig) -> None:
+    # A finished model download fills llm.model_default from inside core; the
+    # app must get the new state (it has no request id to reply to).
+    async with await session(rig) as ws:
+        await rig.service.set_value("llm", "model_default", "Qwen3.5-4B-Q4_K_M.gguf")
+        async with asyncio.timeout(5):
+            state = await recv_type(ws, "config.state")
+        assert "reply_to" not in state
+        assert value(state, "llm.model_default") == "Qwen3.5-4B-Q4_K_M.gguf"

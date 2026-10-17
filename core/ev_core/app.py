@@ -27,11 +27,14 @@ from typing import Final, TextIO
 from ev_core import __version__, protocol
 from ev_core.agent import AgentModule
 from ev_core.bus import EventBus
-from ev_core.config import ConfigChanged, ConfigStore, ConfigWatcher
+from ev_core.config import ConfigChanged, ConfigStore, ConfigWatcher, LlmSection
 from ev_core.config.service import SettingsService
 from ev_core.errors import EvError
+from ev_core.interfaces.events import ModelInstalled
 from ev_core.llm import LlmModule
 from ev_core.log import set_level, setup_logging
+from ev_core.models import ModelsModule
+from ev_core.models.catalog import load_catalog
 from ev_core.modules import ModuleRegistry
 from ev_core.paths import data_dir
 from ev_core.server import CoreServer
@@ -82,6 +85,7 @@ async def run(env: Mapping[str, str], stdout: TextIO, stdin: TextIO | None) -> i
         AgentModule(config.agent, config.llm, provider=llm, tools=[CurrentTimeTool()]),
         enabled=True,
     )
+    registry.register(ModelsModule(config.llm, root, load_catalog()), enabled=True)
 
     async def on_config_changed(event: ConfigChanged) -> None:
         if "logging" in event.sections:
@@ -89,7 +93,12 @@ async def run(env: Mapping[str, str], stdout: TextIO, stdin: TextIO | None) -> i
 
     bus.subscribe(ConfigChanged, on_config_changed)
     watcher = ConfigWatcher(store, bus, loaded)
-    SettingsService(store, watcher, bus)
+    settings = SettingsService(store, watcher, bus)
+
+    async def on_model_installed(event: ModelInstalled) -> None:
+        await fill_model_slot(event, watcher.current.config.llm, settings)
+
+    bus.subscribe(ModelInstalled, on_model_installed)
 
     server = CoreServer(
         bus=bus,
@@ -127,6 +136,17 @@ async def run(env: Mapping[str, str], stdout: TextIO, stdin: TextIO | None) -> i
     await bus.drain()
     logger.info("core stopped")
     return EXIT_OK
+
+
+async def fill_model_slot(
+    event: ModelInstalled, llm: LlmSection, settings: SettingsService
+) -> None:
+    """Put a newly installed model in its config slot, only when that slot is empty:
+    a downloaded model never replaces the user's choice (docs/FEATURES.md F-403)."""
+    key = f"model_{event.role}"
+    current = getattr(llm, key, None)
+    if isinstance(current, str) and not current.strip():
+        await settings.set_value("llm", key, event.file)
 
 
 def _install_stop_triggers(

@@ -5,6 +5,8 @@
 *.bin
 *.safetensors
 models/
+# ...except the code package that downloads them (catalog, downloader).
+!core/ev_core/models/
 vendor/llama.cpp/
 # Build output
 target/

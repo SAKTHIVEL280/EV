@@ -51,6 +51,16 @@ from ev_core.protocol.generated import (
     LlmState,
     LlmStatusMessage,
     LlmStatusPayload,
+    ModelEntry,
+    ModelRequestPayload,
+    ModelRole,
+    ModelsCancelMessage,
+    ModelsDownloadMessage,
+    ModelsGetMessage,
+    ModelsGetPayload,
+    ModelsStateMessage,
+    ModelsStatePayload,
+    ModelState,
     ModuleState,
     ModuleStatus,
     PingMessage,
@@ -87,7 +97,11 @@ type AnyMessage = Annotated[
     | ConfigSetMessage
     | ConfigResetMessage
     | ConfigStateMessage
-    | ConfigRejectedMessage,
+    | ConfigRejectedMessage
+    | ModelsGetMessage
+    | ModelsDownloadMessage
+    | ModelsCancelMessage
+    | ModelsStateMessage,
     Field(discriminator="type"),
 ]
 
@@ -310,6 +324,42 @@ def config_rejected(
     )
 
 
+def models_get() -> ModelsGetMessage:
+    return ModelsGetMessage(
+        v=PROTOCOL_VERSION, type="models.get", id=new_id(), payload=ModelsGetPayload()
+    )
+
+
+def models_download(model_id: str) -> ModelsDownloadMessage:
+    return ModelsDownloadMessage(
+        v=PROTOCOL_VERSION,
+        type="models.download",
+        id=new_id(),
+        payload=ModelRequestPayload(model_id=model_id),
+    )
+
+
+def models_cancel(model_id: str) -> ModelsCancelMessage:
+    return ModelsCancelMessage(
+        v=PROTOCOL_VERSION,
+        type="models.cancel",
+        id=new_id(),
+        payload=ModelRequestPayload(model_id=model_id),
+    )
+
+
+def models_state(
+    models_dir: str, models: list[ModelEntry], reply_to: str | None = None
+) -> ModelsStateMessage:
+    return ModelsStateMessage(
+        v=PROTOCOL_VERSION,
+        type="models.state",
+        id=new_id(),
+        reply_to=reply_to,
+        payload=ModelsStatePayload(models_dir=models_dir, models=models),
+    )
+
+
 def _readable_id(raw: str | bytes) -> str | None:
     try:
         obj = json.loads(raw)
@@ -347,6 +397,13 @@ __all__ = [
     "HelloMessage",
     "LlmState",
     "LlmStatusMessage",
+    "ModelEntry",
+    "ModelRole",
+    "ModelState",
+    "ModelsCancelMessage",
+    "ModelsDownloadMessage",
+    "ModelsGetMessage",
+    "ModelsStateMessage",
     "ModuleState",
     "ModuleStatus",
     "PingMessage",
@@ -374,6 +431,10 @@ __all__ = [
     "hello",
     "hello_ack",
     "llm_status",
+    "models_cancel",
+    "models_download",
+    "models_get",
+    "models_state",
     "new_id",
     "ping",
     "pong",

@@ -302,6 +302,66 @@ mod tests {
         ));
     }
 
+    /// The model list travels from the real core to the app (F-403). Every
+    /// core -> app message type must be forwarded by the session.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn real_core_models_state_reaches_the_app() {
+        let dir = tempfile::tempdir().unwrap();
+        let rec = Recorder::default();
+        let link = Arc::new(CoreLink::default());
+        let (tx, rx) = watch::channel(false);
+        let spec = real_core(dir.path());
+        let (task_rec, task_link) = (rec.clone(), link.clone());
+        let task = tokio::spawn(async move {
+            supervise(
+                Ok(spec),
+                "0.1.0-beta.1",
+                &fast_timing(),
+                fast_policy(),
+                rx,
+                &task_rec,
+                &task_link,
+            )
+            .await;
+        });
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while !rec
+            .statuses
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|s| matches!(s, CoreStatus::Running { .. }))
+        {
+            assert!(Instant::now() < deadline, "core never became ready");
+            sleep(Duration::from_millis(20)).await;
+        }
+        link.send(crate::protocol::models_get().unwrap()).unwrap();
+        let state = loop {
+            let found = rec.messages.lock().unwrap().iter().find_map(|m| match m {
+                Message::ModelsState(_) => crate::models::update(m.clone()),
+                _ => None,
+            });
+            if let Some(state) = found {
+                break state;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "models.state never reached the app"
+            );
+            sleep(Duration::from_millis(20)).await;
+        };
+        tx.send(true).unwrap();
+        tokio::time::timeout(Duration::from_secs(10), task)
+            .await
+            .unwrap()
+            .unwrap();
+
+        let ids: Vec<&str> = state.models.iter().map(|m| m.id.as_str()).collect();
+        assert_eq!(ids, ["qwen3.5-4b", "qwen3.5-2b", "qwen3.5-9b"]);
+        assert!(state.models.iter().all(|m| m.state == "available"));
+        assert!(state.models_dir.ends_with("models"));
+    }
+
     /// Settings round trip through the real core: get, change, refused change.
     #[tokio::test(flavor = "multi_thread")]
     async fn real_core_settings_round_trip() {

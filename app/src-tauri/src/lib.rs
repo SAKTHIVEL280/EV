@@ -8,6 +8,7 @@ pub mod error;
 pub mod hotkey;
 pub mod island;
 pub mod logging;
+pub mod models;
 pub mod paths;
 pub mod platform;
 pub mod protocol;
@@ -70,6 +71,10 @@ pub fn specta_builder<R: Runtime>() -> tauri_specta::Builder<R> {
             commands::open_config_file::<tauri::Wry>,
             commands::open_logs_folder::<tauri::Wry>,
             commands::hotkey_status,
+            commands::models_state,
+            commands::models_refresh,
+            commands::models_download,
+            commands::models_cancel,
             commands::smoke_test_mode,
             commands::smoke_test_step::<tauri::Wry>,
         ])
@@ -81,6 +86,7 @@ pub fn specta_builder<R: Runtime>() -> tauri_specta::Builder<R> {
             LlmStatusChanged,
             settings::SettingsChanged,
             settings::SettingRejected,
+            models::ModelsChanged,
             hotkey::HotkeyStatusChanged,
             hotkey::IslandToggleRequested
         ])
@@ -251,15 +257,21 @@ impl<R: Runtime> CoreObserver for AppObserver<R> {
     fn status(&self, status: CoreStatus) {
         // A core that is not running has no model loaded.
         if matches!(status, CoreStatus::Running { .. }) {
-            // Settings drive app-side behavior (hotkey); fetch them on every connect.
+            // Settings drive app-side behavior (hotkey) and the model list drives
+            // the panel's first-run state; fetch both on every connect.
             let link = self.app.state::<AppState>().link.clone();
-            match protocol::config_get() {
-                Ok(message) => {
-                    if let Err(e) = link.send(message) {
-                        tracing::warn!(error = %e, "config request not sent");
+            for (what, message) in [
+                ("config", protocol::config_get()),
+                ("models", protocol::models_get()),
+            ] {
+                match message {
+                    Ok(message) => {
+                        if let Err(e) = link.send(message) {
+                            tracing::warn!(error = %e, what, "request not sent");
+                        }
                     }
+                    Err(e) => tracing::warn!(error = %e, what, "request not built"),
                 }
-                Err(e) => tracing::warn!(error = %e, "config request not built"),
             }
         } else {
             self.set_llm(LlmStatus::unloaded());
@@ -271,6 +283,15 @@ impl<R: Runtime> CoreObserver for AppObserver<R> {
     }
 
     fn message(&self, message: Message) {
+        if let Message::ModelsState(_) = message {
+            if let Some(state) = models::update(message) {
+                self.app.state::<AppState>().set_models(state.clone());
+                if let Err(e) = models::ModelsChanged(state).emit(&self.app) {
+                    tracing::warn!(error = %e, "emit ModelsChanged failed");
+                }
+            }
+            return;
+        }
         if matches!(
             message,
             Message::ConfigState(_) | Message::ConfigRejected(_)

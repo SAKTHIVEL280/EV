@@ -45,6 +45,11 @@ class SettingsService:
             reply_to=reply_to,
         )
 
+    async def set_value(self, section: str, key: str, value: bool | int | str) -> None:
+        """Change a setting from inside core (e.g. a finished model download).
+        The new state is published without ``reply_to``: no app request asked."""
+        await self._edit(None, section, key, value)
+
     async def _on_get(self, event: ConfigGetRequested) -> None:
         self._publish(self.state(event.request_id), force=True)
 
@@ -55,7 +60,7 @@ class SettingsService:
         await self._edit(event.request_id, event.section, event.key, None)
 
     async def _edit(
-        self, request_id: str, section: str, key: str, value: bool | int | str | None
+        self, request_id: str | None, section: str, key: str, value: bool | int | str | None
     ) -> None:
         try:
             if value is None:

@@ -1,9 +1,12 @@
 """Bus events shared by the server, agent and llm modules.
 
 Inbound (from the app): ChatRequested, ChatCancelRequested, ConfigGetRequested,
-ConfigSetRequested, ConfigResetRequested.
+ConfigSetRequested, ConfigResetRequested, ModelsGetRequested,
+ModelDownloadRequested, ModelCancelRequested.
 Outbound (to the app): ChatStarted, ChatDelta, ChatToolChanged, ChatDone,
-ChatFailed, LlmStatusChanged, ConfigStateChanged, ConfigRejected.
+ChatFailed, LlmStatusChanged, ConfigStateChanged, ConfigRejected,
+ModelsStateChanged.
+Internal: ModelInstalled (the composition root fills the model's config slot).
 The server forwards outbound events in publish order (the bus starts
 handlers in publish order).
 """
@@ -112,3 +115,53 @@ class ConfigRejected(Event):
     key: str
     message: str
     reply_to: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ModelsGetRequested(Event):
+    request_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class ModelDownloadRequested(Event):
+    request_id: str
+    model_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class ModelCancelRequested(Event):
+    request_id: str
+    model_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class ModelInfo:
+    """One catalog model and its state on this PC (docs/FEATURES.md F-403)."""
+
+    id: str
+    name: str
+    summary: str
+    role: str
+    """small | default | large"""
+    recommended: bool
+    file: str
+    size_bytes: int
+    state: str
+    """available | partial | downloading | verifying | installed | failed"""
+    received_bytes: int
+    bytes_per_second: int
+    error: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class ModelsStateChanged(Event):
+    models_dir: str
+    models: tuple[ModelInfo, ...]
+    reply_to: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ModelInstalled(Event):
+    model_id: str
+    file: str
+    role: str

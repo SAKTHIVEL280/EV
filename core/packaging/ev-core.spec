@@ -3,12 +3,13 @@
 # is slow and often flagged by antivirus (CLAUDE.md §5.1).
 # Console subsystem: the app spawns it with CREATE_NO_WINDOW and needs real
 # stdin/stdout pipes for the handshake and parent-exit detection.
-from PyInstaller.utils.hooks import copy_metadata
+from PyInstaller.utils.hooks import collect_data_files, copy_metadata
 
 a = Analysis(
     ["entry.py"],
     pathex=[".."],
-    datas=copy_metadata("ev-core"),
+    # Package data: the model catalog (ev_core/models/manifest.json).
+    datas=copy_metadata("ev-core") + collect_data_files("ev_core", includes=["**/*.json"]),
     hiddenimports=[],
     excludes=["tkinter", "unittest", "pydoc", "test"],
     noarchive=False,
