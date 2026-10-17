@@ -10,3 +10,36 @@ body,
   user-select: none;
   -webkit-font-smoothing: antialiased;
 }
+
+/* Thin scrollbars (beta test 2026-10-17): the panel is small, so the bar is a
+   2 px line with a hairline track that shows how far the content goes.
+   Do not set scrollbar-width/scrollbar-color: WebView2 then ignores these. */
+::-webkit-scrollbar {
+  width: var(--ev-scrollbar-size);
+  height: var(--ev-scrollbar-size);
+}
+
+::-webkit-scrollbar-track {
+  background: linear-gradient(var(--ev-scrollbar-track), var(--ev-scrollbar-track)) center /
+    var(--ev-scrollbar-track-line) 100% no-repeat;
+}
+
+::-webkit-scrollbar-track:horizontal {
+  background-size: 100% var(--ev-scrollbar-track-line);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ev-scrollbar-thumb) padding-box;
+  border: calc((var(--ev-scrollbar-size) - var(--ev-scrollbar-line)) / 2) solid transparent;
+  border-radius: var(--ev-scrollbar-size);
+}
+
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--ev-scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-corner {
+  display: none;
+}

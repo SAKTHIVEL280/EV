@@ -128,6 +128,14 @@
 {/if}
 
 <style>
+  /* Scroll areas reach into the panel's side padding, so the scrollbar line
+     sits beside the text instead of taking width from it. */
+  .setup,
+  .exchange {
+    margin-right: calc(-1 * var(--ev-space-3));
+    padding-right: var(--ev-space-3);
+  }
+
   .setup {
     flex: 1;
     min-height: 0;

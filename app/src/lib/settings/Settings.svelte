@@ -330,6 +330,9 @@
 
 <style>
   .settings {
+    --ev-scrollbar-thumb: var(--ev-fg-3);
+    --ev-scrollbar-thumb-hover: var(--ev-fg-2);
+    --ev-scrollbar-track: var(--ev-hairline);
     position: fixed;
     inset: 0;
     display: grid;

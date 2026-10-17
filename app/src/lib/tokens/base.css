@@ -30,6 +30,14 @@
   --ev-accent: rgb(243 234 216);
   --ev-progress-track: rgb(255 255 255 / 0.12);
   --ev-progress-height: 2px;
+  /* Scrollbars: a thin line on a hairline track, inside a slightly wider grab
+     area. Island colours here; the Settings window overrides them. */
+  --ev-scrollbar-size: 6px;
+  --ev-scrollbar-line: 2px;
+  --ev-scrollbar-track-line: 1px;
+  --ev-scrollbar-thumb: var(--ev-island-fg-3);
+  --ev-scrollbar-thumb-hover: var(--ev-island-fg-2);
+  --ev-scrollbar-track: var(--ev-island-hairline);
 
   /* Typography. Weights 400 / 500 / 600 only. */
   --ev-font-sans: "Instrument Sans", sans-serif;
