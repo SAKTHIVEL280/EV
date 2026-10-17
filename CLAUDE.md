@@ -415,7 +415,9 @@ risks) and show it before coding non-trivial changes. 3. Implement in small comm
 
 ### 10.7 Git
 - Remote: https://github.com/SAKTHIVEL280/EV (default branch `main`).
-- Work on feature branches (`feat/...`, `fix/...`), merged into `main` when checks pass.
+- Commit directly to `main` and push it under the user's GitHub account. No feature branches and
+  no pull requests (user decision, 2026-10-17).
+- No `Co-Authored-By` or other AI attribution lines in commits or pull requests.
 - Conventional commits (`feat:`, `fix:`, `perf:`, `docs:`, `refactor:`, `test:`, `chore:`).
 - Never commit models, binaries, secrets, or personal data. `.gitignore` covers them.
 - Commit/push only when the user asks.

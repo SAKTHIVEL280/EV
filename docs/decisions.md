@@ -188,3 +188,7 @@ Quality gates
 - IME conflict (Windows): reported when the shortcut is Ctrl+Space and any installed keyboard layout is Chinese, Japanese or Korean (primary LANGID of `GetKeyboardLayoutList` entries). The shortcut stays active; the Hotkeys section explains and suggests Ctrl+Shift+Space.
 - Tray (F-412) uses Tauri's `tray-icon` feature: left click toggles the panel, menu = Open EV, Settings, Quit EV. Tray failure is logged and not fatal. The app icon is reused; its visibility on light and dark taskbars is checked in the Windows design pass.
 - Verified on Linux (XWayland): the default shortcut is active at start; a configured `Ctrl+Shift+Space` replaced it after core connected. Pressing the keys and the tray menu are verified on Windows only (spike kit).
+
+## Git workflow change (2026-10-17)
+- User decision: all work goes directly onto `main` under the user's account; no feature branches and no pull requests. The provisional Phase 0–2 work (previously the stacked branches `feat/phase-0-foundation`, `feat/phase-1-brain`, `feat/phase-2-island`) was moved onto `main` in one step. The Phase 0 gate and the Windows checks for Phases 1–2 are still open; that status is tracked in this log and in docs/FEATURES.md, not by branches.
+- User decision: commits carry no `Co-Authored-By` or other AI attribution. Existing commit messages were rewritten to remove it (contents unchanged).
