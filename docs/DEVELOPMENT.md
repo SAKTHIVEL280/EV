@@ -51,7 +51,16 @@ one JSON object per line.
 
 On Linux the island is a development stand-in. Wayland compositors decide window placement, and
 always-on-top and click-through behave differently from Windows. Island behavior is judged on
-Windows 11 only (spike S1).
+Windows 11 only (spike S1). The pointer rules, panel, chat, model download and Settings can still
+be exercised end to end here: see `bench/linux-e2e/README.md` (`bench/linux-e2e/run.sh`).
+
+Smoke test (also in CI on Linux and Windows): the real app starts core, opens Settings through the
+button's command, waits for core's settings on screen and quits; a hang fails it.
+
+```sh
+cd app && pnpm build && cd src-tauri && cargo build --features custom-protocol
+EV_SMOKE_TEST=1 EV_DATA_DIR=$(mktemp -d) GDK_BACKEND=x11 timeout 180 target/debug/ev
+```
 
 ## 5. Checks (all must pass before a commit)
 
@@ -69,6 +78,14 @@ cd app && pnpm lint && pnpm check && pnpm format:check && pnpm test && pnpm buil
 python3 scripts/check-versions
 cd core && uv run python ../scripts/third-party-notices --check
 actionlint .github/workflows/*.yml
+```
+
+Before pushing, build and test the commit from a clean clone. It catches files that exist locally
+but never reached git (this happened once: `.gitignore` hid `app/src/lib/models/`):
+
+```sh
+git clone -q . /tmp/ev-clean && (cd /tmp/ev-clean/app && pnpm install --frozen-lockfile && pnpm build \
+  && pnpm test) && (cd /tmp/ev-clean/core && uv sync --frozen && uv run pytest -q); rm -rf /tmp/ev-clean
 ```
 
 ## 6. Generated code
