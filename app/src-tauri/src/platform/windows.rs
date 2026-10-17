@@ -1,10 +1,6 @@
-//! Windows fullscreen detection (docs/ARCHITECTURE.md §5.1, spike S1).
-//!
-//! 1. `SHQueryUserNotificationState`: busy (fullscreen app), D3D exclusive
-//!    fullscreen, or presentation mode.
-//! 2. Borderless fullscreen windows (most modern games, video players) are
-//!    not always reported by (1), so also check whether the foreground window
-//!    exactly covers its monitor. The desktop and shell windows are excluded.
+//! Windows calls behind `platform`: fullscreen facts, focus hand-back, mouse
+//! buttons, keyboard layouts. The fullscreen rule itself is in `platform`
+//! (pure, tested on every OS).
 
 use std::mem::size_of;
 use std::sync::atomic::{AtomicIsize, Ordering};
@@ -21,8 +17,8 @@ use windows_sys::Win32::UI::Shell::{
     SHQueryUserNotificationState,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GetClassNameW, GetDesktopWindow, GetForegroundWindow, GetShellWindow, GetWindowRect, IsWindow,
-    SetForegroundWindow,
+    GWL_EXSTYLE, GWL_STYLE, GetClassNameW, GetDesktopWindow, GetForegroundWindow, GetShellWindow,
+    GetWindowLongW, GetWindowRect, IsWindow, SetForegroundWindow,
 };
 
 /// The window that had keyboard focus before the island panel took it.
@@ -59,28 +55,49 @@ pub fn pointer_button_down() -> bool {
     })
 }
 
-pub fn fullscreen_active() -> bool {
-    notification_state_busy() || foreground_covers_monitor()
-}
-
-fn notification_state_busy() -> bool {
-    let mut state: QUERY_USER_NOTIFICATION_STATE = 0;
-    // SAFETY: `state` is a valid, writable QUERY_USER_NOTIFICATION_STATE.
-    let hr = unsafe { SHQueryUserNotificationState(&raw mut state) };
-    hr == 0
-        && matches!(
-            state,
-            QUNS_BUSY | QUNS_RUNNING_D3D_FULL_SCREEN | QUNS_PRESENTATION_MODE
-        )
-}
-
-fn foreground_covers_monitor() -> bool {
+/// Facts about the foreground window for [`super::fullscreen_reason`].
+pub fn fullscreen_reason() -> Option<String> {
+    let state = notification_state();
     // SAFETY: these functions take no arguments and return window handles (possibly null).
     let (fg, shell, desktop) =
         unsafe { (GetForegroundWindow(), GetShellWindow(), GetDesktopWindow()) };
-    if fg.is_null() || fg == shell || fg == desktop || is_desktop_class(fg) {
-        return false;
+    let foreground = (!fg.is_null()).then(|| {
+        // SAFETY: `fg` is a window handle from the OS; GetWindowLongW accepts stale handles.
+        let (style, ex_style) = unsafe {
+            (
+                GetWindowLongW(fg, GWL_STYLE),
+                GetWindowLongW(fg, GWL_EXSTYLE),
+            )
+        };
+        super::Foreground {
+            class: class_name(fg),
+            // Styles are bit flags; the sign bit is WS_POPUP, not a sign.
+            style: style.cast_unsigned(),
+            ex_style: ex_style.cast_unsigned(),
+            is_shell_or_desktop: fg == shell || fg == desktop,
+            covers_monitor: covers_its_monitor(fg),
+        }
+    });
+    super::fullscreen_reason(state.map(notification_name), foreground.as_ref())
+}
+
+fn notification_state() -> Option<QUERY_USER_NOTIFICATION_STATE> {
+    let mut state: QUERY_USER_NOTIFICATION_STATE = 0;
+    // SAFETY: `state` is a valid, writable QUERY_USER_NOTIFICATION_STATE.
+    let hr = unsafe { SHQueryUserNotificationState(&raw mut state) };
+    (hr == 0).then_some(state)
+}
+
+fn notification_name(state: QUERY_USER_NOTIFICATION_STATE) -> &'static str {
+    match state {
+        QUNS_RUNNING_D3D_FULL_SCREEN => "d3d_fullscreen",
+        QUNS_PRESENTATION_MODE => "presentation",
+        QUNS_BUSY => "busy",
+        _ => "other",
     }
+}
+
+fn covers_its_monitor(fg: HWND) -> bool {
     let mut rect = RECT {
         left: 0,
         top: 0,
@@ -120,9 +137,8 @@ fn foreground_covers_monitor() -> bool {
     rect.left <= m.left && rect.top <= m.top && rect.right >= m.right && rect.bottom >= m.bottom
 }
 
-/// Desktop wallpaper hosts (`Progman`, `WorkerW`) cover the monitor but are not apps.
-fn is_desktop_class(hwnd: HWND) -> bool {
-    let mut buf = [0_u16; 32];
+fn class_name(hwnd: HWND) -> String {
+    let mut buf = [0_u16; 64];
     // SAFETY: `buf` is writable for its full length, which is passed as the limit.
     let len = unsafe {
         GetClassNameW(
@@ -131,11 +147,8 @@ fn is_desktop_class(hwnd: HWND) -> bool {
             i32::try_from(buf.len()).unwrap_or(0),
         )
     };
-    let Ok(len) = usize::try_from(len) else {
-        return false;
-    };
-    let name = String::from_utf16_lossy(&buf[..len.min(buf.len())]);
-    name == "Progman" || name == "WorkerW"
+    let len = usize::try_from(len).unwrap_or(0).min(buf.len());
+    String::from_utf16_lossy(&buf[..len])
 }
 
 /// Language ids (low word of each HKL) of the installed keyboard layouts.

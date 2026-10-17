@@ -232,7 +232,8 @@ async fn fullscreen_loop<R: Runtime>(window: WebviewWindow<R>) {
     let mut hidden = false;
     loop {
         tokio::time::sleep(FULLSCREEN_POLL).await;
-        let now = platform::fullscreen_active();
+        let reason = platform::fullscreen();
+        let now = reason.is_some();
         if now == hidden {
             continue;
         }
@@ -241,7 +242,11 @@ async fn fullscreen_loop<R: Runtime>(window: WebviewWindow<R>) {
         if let Err(e) = result {
             tracing::warn!(error = %e, hidden, "island visibility change failed");
         }
-        tracing::info!(hidden, "fullscreen state changed");
+        tracing::info!(
+            hidden,
+            reason = reason.as_deref().unwrap_or("none"),
+            "fullscreen state changed"
+        );
         if let Err(e) = (IslandVisibility { hidden }).emit(&window) {
             tracing::warn!(error = %e, "emit IslandVisibility failed");
         }

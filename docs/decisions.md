@@ -330,3 +330,14 @@ facts (Tamil films, IPL 2025), 5 common facts, 3 help requests.
   1 "not sure" (Titanic, one of two samples). Kept the film example. The pass mark is split:
   required = nothing invented and no help refused (the goal's condition, met); target = every
   common fact right (missed; reported in every run so it stays visible). Golden tests 12/12.
+- **Island hidden on the desktop (third Windows test, 2026-10-17).** The user reported EV didn't
+  work with the Windows desktop in front, while it did over other apps. Cause, by reading the code
+  and Chromium's `fullscreen_win.cc`: the fullscreen check treated `SHQueryUserNotificationState`
+  = `QUNS_BUSY` as fullscreen, and Windows reports "busy" with the desktop in front, so the island
+  hid there; the window-size check already exempted Progman/WorkerW. Decision, after Chromium:
+  only `QUNS_RUNNING_D3D_FULL_SCREEN` and `QUNS_PRESENTATION_MODE` count; otherwise the foreground
+  window must cover its whole monitor, have no dialog/resizable frame, not be a tool window and
+  not be a shell surface (desktop, taskbars, Start/Search, Task View hosts). The rule is pure and
+  unit-tested; every hide/show is logged with its reason ("busy" never hides any more). The cause
+  is inferred, not observed: confirm on Windows, and the log line "fullscreen state changed"
+  names the reason if it happens again.
