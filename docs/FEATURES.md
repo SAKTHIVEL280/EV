@@ -98,6 +98,10 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
   the panel. A new message while a reply is streaming cancels that reply and starts the new one.
   Esc closes the panel; an unfinished reply keeps streaming and is there when the panel reopens.
 - Effort level: the request's effort (F-003); default Normal.
+- Local time: the current user message (not history, not the cached system prompt) starts with
+  one line, `[Local time: Saturday, October 17, 2026, 3:41 PM, India Standard Time]`, so every
+  effort level knows the date, including Instant, which has no tools. Added after the 2026-10-17
+  beta test, where the model gave a wrong date.
 - Permissions & risk: no tools beyond those registered (Phase 1: `current_time`, safe). Tools with
   risk `confirm` or `dangerous` are refused until the confirmation UI exists (Phase 3), and the
   model is told so.
@@ -117,7 +121,8 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 - Phase / status: 1 / built (Linux-verified).
 - Behavior: before any model call, a rule table (regular expressions, no LLM) matches the
   request. A match runs its tool directly and answers from a template. Phase 1 rules:
-  current time and date ("what time is it", "what's the date", "what day is it"). Phase 3 adds
+  current time and date ("what time is it", "what's the date", "what day is it", "what's the date
+  and time"). Phase 3 adds
   volume, open app, timers, media and brightness to the same table.
 - Effort level: Instant. A router match always wins, whatever effort was requested.
 - Permissions & risk: router rules may only call `safe` tools.

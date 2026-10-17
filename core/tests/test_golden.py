@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
+from ev_core import localtime
 from ev_core.agent.history import History
 from ev_core.agent.loop import TurnRequest, run_turn
 from ev_core.agent.toolbox import Toolbox
@@ -80,12 +81,14 @@ def done(events: list[Event]) -> ChatDone:
 
 
 @pytest.mark.parametrize(
-    "text", ["Is it morning or evening right now?", "What day of the week is it today?"]
+    "text", ["What day of the week is it today?", "Which month and year is it right now?"]
 )
-async def test_time_questions_use_the_clock(provider: LlmModule, text: str) -> None:
+async def test_time_questions_answer_from_local_time(provider: LlmModule, text: str) -> None:
+    # Each message carries the local time (agent/loop.py); the answer must match it.
     events = await turn(provider, text)
-    assert tools_used(events) == {"current_time"}
-    assert done(events).text
+    today = localtime.now()
+    reply = done(events).text
+    assert f"{today:%A}" in reply or f"{today:%B}" in reply, reply
 
 
 @pytest.mark.parametrize(

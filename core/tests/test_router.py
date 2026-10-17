@@ -15,6 +15,8 @@ from ev_core.agent.router import match, normalize
         ("what date is it", "It's {date}."),
         ("What day is it?", "It's {weekday}."),
         ("what's today", "It's {weekday}."),
+        ("What's the date and time?", "It's {time} on {date}."),
+        ("what is the time and date now", "It's {time} on {date}."),
     ],
 )
 def test_matches(text: str, expected: str) -> None:

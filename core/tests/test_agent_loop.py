@@ -1,6 +1,7 @@
 import asyncio
 import time
 from collections.abc import AsyncIterator, Sequence
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -28,6 +29,8 @@ from ev_core.llm.fake import FakeBackend, FakeProvider
 from ev_core.tools.clock import CurrentTimeTool
 
 TURN = "36c14c5d-6e7f-4a8b-9c0d-1e2f3a4b5c6d"
+NOW = datetime(2026, 10, 17, 15, 41, tzinfo=timezone(timedelta(hours=5, minutes=30), "IST"))
+STAMP = "[Local time: Saturday, October 17, 2026, 3:41 PM, IST]"
 
 
 def request(text: str, effort: EffortLevel = EffortLevel.NORMAL) -> TurnRequest:
@@ -48,7 +51,14 @@ async def play(
     backend = FakeBackend(scripts)
     provider = FakeProvider(backend)
     events: list[Event] = []
-    await run_turn(req, provider, Toolbox([CurrentTimeTool()]), history or History(), events.append)
+    await run_turn(
+        req,
+        provider,
+        Toolbox([CurrentTimeTool()]),
+        history or History(),
+        events.append,
+        now=lambda: NOW,
+    )
     return events, backend, provider
 
 
@@ -70,7 +80,7 @@ async def test_streams_reply_and_records_usage() -> None:
     call = backend.calls[0]
     assert call.messages[0].role == "system"
     assert call.messages[0].content == SYSTEM_PROMPT
-    assert call.messages[-1].content == "hello"
+    assert call.messages[-1].content == f"{STAMP}\nhello"
     assert not call.thinking
     assert [t.name for t in call.tools] == ["current_time"]
 
@@ -192,4 +202,17 @@ async def test_history_carries_into_next_turn() -> None:
     await play(request("my name is Sam"), [answer("Hi Sam.")], history)
     _, backend, _ = await play(request("what is my name"), [answer("Sam.")], history)
     contents = [m.content for m in backend.calls[0].messages]
-    assert contents[1:] == ["my name is Sam", "Hi Sam.", "what is my name"]
+    # Only the current message carries the local time; history stays plain.
+    assert contents[1:] == ["my name is Sam", "Hi Sam.", f"{STAMP}\nwhat is my name"]
+
+
+async def test_instant_knows_the_time_without_tools() -> None:
+    _, backend, _ = await play(request("is it evening", EffortLevel.INSTANT), [answer("Yes.")])
+    assert backend.calls[0].tools == []
+    assert backend.calls[0].messages[-1].content.startswith(STAMP)
+
+
+async def test_every_step_sees_the_stamp_once() -> None:
+    _, backend, _ = await play(request("what time"), [tool_step(), answer("3:41 PM.")])
+    second = [m.content for m in backend.calls[1].messages]
+    assert sum(STAMP in c for c in second) == 1

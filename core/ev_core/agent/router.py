@@ -40,6 +40,11 @@ RULES: Final[tuple[Rule, ...]] = (
         lambda d: f"It's {d['date_text']}.",
     ),
     _rule(
+        r"^(what'?s|what is) (the )?(date and time|time and date)( now| right now| today)?$",
+        "current_time",
+        lambda d: f"It's {d['time_text']} on {d['date_text']}.",
+    ),
+    _rule(
         r"^what day is (it|today)( today)?$|^what'?s today$",
         "current_time",
         lambda d: f"It's {d['weekday']}.",

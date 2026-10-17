@@ -6,8 +6,10 @@ import json
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Final
 
+from ev_core import localtime
 from ev_core.agent import router
 from ev_core.agent.effort import POLICIES
 from ev_core.agent.history import History, budget_chars
@@ -53,6 +55,7 @@ async def run_turn(
     toolbox: Toolbox,
     history: History,
     emit: Callable[[Event], None],
+    now: Callable[[], datetime] = localtime.now,
 ) -> None:
     rule = router.match(request.text)
     if rule is not None:
@@ -68,6 +71,9 @@ async def run_turn(
 
     emit(ChatStarted(request.turn_id, request.effort, backend.model_name))
     user = ChatMessage("user", request.text)
+    # The model sees the local time on this message only; history keeps the
+    # plain text, so earlier turns never carry a stale time.
+    stamped = ChatMessage("user", f"{localtime.stamp(now())}\n{request.text}")
     prior = history.window(budget_chars(request.context_tokens, policy.max_tokens))
     turn: list[ChatMessage] = [user]
     reply: list[str] = []
@@ -80,7 +86,7 @@ async def run_turn(
         for _ in range(policy.max_steps):
             step_text: list[str] = []
             calls: tuple[ToolCall, ...] = ()
-            messages = [ChatMessage("system", SYSTEM_PROMPT), *prior, *turn]
+            messages = [ChatMessage("system", SYSTEM_PROMPT), *prior, stamped, *turn[1:]]
             async for event in backend.stream(
                 messages, tools=tools, thinking=policy.thinking, max_tokens=policy.max_tokens
             ):

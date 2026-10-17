@@ -5,11 +5,8 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 from typing import Any, ClassVar
 
+from ev_core import localtime
 from ev_core.interfaces.tools import Risk, Tool, ToolContext, ToolResult
-
-
-def _now() -> datetime:
-    return datetime.now().astimezone()
 
 
 class CurrentTimeTool(Tool):
@@ -22,16 +19,15 @@ class CurrentTimeTool(Tool):
     }
     risk = Risk.SAFE
 
-    def __init__(self, now: Callable[[], datetime] = _now) -> None:
+    def __init__(self, now: Callable[[], datetime] = localtime.now) -> None:
         self._now = now
 
     async def run(self, args: Mapping[str, Any], ctx: ToolContext) -> ToolResult:
         now = self._now()
-        hour = now.hour % 12 or 12
         data = {
             "iso": now.isoformat(timespec="seconds"),
-            "time_text": f"{hour}:{now.minute:02d} {'AM' if now.hour < 12 else 'PM'}",
-            "date_text": f"{now:%A}, {now:%B} {now.day}, {now.year}",
+            "time_text": localtime.time_text(now),
+            "date_text": localtime.date_text(now),
             "weekday": f"{now:%A}",
             "timezone": now.tzname() or "",
         }
