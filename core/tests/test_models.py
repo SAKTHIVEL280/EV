@@ -365,6 +365,20 @@ async def test_module_ignores_unknown_and_installed_models(server: Server, tmp_p
     await module.stop()
 
 
+async def test_state_lists_model_files_outside_the_catalog(server: Server, tmp_path: Path) -> None:
+    folder = tmp_path / "models"
+    folder.mkdir()
+    for name in ["Test-1B.gguf", "mine-Q4_K_M.gguf", "mmproj-F16.gguf", "notes.txt"]:
+        (folder / name).write_bytes(b"x")
+    (folder / "sub.gguf").mkdir()
+    module = ModelsModule(LlmSection(), tmp_path, catalog_for(server))
+    assert module.state().other_files == ("mine-Q4_K_M.gguf",)
+    missing = ModelsModule(
+        LlmSection(models_dir=str(tmp_path / "none")), tmp_path, catalog_for(server)
+    )
+    assert missing.state().other_files == ()
+
+
 # --- config slot ---------------------------------------------------------------
 
 

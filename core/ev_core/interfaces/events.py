@@ -31,6 +31,11 @@ class ChatCancelRequested(Event):
 
 
 @dataclass(frozen=True, slots=True)
+class ChatResetRequested(Event):
+    """New chat (F-414): cancel any running turn and forget the conversation."""
+
+
+@dataclass(frozen=True, slots=True)
 class ChatStarted(Event):
     turn_id: str
     effort: EffortLevel
@@ -158,6 +163,8 @@ class ModelsStateChanged(Event):
     models_dir: str
     models: tuple[ModelInfo, ...]
     reply_to: str | None = None
+    other_files: tuple[str, ...] = ()
+    """``.gguf`` files in the models folder that are not catalog models."""
 
 
 @dataclass(frozen=True, slots=True)

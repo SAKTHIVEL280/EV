@@ -21,6 +21,7 @@ from ev_core.protocol.generated import (
     ChatDonePayload,
     ChatFailedMessage,
     ChatFailedPayload,
+    ChatResetMessage,
     ChatSendMessage,
     ChatSendPayload,
     ChatStartedMessage,
@@ -74,6 +75,12 @@ from ev_core.protocol.generated import (
 from ev_core.protocol.generated import (
     Kind as SettingKind,
 )
+from ev_core.protocol.generated import (
+    Role as SettingRole,
+)
+from ev_core.protocol.generated import (
+    Widget as SettingWidget,
+)
 
 PROTOCOL_VERSION: Final = 1
 """Must equal ``x-ev-protocol-version`` in the schema (enforced by a test)."""
@@ -87,6 +94,7 @@ type AnyMessage = Annotated[
     | ShutdownMessage
     | ChatSendMessage
     | ChatCancelMessage
+    | ChatResetMessage
     | ChatStartedMessage
     | ChatDeltaMessage
     | ChatToolMessage
@@ -198,6 +206,12 @@ def chat_cancel(turn_id: str) -> ChatCancelMessage:
         type="chat.cancel",
         id=new_id(),
         payload=ChatCancelPayload(turn_id=turn_id),
+    )
+
+
+def chat_reset() -> ChatResetMessage:
+    return ChatResetMessage(
+        v=PROTOCOL_VERSION, type="chat.reset", id=new_id(), payload=EmptyPayload()
     )
 
 
@@ -349,14 +363,19 @@ def models_cancel(model_id: str) -> ModelsCancelMessage:
 
 
 def models_state(
-    models_dir: str, models: list[ModelEntry], reply_to: str | None = None
+    models_dir: str,
+    models: list[ModelEntry],
+    reply_to: str | None = None,
+    other_files: list[str] | None = None,
 ) -> ModelsStateMessage:
     return ModelsStateMessage(
         v=PROTOCOL_VERSION,
         type="models.state",
         id=new_id(),
         reply_to=reply_to,
-        payload=ModelsStatePayload(models_dir=models_dir, models=models),
+        payload=ModelsStatePayload(
+            models_dir=models_dir, models=models, other_files=other_files or None
+        ),
     )
 
 
@@ -379,6 +398,7 @@ __all__ = [
     "ChatDeltaMessage",
     "ChatDoneMessage",
     "ChatFailedMessage",
+    "ChatResetMessage",
     "ChatSendMessage",
     "ChatStartedMessage",
     "ChatTimings",
@@ -412,11 +432,14 @@ __all__ = [
     "SettingItem",
     "SettingKind",
     "SettingNav",
+    "SettingRole",
+    "SettingWidget",
     "ShutdownMessage",
     "chat_cancel",
     "chat_delta",
     "chat_done",
     "chat_failed",
+    "chat_reset",
     "chat_send",
     "chat_started",
     "chat_tool",

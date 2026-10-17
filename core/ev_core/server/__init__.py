@@ -32,6 +32,7 @@ from ev_core.interfaces.events import (
     ChatDone,
     ChatFailed,
     ChatRequested,
+    ChatResetRequested,
     ChatStarted,
     ChatToolChanged,
     ConfigGetRequested,
@@ -112,6 +113,9 @@ def to_message(event: Event) -> protocol.AnyMessage | None:
                     minimum=i.minimum,
                     maximum=i.maximum,
                     unit=i.unit,
+                    widget=protocol.SettingWidget(i.widget) if i.widget else None,
+                    role=protocol.SettingRole(i.role) if i.role else None,
+                    steps=list(i.steps) or None,
                 )
                 for i in event.items
             ]
@@ -138,7 +142,9 @@ def to_message(event: Event) -> protocol.AnyMessage | None:
                 )
                 for m in event.models
             ]
-            return protocol.models_state(event.models_dir, models, event.reply_to)
+            return protocol.models_state(
+                event.models_dir, models, event.reply_to, list(event.other_files)
+            )
     return None
 
 
@@ -323,6 +329,8 @@ class CoreServer:
                     )
                 case protocol.ChatCancelMessage():
                     self._bus.publish(ChatCancelRequested(message.payload.turn_id))
+                case protocol.ChatResetMessage():
+                    self._bus.publish(ChatResetRequested())
                 case protocol.ConfigGetMessage():
                     self._bus.publish(ConfigGetRequested(message.id))
                 case protocol.ConfigSetMessage():

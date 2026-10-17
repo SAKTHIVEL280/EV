@@ -102,6 +102,7 @@ messages! {
     Shutdown(ShutdownMessage) = "shutdown",
     ChatSend(ChatSendMessage) = "chat.send",
     ChatCancel(ChatCancelMessage) = "chat.cancel",
+    ChatReset(ChatResetMessage) = "chat.reset",
     ChatStarted(ChatStartedMessage) = "chat.started",
     ChatDelta(ChatDeltaMessage) = "chat.delta",
     ChatTool(ChatToolMessage) = "chat.tool",
@@ -221,6 +222,20 @@ pub fn chat_cancel(turn_id: &str) -> Result<Message, AppError> {
         },
         reply_to: None,
         type_: "chat.cancel".into(),
+        v: version(),
+    }))
+}
+
+/// New chat (F-414): core cancels any running turn and clears its history.
+///
+/// # Errors
+/// When the OS random source fails.
+pub fn chat_reset() -> Result<Message, AppError> {
+    Ok(Message::ChatReset(generated::ChatResetMessage {
+        id: id()?,
+        payload: EmptyPayload(serde_json::Map::new()),
+        reply_to: None,
+        type_: "chat.reset".into(),
         v: version(),
     }))
 }

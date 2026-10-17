@@ -492,6 +492,39 @@ class ChatCancelMessage(BaseModel):
     payload: ChatCancelPayload
 
 
+class ChatResetMessage(BaseModel):
+    """
+    Rust -> core. Start a new chat: cancel any running turn and clear the conversation history (F-414).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["chat.reset"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: EmptyPayload
+
+
 class ChatStartedMessage(BaseModel):
     """
     core -> Rust. A turn began.
@@ -721,6 +754,27 @@ class Option(RootModel[str]):
     root: Annotated[str, Field(max_length=64)]
 
 
+class Widget(StrEnum):
+    """
+    Control the Settings window draws instead of the plain one for its kind (F-415). Absent: the plain control.
+    """
+
+    model = "model"
+    folder = "folder"
+    shortcut = "shortcut"
+    slider = "slider"
+
+
+class Role(StrEnum):
+    """
+    For widget = model: which model role the setting chooses (small, default or large).
+    """
+
+    small = "small"
+    default = "default"
+    large = "large"
+
+
 class SettingItem(BaseModel):
     section: Annotated[str, Field(pattern="^[a-z][a-z0-9_]{0,63}$")]
     key: Annotated[str, Field(pattern="^[a-z][a-z0-9_]{0,63}$")]
@@ -738,6 +792,25 @@ class SettingItem(BaseModel):
         Field(
             description="Unit shown after integer values, such as px, ms, min or tokens.",
             max_length=16,
+        ),
+    ] = None
+    widget: Annotated[
+        Widget | None,
+        Field(
+            description="Control the Settings window draws instead of the plain one for its kind (F-415). Absent: the plain control."
+        ),
+    ] = None
+    role: Annotated[
+        Role | None,
+        Field(
+            description="For widget = model: which model role the setting chooses (small, default or large)."
+        ),
+    ] = None
+    steps: Annotated[
+        list[int] | None,
+        Field(
+            description="For widget = slider: the values the slider stops at, ascending. Absent: every integer from minimum to maximum.",
+            max_length=64,
         ),
     ] = None
 
@@ -998,11 +1071,22 @@ class ModelRequestPayload(BaseModel):
     ]
 
 
+class OtherFile(RootModel[str]):
+    root: Annotated[str, Field(max_length=255)]
+
+
 class ModelsStatePayload(BaseModel):
     models_dir: Annotated[
         str, Field(description="Absolute path of the models folder.", max_length=4096)
     ]
     models: list[ModelEntry]
+    other_files: Annotated[
+        list[OtherFile] | None,
+        Field(
+            description="Model files (.gguf) in the models folder that are not in the catalog, by file name (F-415).",
+            max_length=256,
+        ),
+    ] = None
 
 
 class ModelsGetMessage(BaseModel):
@@ -1147,6 +1231,7 @@ class EvMessage(
         | ShutdownMessage
         | ChatSendMessage
         | ChatCancelMessage
+        | ChatResetMessage
         | ChatStartedMessage
         | ChatDeltaMessage
         | ChatToolMessage
@@ -1173,6 +1258,7 @@ class EvMessage(
         | ShutdownMessage
         | ChatSendMessage
         | ChatCancelMessage
+        | ChatResetMessage
         | ChatStartedMessage
         | ChatDeltaMessage
         | ChatToolMessage

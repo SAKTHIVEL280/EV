@@ -114,7 +114,18 @@ class ModelsModule(Module):
             models_dir=str(folder),
             models=tuple(self._info(m, folder) for m in self._catalog.models),
             reply_to=reply_to,
+            other_files=self._other_files(folder),
         )
+
+    def _other_files(self, folder: Path) -> tuple[str, ...]:
+        """Model files the user put in the folder themselves (picker, F-415).
+        Vision projectors (mmproj) are companions, not models."""
+        known = {m.file for m in self._catalog.models}
+        try:
+            names = sorted(p.name for p in folder.glob("*.gguf") if p.is_file())
+        except OSError:
+            return ()
+        return tuple(n for n in names if n not in known and not n.lower().startswith("mmproj"))
 
     def _info(self, model: CatalogModel, folder: Path) -> ModelInfo:
         live = self._live.get(model.id)

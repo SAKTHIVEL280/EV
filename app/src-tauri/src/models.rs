@@ -32,6 +32,8 @@ pub struct ModelInfo {
 pub struct ModelsState {
     pub models_dir: String,
     pub models: Vec<ModelInfo>,
+    /// `.gguf` files in the models folder that are not catalog models (F-415).
+    pub other_files: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Type, tauri_specta::Event)]
@@ -64,6 +66,12 @@ pub fn update(message: Message) -> Option<ModelsState> {
         Message::ModelsState(m) => Some(ModelsState {
             models_dir: m.payload.models_dir.to_string(),
             models: m.payload.models.into_iter().map(info).collect(),
+            other_files: m
+                .payload
+                .other_files
+                .into_iter()
+                .map(|f| f.to_string())
+                .collect(),
         }),
         _ => None,
     }
@@ -101,6 +109,7 @@ mod tests {
             failed.error.as_deref(),
             Some("Couldn't reach Hugging Face. Check the connection and try again.")
         );
+        assert_eq!(state.other_files, ["my-finetune-Q4_K_M.gguf"]);
     }
 
     #[test]

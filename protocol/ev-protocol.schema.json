@@ -30,6 +30,9 @@
       "$ref": "#/$defs/ChatCancelMessage"
     },
     {
+      "$ref": "#/$defs/ChatResetMessage"
+    },
+    {
       "$ref": "#/$defs/ChatStartedMessage"
     },
     {
@@ -658,6 +661,35 @@
         }
       }
     },
+    "ChatResetMessage": {
+      "description": "Rust -> core. Start a new chat: cancel any running turn and clear the conversation history (F-414).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "chat.reset"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/EmptyPayload"
+        }
+      }
+    },
     "ChatStartedMessage": {
       "description": "core -> Rust. A turn began.",
       "type": "object",
@@ -924,6 +956,33 @@
           "description": "Unit shown after integer values, such as px, ms, min or tokens.",
           "type": "string",
           "maxLength": 16
+        },
+        "widget": {
+          "description": "Control the Settings window draws instead of the plain one for its kind (F-415). Absent: the plain control.",
+          "type": "string",
+          "enum": [
+            "model",
+            "folder",
+            "shortcut",
+            "slider"
+          ]
+        },
+        "role": {
+          "description": "For widget = model: which model role the setting chooses (small, default or large).",
+          "type": "string",
+          "enum": [
+            "small",
+            "default",
+            "large"
+          ]
+        },
+        "steps": {
+          "description": "For widget = slider: the values the slider stops at, ascending. Absent: every integer from minimum to maximum.",
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 64
         }
       }
     },
@@ -1293,6 +1352,15 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/ModelEntry"
+          }
+        },
+        "other_files": {
+          "description": "Model files (.gguf) in the models folder that are not in the catalog, by file name (F-415).",
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "maxLength": 255
           }
         }
       }

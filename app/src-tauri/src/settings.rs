@@ -57,6 +57,12 @@ pub struct SettingItem {
     pub maximum: Option<i32>,
     /// Shown after integer values (px, ms, min, tokens).
     pub unit: Option<String>,
+    /// Control drawn instead of the plain one: model | folder | shortcut | slider (F-415).
+    pub widget: Option<String>,
+    /// For `widget = model`: small | default | large.
+    pub role: Option<String>,
+    /// For `widget = slider`: the values the slider stops at.
+    pub steps: Vec<i32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Type)]
@@ -111,6 +117,9 @@ pub fn update(message: Message) -> Option<Update> {
                     minimum: i.minimum.map(clamp),
                     maximum: i.maximum.map(clamp),
                     unit: i.unit.map(|u| u.to_string()),
+                    widget: i.widget.map(|w| w.to_string()),
+                    role: i.role.map(|r| r.to_string()),
+                    steps: i.steps.into_iter().map(clamp).collect(),
                 })
                 .collect(),
             warnings: m
@@ -176,6 +185,14 @@ mod tests {
         assert_eq!(state.items[1].options, ["instant", "normal", "deep", "max"]);
         assert_eq!(state.items[1].value, SettingValue::Text("deep".into()));
         assert_eq!(state.warnings[0].key, "logging.level");
+        assert_eq!(context.widget.as_deref(), Some("slider"));
+        assert_eq!(context.steps.len(), 7);
+        let model = &state.items[2];
+        assert_eq!(
+            (model.widget.as_deref(), model.role.as_deref()),
+            (Some("model"), Some("default"))
+        );
+        assert_eq!(model.steps, Vec::<i32>::new());
     }
 
     #[test]
