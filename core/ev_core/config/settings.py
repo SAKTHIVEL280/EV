@@ -12,6 +12,8 @@ from ev_core.config.store import bounds
 
 type SettingValue = bool | int | str
 type SettingKind = Literal["boolean", "choice", "integer", "text"]
+type SettingWidget = Literal["model", "folder", "shortcut", "slider"]
+type ModelRoleName = Literal["small", "default", "large"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +31,12 @@ class SettingItem:
     maximum: int | None = None
     unit: str | None = None
     """Shown after integer values (px, ms, min, tokens)."""
+    widget: SettingWidget | None = None
+    """Control drawn instead of the plain one for the kind (F-415)."""
+    role: ModelRoleName | None = None
+    """For ``widget="model"``: the model role the setting chooses."""
+    steps: tuple[int, ...] = ()
+    """For ``widget="slider"``: the values the slider stops at."""
 
 
 def _plain(value: object) -> SettingValue:
@@ -49,6 +57,38 @@ def _declared_unit(extra: object) -> str | None:
     if isinstance(extra, dict) and isinstance(unit := extra.get("unit"), str):
         return unit
     return None
+
+
+def _declared_widget(extra: object) -> SettingWidget | None:
+    if isinstance(extra, dict):
+        match extra.get("widget"):
+            case "model":
+                return "model"
+            case "folder":
+                return "folder"
+            case "shortcut":
+                return "shortcut"
+            case "slider":
+                return "slider"
+    return None
+
+
+def _declared_role(extra: object) -> ModelRoleName | None:
+    if isinstance(extra, dict):
+        match extra.get("role"):
+            case "small":
+                return "small"
+            case "default":
+                return "default"
+            case "large":
+                return "large"
+    return None
+
+
+def _declared_steps(extra: object) -> tuple[int, ...]:
+    if isinstance(extra, dict) and isinstance(steps := extra.get("steps"), list):
+        return tuple(v for v in steps if isinstance(v, int) and not isinstance(v, bool))
+    return ()
 
 
 def describe(config: EvConfig) -> list[SettingItem]:
@@ -89,6 +129,9 @@ def describe(config: EvConfig) -> list[SettingItem]:
                     minimum=low,
                     maximum=high,
                     unit=_declared_unit(field.json_schema_extra),
+                    widget=_declared_widget(field.json_schema_extra),
+                    role=_declared_role(field.json_schema_extra),
+                    steps=_declared_steps(field.json_schema_extra),
                 )
             )
     return items

@@ -65,29 +65,34 @@ class LlmSection(BaseModel):
     models_dir: str = Field(
         default="",
         title="Models folder",
-        description="Folder with model files. Empty: the models folder inside EV's data folder.",
+        description="Where model files are kept. Default: the models folder in EV's data folder.",
+        json_schema_extra={"widget": "folder"},
     )
     model_small: str = Field(
         default="",
         title="Small model",
-        description="Small model file name (Instant effort). Empty: not installed.",
+        description="Fastest model. Used for quick commands and when nothing larger is installed.",
+        json_schema_extra={"widget": "model", "role": "small"},
     )
     model_default: str = Field(
         default="",
         title="Default model",
-        description="Default model file name (Normal effort). Empty: not installed.",
+        description="Answers most requests (Normal effort).",
+        json_schema_extra={"widget": "model", "role": "default"},
     )
     model_large: str = Field(
         default="",
         title="Large model",
-        description="Large model file name (Deep and Max effort). Empty: not installed.",
+        description="Best answers, slower (Deep and Max effort).",
+        json_schema_extra={"widget": "model", "role": "large"},
     )
     threads: int = Field(
         default=0,
         ge=0,
         le=256,
         title="CPU threads",
-        description="CPU threads for the model. 0: automatic (physical cores minus 2, at least 2).",
+        description="CPU threads for the model. Automatic leaves two cores free for you.",
+        json_schema_extra={"widget": "slider", "steps": [0, 2, 3, 4, 6, 8, 10, 12, 16, 24, 32]},
     )
     context: int = Field(
         default=8192,
@@ -95,15 +100,23 @@ class LlmSection(BaseModel):
         le=131072,
         title="Context window",
         description="How much of the conversation the model can read at once.",
-        json_schema_extra={"unit": "tokens"},
+        json_schema_extra={
+            "unit": "tokens",
+            "widget": "slider",
+            "steps": [2048, 4096, 8192, 16384, 32768, 65536, 131072],
+        },
     )
     idle_unload_minutes: int = Field(
         default=10,
         ge=0,
         le=1440,
         title="Unload when idle",
-        description="Free the model's memory after this long without use. 0: never.",
-        json_schema_extra={"unit": "min"},
+        description="Free the model's memory after this long without use.",
+        json_schema_extra={
+            "unit": "min",
+            "widget": "slider",
+            "steps": [0, 1, 2, 5, 10, 15, 30, 60, 120, 240, 480, 1440],
+        },
     )
 
 
@@ -136,9 +149,10 @@ class HotkeysSection(BaseModel):
         default="Ctrl+Space",
         pattern=SHORTCUT_PATTERN,
         title="Open EV",
-        description="Opens the island panel from anywhere. Empty: no shortcut.",
+        description="Opens the island panel from anywhere.",
         json_schema_extra={
-            "rule": "Use one to three of Ctrl, Alt, Shift, Super and a key, like Ctrl+Space."
+            "rule": "Use one to three of Ctrl, Alt, Shift, Super and a key, like Ctrl+Space.",
+            "widget": "shortcut",
         },
     )
 
@@ -151,16 +165,36 @@ class IslandSection(BaseModel):
         ge=0,
         le=64,
         title="Reveal distance",
-        description="How near the pointer must come to open the drop. 0: touch it.",
-        json_schema_extra={"unit": "px"},
+        description="How near the pointer must come to open the island.",
+        json_schema_extra={"unit": "px", "widget": "slider"},
     )
     reveal_delay_ms: int = Field(
         default=150,
         ge=0,
         le=1000,
         title="Reveal delay",
-        description="How long the pointer must stay that close before the drop opens.",
-        json_schema_extra={"unit": "ms"},
+        description="How long the pointer must stay that close before the island opens.",
+        json_schema_extra={
+            "unit": "ms",
+            "widget": "slider",
+            "steps": [0, 50, 100, 150, 200, 300, 400, 500, 750, 1000],
+        },
+    )
+    arc_width: int = Field(
+        default=56,
+        ge=24,
+        le=160,
+        title="Island width",
+        description="Width of the arc at the top of the screen when EV is resting.",
+        json_schema_extra={"unit": "px", "widget": "slider"},
+    )
+    arc_depth: int = Field(
+        default=7,
+        ge=3,
+        le=24,
+        title="Island depth",
+        description="How far the arc reaches down from the top edge.",
+        json_schema_extra={"unit": "px", "widget": "slider"},
     )
 
 
@@ -186,7 +220,7 @@ class EvConfig(BaseModel):
     )
     island: IslandSection = Field(
         default_factory=IslandSection,
-        description="The drop at the top of the screen.",
+        description="The island at the top of the screen.",
         json_schema_extra=_nav(Nav.APPEARANCE),
     )
     hotkeys: HotkeysSection = Field(

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { SettingItem, SettingsState } from "../bindings";
-import { SECTIONS, displayValue, isDefault, itemsFor, parseInput } from "./settings";
+import { SECTIONS, displayValue, groupsFor, isDefault, itemsFor, parseInput } from "./settings";
 
 function item(overrides: Partial<SettingItem>): SettingItem {
   return {
@@ -17,6 +17,9 @@ function item(overrides: Partial<SettingItem>): SettingItem {
     minimum: 2048,
     maximum: 131072,
     unit: null,
+    widget: null,
+    role: null,
+    steps: [],
     ...overrides,
   };
 }
@@ -40,6 +43,8 @@ describe("settings", () => {
     ]);
     for (const section of SECTIONS) {
       if (section.empty) expect(section.empty).not.toMatch(/[!]|soon/i);
+      expect(section.summary).toMatch(/^[A-Z].*\.$/);
+      expect(section.summary).not.toMatch(/!/);
     }
   });
 
@@ -52,6 +57,18 @@ describe("settings", () => {
     expect(itemsFor(state, "models").map((i) => i.key)).toEqual(["context"]);
     expect(itemsFor(state, "general").map((i) => i.key)).toEqual(["default_effort"]);
     expect(itemsFor(null, "general")).toEqual([]);
+  });
+
+  it("groups a page's settings under headings, in order", () => {
+    const groups = groupsFor([
+      item({ section: "llm", key: "a" }),
+      item({ section: "llm", key: "b" }),
+      item({ section: "island", key: "c" }),
+    ]);
+    expect(groups.map((g) => [g.title, g.items.map((i) => i.key)])).toEqual([
+      ["Model", ["a", "b"]],
+      ["Island", ["c"]],
+    ]);
   });
 
   it("knows defaults and formats values", () => {

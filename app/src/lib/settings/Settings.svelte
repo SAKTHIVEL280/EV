@@ -18,15 +18,18 @@
   import {
     SECTIONS,
     displayValue,
+    groupsFor,
     isDefault,
     itemId,
     itemsFor,
-    parseInput,
     sectionById,
     type SectionId,
   } from "./settings";
   import ModelList from "../models/ModelList.svelte";
   import { models } from "../models/store.svelte";
+  import ArcPreview from "./ArcPreview.svelte";
+  import { shortcutLabel } from "./controls";
+  import SettingControl from "./SettingControl.svelte";
 
   let settings = $state<SettingsState | null>(null);
   let core = $state<CoreStatus>({ state: "starting" });
@@ -39,7 +42,7 @@
     if (!hotkey) return null;
     const base =
       hotkey.state === "active"
-        ? `${hotkey.shortcut} is active.`
+        ? `${shortcutLabel(hotkey.shortcut)} is active.`
         : hotkey.state === "off"
           ? "No shortcut is set."
           : (hotkey.detail ?? "This shortcut can't be used.");
@@ -48,6 +51,9 @@
 
   const section = $derived(sectionById(current));
   const items = $derived(itemsFor(settings, current));
+  const groups = $derived(groupsFor(items));
+  const arcWidth = $derived(items.find((i) => i.section === "island" && i.key === "arc_width"));
+  const arcDepth = $derived(items.find((i) => i.section === "island" && i.key === "arc_depth"));
   const coreUp = $derived(core.state === "running");
   const modules = $derived(core.state === "running" ? core.modules : []);
 
@@ -67,16 +73,6 @@
     setError(item, null);
     const result = await commands.settingsReset(item.section, item.key);
     if (result.status === "error") setError(item, result.error.message);
-  }
-
-  function commitInput(item: SettingItem, event: Event): void {
-    const input = event.currentTarget as HTMLInputElement;
-    const parsed = parseInput(item, input.value);
-    if (!parsed.ok) {
-      setError(item, parsed.message);
-      return;
-    }
-    if (parsed.value !== item.value) void apply(item, parsed.value);
   }
 
   async function openFile(which: "config" | "logs"): Promise<void> {
@@ -156,7 +152,10 @@
   </nav>
 
   <main>
-    <h1>{section.label}</h1>
+    <header class="page">
+      <h1>{section.label}</h1>
+      <p class="summary">{section.summary}</p>
+    </header>
 
     {#if !coreUp}
       <p class="notice" role="status">EV's core isn't running. Settings can't be changed now.</p>
@@ -173,75 +172,58 @@
       </section>
     {/if}
 
+    {#if current === "appearance" && arcWidth && arcDepth}
+      <ArcPreview
+        width={arcWidth}
+        depth={arcDepth}
+        disabled={!coreUp}
+        apply={(item: SettingItem, value: SettingValue) => void apply(item, value)}
+      />
+    {/if}
+
     {#if items.length > 0}
-      <ul class="items">
-        {#each items as item (itemId(item))}
-          <li class="item">
-            <div class="text">
-              <span class="label" id={`label-${itemId(item)}`}>{item.label}</span>
-              <span class="description">{item.description}</span>
-              <span class="default">Default: {displayValue(item, item.default)}</span>
-            </div>
-            <div class="control">
-              {#if item.kind === "boolean"}
-                <button
-                  type="button"
-                  role="switch"
-                  class="switch"
-                  aria-checked={item.value === true}
-                  aria-labelledby={`label-${itemId(item)}`}
-                  disabled={!coreUp}
-                  onclick={() => void apply(item, item.value !== true)}
-                >
-                  <span class="knob"></span>
-                </button>
-              {:else if item.kind === "choice"}
-                <div class="segmented" role="radiogroup" aria-labelledby={`label-${itemId(item)}`}>
-                  {#each item.options as option (option)}
+      {#each groups as group (group.title)}
+        <section class="group" aria-labelledby={`group-${group.title}`}>
+          {#if groups.length > 1}<h2 id={`group-${group.title}`}>{group.title}</h2>{/if}
+          <ul class="items">
+            {#each group.items as item (itemId(item))}
+              <li class="item">
+                <div class="text">
+                  <span class="label" id={`label-${itemId(item)}`}>{item.label}</span>
+                  <span class="description">{item.description}</span>
+                  {#if !isDefault(item)}
+                    <span class="default">Default: {displayValue(item, item.default)}</span>
+                  {/if}
+                </div>
+                <div class="control">
+                  <SettingControl
+                    {item}
+                    disabled={!coreUp}
+                    apply={(value: SettingValue) => void apply(item, value)}
+                    fail={(message: string | null) => {
+                      setError(item, message);
+                    }}
+                    showModels={() => (current = "models")}
+                  />
+                  {#if !isDefault(item)}
                     <button
                       type="button"
-                      role="radio"
-                      aria-checked={item.value === option}
+                      class="link"
                       disabled={!coreUp}
-                      onclick={() => void apply(item, option)}
+                      onclick={() => void reset(item)}
                     >
-                      {option}
+                      Reset
                     </button>
-                  {/each}
+                  {/if}
                 </div>
-              {:else}
-                <span class="field" class:number={item.kind === "integer"}>
-                  <input
-                    type="text"
-                    inputmode={item.kind === "integer" ? "numeric" : "text"}
-                    value={String(item.value)}
-                    aria-labelledby={`label-${itemId(item)}`}
-                    aria-invalid={errors[itemId(item)] ? "true" : undefined}
-                    disabled={!coreUp}
-                    onchange={(event) => {
-                      commitInput(item, event);
-                    }}
-                  />
-                  {#if item.unit}<span class="unit">{item.unit}</span>{/if}
-                </span>
-              {/if}
-              {#if !isDefault(item)}
-                <button
-                  type="button"
-                  class="link"
-                  disabled={!coreUp}
-                  onclick={() => void reset(item)}
-                >
-                  Reset to default
-                </button>
-              {/if}
-            </div>
-            {#if errors[itemId(item)]}
-              <p class="error" role="alert">{errors[itemId(item)]}</p>
-            {/if}
-          </li>
-        {/each}
-      </ul>
+                {#if errors[itemId(item)]}
+                  <p class="error" role="alert">{errors[itemId(item)]}</p>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        </section>
+      {/each}
     {:else if section.empty}
       <p class="empty">{section.empty}</p>
     {/if}
@@ -384,17 +366,41 @@
     padding: var(--ev-space-5) calc(var(--ev-space-5) * 2);
   }
 
+  .page {
+    margin-bottom: var(--ev-space-4);
+  }
+
   h1 {
-    margin: 0 0 var(--ev-space-5);
+    margin: 0 0 var(--ev-space-1);
     font-size: var(--ev-text-28);
     font-weight: var(--ev-weight-semibold);
     letter-spacing: -0.01em;
+  }
+
+  .summary {
+    color: var(--ev-fg-2);
+    font-size: var(--ev-text-15);
   }
 
   h2 {
     margin: 0 0 var(--ev-space-2);
     font-size: var(--ev-text-15);
     font-weight: var(--ev-weight-semibold);
+  }
+
+  .group {
+    margin-top: var(--ev-space-5);
+  }
+
+  .group h2 {
+    font-size: var(--ev-text-11);
+    font-weight: var(--ev-weight-semibold);
+    color: var(--ev-fg-2);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding-bottom: var(--ev-space-2);
+    border-bottom: 1px solid var(--ev-hairline);
+    margin: 0;
   }
 
   p {
@@ -458,89 +464,12 @@
     font-weight: var(--ev-weight-medium);
   }
 
-  .field {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--ev-space-2);
-  }
-
-  .unit {
-    min-width: var(--ev-unit-width);
-    font-size: var(--ev-text-13);
-    color: var(--ev-fg-2);
-  }
-
-  .number input {
-    width: var(--ev-number-input-width);
-    text-align: right;
-  }
-
-  input {
-    width: 220px;
-    box-sizing: border-box;
-    font: inherit;
-    color: var(--ev-fg-1);
-    background: var(--ev-control);
-    border: 1px solid var(--ev-hairline);
-    border-radius: var(--ev-radius-control);
-    padding: var(--ev-space-2) var(--ev-space-3);
-    font-variant-numeric: tabular-nums;
-  }
-
-  input[aria-invalid="true"] {
-    border-color: var(--ev-fg-2);
-  }
-
-  .switch {
-    width: 40px;
-    height: 22px;
-    padding: 2px;
-    border: 0;
-    border-radius: 11px;
-    background: var(--ev-control-hover);
-    cursor: pointer;
-    display: flex;
-  }
-
-  .switch[aria-checked="true"] {
-    background: var(--ev-switch-on);
-    justify-content: flex-end;
-  }
-
-  .knob {
-    width: 18px;
-    height: 18px;
-    border-radius: 9px;
-    background: var(--ev-switch-knob);
-  }
-
-  .segmented {
-    display: flex;
-    gap: 2px;
-    padding: 2px;
-    background: var(--ev-control);
-    border-radius: var(--ev-radius-control);
-  }
-
-  .segmented button,
   .action,
   .link {
     font: inherit;
     color: var(--ev-fg-1);
     border: 0;
     cursor: pointer;
-  }
-
-  .segmented button {
-    background: transparent;
-    border-radius: var(--ev-radius-control);
-    padding: var(--ev-space-1) var(--ev-space-3);
-    text-transform: capitalize;
-  }
-
-  .segmented button[aria-checked="true"] {
-    background: var(--ev-surface);
-    font-weight: var(--ev-weight-medium);
   }
 
   .action {
@@ -550,8 +479,7 @@
     margin-top: var(--ev-space-2);
   }
 
-  .action:hover,
-  .segmented button:hover {
+  .action:hover {
     background: var(--ev-control-hover);
   }
 
@@ -567,8 +495,7 @@
     opacity: 0.5;
   }
 
-  button:focus-visible,
-  input:focus-visible {
+  button:focus-visible {
     outline: 2px solid var(--ev-theme-focus-ring);
     outline-offset: 2px;
   }

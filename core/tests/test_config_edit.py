@@ -101,6 +101,8 @@ def test_descriptors_cover_every_key_with_metadata(tmp_path: Path) -> None:
         "hotkeys.open_panel",
         "island.reveal_distance",
         "island.reveal_delay_ms",
+        "island.arc_width",
+        "island.arc_depth",
     }
     assert items["island.reveal_distance"].nav is Nav.APPEARANCE
     assert (items["island.reveal_distance"].unit, items["island.reveal_delay_ms"].unit) == (
@@ -116,7 +118,24 @@ def test_descriptors_cover_every_key_with_metadata(tmp_path: Path) -> None:
     assert items["agent.default_effort"].nav is Nav.GENERAL
     assert items["logging.level"].nav is Nav.DIAGNOSTICS
     assert items["llm.enabled"].kind == "boolean"
+    # Controls (F-415): nothing that needs knowing exact text is a plain text box.
+    assert {k: (i.widget, i.role) for k, i in items.items() if i.widget == "model"} == {
+        "llm.model_small": ("model", "small"),
+        "llm.model_default": ("model", "default"),
+        "llm.model_large": ("model", "large"),
+    }
+    assert items["llm.models_dir"].widget == "folder"
+    assert items["hotkeys.open_panel"].widget == "shortcut"
+    assert context.widget == "slider"
+    assert context.steps == (2048, 4096, 8192, 16384, 32768, 65536, 131072)
+    assert (items["island.arc_width"].minimum, items["island.arc_width"].maximum) == (24, 160)
+    assert [i.key for i in items.values() if i.kind == "integer" and i.widget != "slider"] == []
     for item in items.values():
+        for step in item.steps:
+            assert item.minimum is not None
+            assert item.maximum is not None
+            assert item.minimum <= step <= item.maximum, (item.key, step)
+        assert list(item.steps) == sorted(item.steps)
         assert item.label
         assert item.description
         assert item.label != item.key
@@ -132,7 +151,17 @@ def test_valid_shortcuts(tmp_path: Path, value: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "value", ["Space", "Ctrl+", "Ctrl+Space+X", "Ctrl+Shift+Alt+Super+A", "Ctrl+F13", "Hyper+A"]
+    "value",
+    [
+        "Space",
+        "a",
+        "space+a",
+        "Ctrl+",
+        "Ctrl+Space+X",
+        "Ctrl+Shift+Alt+Super+A",
+        "Ctrl+F13",
+        "Hyper+A",
+    ],
 )
 def test_invalid_shortcuts(tmp_path: Path, value: str) -> None:
     with pytest.raises(ConfigEditError) as caught:

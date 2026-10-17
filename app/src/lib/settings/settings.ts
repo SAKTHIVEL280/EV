@@ -4,6 +4,7 @@
  * immediate feedback with the same wording.
  */
 import type { SettingItem, SettingsState, SettingValue } from "../bindings";
+import { shortcutLabel, sliderText } from "./controls";
 
 export type SectionId =
   | "general"
@@ -23,43 +24,67 @@ export type SectionId =
 export interface Section {
   id: SectionId;
   label: string;
+  /** One line under the title: what this page is for. */
+  summary: string;
   /** Shown when the section has no settings yet: which feature brings them. */
   empty?: string;
 }
 
-const GENERAL: Section = { id: "general", label: "General" };
+const GENERAL: Section = { id: "general", label: "General", summary: "How EV answers." };
 
 /** CLAUDE.md §6.5, in order. */
 export const SECTIONS: readonly Section[] = [
   GENERAL,
-  { id: "voice", label: "Voice", empty: "Voice settings arrive with voice input and speech." },
-  { id: "models", label: "Models & Performance" },
+  {
+    id: "voice",
+    label: "Voice",
+    summary: "Listening, speaking and the wake word.",
+    empty: "Voice settings arrive with voice input and speech.",
+  },
+  {
+    id: "models",
+    label: "Models & Performance",
+    summary: "Which models EV uses and how much of this PC they may use.",
+  },
   {
     id: "personality",
     label: "Personality",
+    summary: "How EV sounds.",
     empty: "Personality presets arrive with the companion features.",
   },
   {
     id: "appearance",
     label: "Appearance",
-    empty: "Theme, accent color and island size arrive with the island design pass.",
+    summary: "The island at the top of the screen.",
   },
-  { id: "hotkeys", label: "Hotkeys", empty: "Hotkeys arrive with the global shortcut." },
+  { id: "hotkeys", label: "Hotkeys", summary: "Keyboard shortcuts that work in any app." },
   {
     id: "permissions",
     label: "Permissions",
+    summary: "What EV may do on this PC without asking.",
     empty: "Per-tool permissions arrive with PC control.",
   },
   {
     id: "memory",
     label: "Memory & History",
+    summary: "What EV keeps, and for how long.",
     empty: "History and memory settings arrive with memory.",
   },
-  { id: "routines", label: "Routines", empty: "Routines arrive with the companion features." },
-  { id: "web", label: "Web & Privacy", empty: "Web search settings arrive with web search." },
-  { id: "advanced", label: "Advanced" },
-  { id: "diagnostics", label: "Diagnostics" },
-  { id: "about", label: "About" },
+  {
+    id: "routines",
+    label: "Routines",
+    summary: "Several actions under one command.",
+    empty: "Routines arrive with the companion features.",
+  },
+  {
+    id: "web",
+    label: "Web & Privacy",
+    summary: "When EV may go online, and what it shares.",
+    empty: "Web search settings arrive with web search.",
+  },
+  { id: "advanced", label: "Advanced", summary: "The config file behind every setting." },
+  { id: "diagnostics", label: "Diagnostics", summary: "What is running, and anything wrong." },
+  { id: "about", label: "About", summary: "Versions and licenses." },
 ];
 
 export function sectionById(id: SectionId): Section {
@@ -68,6 +93,32 @@ export function sectionById(id: SectionId): Section {
 
 export function itemsFor(state: SettingsState | null, section: SectionId): SettingItem[] {
   return state ? state.items.filter((item) => item.nav === section) : [];
+}
+
+/** Headings for groups of settings, by config section. */
+const GROUP_TITLES: Record<string, string> = {
+  agent: "Answers",
+  llm: "Model",
+  island: "Island",
+  hotkeys: "Shortcuts",
+  logging: "Logs",
+};
+
+export interface Group {
+  title: string;
+  items: SettingItem[];
+}
+
+/** A page's settings grouped by config section, in schema order. */
+export function groupsFor(items: SettingItem[]): Group[] {
+  const groups: Group[] = [];
+  for (const item of items) {
+    const title = GROUP_TITLES[item.section] ?? item.section;
+    const last = groups[groups.length - 1];
+    if (last && last.title === title) last.items.push(item);
+    else groups.push({ title, items: [item] });
+  }
+  return groups;
 }
 
 export function itemId(item: { section: string; key: string }): string {
@@ -80,6 +131,10 @@ export function isDefault(item: SettingItem): boolean {
 
 export function displayValue(item: SettingItem, value: SettingValue): string {
   if (item.kind === "boolean") return value === true ? "On" : "Off";
+  if (item.widget === "model" && value === "") return "None";
+  if (item.widget === "folder" && value === "") return "EV's data folder";
+  if (item.widget === "shortcut" && typeof value === "string") return shortcutLabel(value);
+  if (item.widget === "slider" && typeof value === "number") return sliderText(item, value);
   if (item.kind === "text" && value === "") return "Empty";
   if (item.kind === "choice" && typeof value === "string") {
     return value.charAt(0).toUpperCase() + value.slice(1);
