@@ -12,6 +12,22 @@ from ev_core.platform.children import ChildGuard
 SLEEPER = [sys.executable, "-c", "import time; time.sleep(60)"]
 
 
+def _wait_exec(pid: int, timeout_s: float = 10) -> None:
+    """Wait until `setpriv` has armed the death signal and exec'd the real child.
+
+    The kernel arms the signal only when setpriv runs; killing the parent before
+    that leaves the child running (the CI runner hit this window).
+    """
+    import psutil
+
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        if Path(psutil.Process(pid).exe()).name != "setpriv":
+            return
+        time.sleep(0.01)
+    raise AssertionError("setpriv never exec'd the child")
+
+
 def _wait_dead(pid: int, timeout_s: float = 10) -> bool:
     import psutil
 
@@ -43,6 +59,7 @@ def test_linux_child_dies_with_parent(tmp_path: Path) -> None:
     assert parent.stdout is not None
     with parent.stdout:
         child_pid = int(parent.stdout.readline())
+    _wait_exec(child_pid)
     parent.kill()
     parent.wait()
     assert _wait_dead(child_pid)

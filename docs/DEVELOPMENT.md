@@ -85,7 +85,7 @@ actionlint .github/workflows/*.yml
 ```sh
 scripts/build-core                       # core/dist/ev-core/ (PyInstaller onedir, runtime deps only)
 VC_REDIST_DIR=... scripts/stage-llama-runtime  # build/llama-runtime/ (llama-server + its DLLs)
-cd app && pnpm tauri build               # on Windows: NSIS installer with core and llama.cpp
+cd app && pnpm tauri build --config src-tauri/tauri.installer.conf.json  # Windows: NSIS installer
 ```
 
 Windows installers are built by `.github/workflows/windows-build.yml` (artifact

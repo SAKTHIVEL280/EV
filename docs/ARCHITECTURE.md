@@ -184,7 +184,8 @@ app/
 
 ### 5.2 Sidecar packaging **(spike S2)**
 - Production: PyInstaller onedir folder (`scripts/build-core`, spec in `core/packaging/`) shipped
-  as Tauri bundle resources (`tauri.windows.conf.json`); Rust spawns
+  as Tauri bundle resources (`tauri.installer.conf.json`, merged only by the installer build, so
+  plain `cargo` builds on Windows need nothing staged); Rust spawns
   `<resources>/ev-core/ev-core.exe` with `CREATE_NO_WINDOW`. The executable uses the console
   subsystem so stdin/stdout pipes are real; no console window appears.
 - Development (debug builds): Rust spawns `core/.venv`'s Python with `-m ev_core`

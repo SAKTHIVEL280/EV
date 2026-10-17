@@ -7,7 +7,9 @@
   `setpriv --pdeathsig KILL`, so the kernel kills them when core dies. This
   replaced a `preexec_fn` doing the same prctl: running Python in a forked
   child of a multi-threaded process (aiohttp's resolver threads) can deadlock,
-  and Python 3.12 warns about it (found in Phase 1 testing).
+  and Python 3.12 warns about it (found in Phase 1 testing). The signal is
+  armed when setpriv runs, a few milliseconds after spawn; core dying inside
+  that window leaves the child running.
 """
 
 import ctypes

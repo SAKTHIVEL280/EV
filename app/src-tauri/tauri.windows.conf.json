@@ -5,11 +5,6 @@
     "targets": [
       "nsis"
     ],
-    "resources": {
-      "../../core/dist/ev-core/": "ev-core/",
-      "../../build/llama-runtime/": "llama/",
-      "../../THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md"
-    },
     "windows": {
       "nsis": {
         "installMode": "currentUser"

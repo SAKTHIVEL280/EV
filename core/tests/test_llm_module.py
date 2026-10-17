@@ -2,12 +2,11 @@
 
 import asyncio
 import logging
-import os
-import signal
 import sys
 import time
 from pathlib import Path
 
+import psutil
 import pytest
 
 import ev_core.llm as llm_module
@@ -151,7 +150,7 @@ async def test_load_reuse_reload_and_crash_recovery(runtime: Path) -> None:
     # Crash: the next acquire starts a new server.
     assert module._server is not None
     assert module._server.pid is not None
-    os.kill(module._server.pid, signal.SIGKILL)
+    psutil.Process(module._server.pid).kill()
     await asyncio.sleep(0.2)
     assert await reply(module) == "b.gguf"
 
