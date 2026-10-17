@@ -8,8 +8,12 @@ Usage: python3 backdrop.py [css-color]   (run with GDK_BACKEND=x11)
 import sys
 
 import gi
+from gi.repository import GLib
 
+# Window class for compositor rules; must be set before GTK starts.
+GLib.set_prgname("ev-backdrop")
 gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, Gtk  # noqa: E402
 
 color = sys.argv[1] if len(sys.argv) > 1 else "#ffffff"
