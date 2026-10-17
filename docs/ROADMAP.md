@@ -9,8 +9,8 @@ Status legend: `planned` · `in progress` · `blocked (reason)` · `done (date)`
 | Phase | Name | Status |
 |---|---|---|
 | 0 | Foundation & spikes | in progress (Linux foundation done 2026-10-17; waiting on CI run + Windows spikes) |
-| 1 | Brain | in progress (provisional, branch `feat/phase-1-brain`; started before the Phase 0 gate, see decisions.md) |
-| 2 | Island | in progress (provisional, branch `feat/phase-2-island`: Settings window, Minimal theme, hotkey, tray) |
+| 1 | Brain | in progress (provisional; started before the Phase 0 gate, see decisions.md) |
+| 2 | Island | in progress (provisional: Settings window, Minimal theme, hotkey, tray) |
 | 3 | Tools | planned |
 | 4 | Voice | planned |
 | 5 | Vision & media | planned |

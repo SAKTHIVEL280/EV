@@ -66,7 +66,7 @@ runs `llama-bench` and measures `llama-server` memory with and without
 
 ## Optional — Phase 1 chat on Windows
 
-Only if the installer was built from the `feat/phase-1-brain` branch.
+Included in installers built from `main`.
 
 1. Copy the model file to `%APPDATA%\EV\models\Qwen3.5-4B-Q4_K_M.gguf`.
 2. Open `%APPDATA%\EV\config.toml` and set, under `[llm]`:
@@ -77,7 +77,7 @@ Only if the installer was built from the `feat/phase-1-brain` branch.
 
 ## Optional — Phase 2 checks on Windows
 
-Only if the installer was built from the `feat/phase-2-island` branch.
+Included in installers built from `main`.
 
 | # | Check | Pass when |
 |---|---|---|
