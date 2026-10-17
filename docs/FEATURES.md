@@ -38,25 +38,25 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 ### PC
 | ID | Feature | Phase | Status |
 |---|---|---|---|
-| F-101 | Open / close / switch apps | 3 | index |
-| F-102 | Window snap / arrange | 3 | index |
-| F-103 | Volume, brightness, media | 3 | index |
-| F-104 | Wi-Fi / Bluetooth toggles | 3 | index |
-| F-105 | Screenshots | 3 | index |
-| F-106 | Smart clipboard (history + actions, actions off by default) | 3 | index |
-| F-107 | File search / open / move (delete = dangerous) | 3 | index |
-| F-108 | Reminders, timers, alarms | 3 | index |
-| F-109 | Focus mode | 3 | index |
-| F-110 | Multi-step UI tasks with verification | 3 | index |
-| F-111 | Action log with undo | 3 | index |
+| F-101 | Open / close / switch apps | 3 (beta 2 B) | draft |
+| F-102 | Window snap / arrange | 3 (beta 2 B) | draft |
+| F-103 | Volume, brightness, media | 3 (beta 2 B) | draft |
+| F-104 | Wi-Fi / Bluetooth toggles | 3 (beta 2 B) | draft |
+| F-105 | Screenshots | 3 (beta 2 B) | draft |
+| F-106 | Smart clipboard (history + actions, actions off by default) | 3 (beta 2 B) | draft |
+| F-107 | File search / open / move (delete = dangerous) | 3 (beta 2 B) | draft |
+| F-108 | Reminders, timers, alarms | 3 (beta 2 B) | draft |
+| F-109 | Focus mode | 3 (beta 2 B) | draft |
+| F-110 | Multi-step UI tasks with verification | 3 (beta 2 B) | draft |
+| F-111 | Action log with undo | 3 (beta 2 B) | draft |
 | F-112 | Routines ("Work mode") | 7 | index |
 | F-113 | Notification digest | 7 | index |
 
 ### Understanding
 | ID | Feature | Phase | Status |
 |---|---|---|---|
-| F-201 | "This" awareness (selection + active window) | 3 | index |
-| F-202 | Selection quick actions (Explain, Fix, Shorten, Reply, Translate) | 3 | index |
+| F-201 | "This" awareness (selection + active window) | 3 (beta 2 B) | draft |
+| F-202 | Selection quick actions (Explain, Fix, Shorten, Reply, Translate) | 3 (beta 2 B) | draft |
 | F-203 | Screen explain (drag a region) | 5 | index |
 | F-204 | Documents / PDF Q&A | 5 | index |
 | F-205 | Video Q&A | 5 | index |
@@ -88,6 +88,12 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 | F-410 | Settings window (all §6.5 sections, §6.5.1 customization) | 2 | built (skeleton; Linux-verified) |
 | F-411 | Auto-hide in fullscreen / screen share | 2 | index |
 | F-412 | Tray icon and menu | 2 | built (Windows check pending) |
+| F-413 | Arc island and its size settings | beta 2 A | built (Linux-verified; Windows check pending) |
+| F-414 | Chat that stays, and New chat | beta 2 A | built (Linux-verified; Windows check pending) |
+| F-415 | Settings controls: model picker, folder picker, shortcut recorder, sliders | beta 2 A | built (Linux-verified; Windows check pending) |
+| F-416 | Honesty benchmark (`bench/honesty`) | beta 2 A | built (Linux-verified) |
+| F-417 | Date math | 3 (beta 2 B) | draft |
+| F-418 | Confirmations and permissions | 3 (beta 2 B) | draft |
 
 ## Specs
 
@@ -140,7 +146,7 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
   colon ("max effort, plan my week"). The prefix is removed before the model sees the text.
   | Level | Model | Thinking | Max steps |
   |---|---|---|---|
-  | Instant | router; else smallest installed | off | 1 |
+  | Instant | router; else default (small only when it is the only model) | off | 1 |
   | Normal | default | off | 5 |
   | Deep | largest installed | on | 15 |
   | Max | largest installed | on | 40, cancellable |
@@ -204,6 +210,91 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 - Performance: hotkey → panel focused ≤ 150 ms (budget §4), measured on Windows.
 - Tests: config validation table; Rust parsing and IME language detection; manual Windows check.
 
+### F-413 Arc island and its size settings
+- Phase / status: beta 2 stage A / built, Linux-verified (2026-10-17); Windows check pending. User request after the second Windows test:
+  the idle drop looked wrong; it should be "a simple arc from the top", and its size should be
+  the user's choice.
+- Behavior: at rest the island is a shallow arc, a circle segment hanging from the top edge of
+  the screen: `island.arc_width` wide and `island.arc_depth` deep, pure black with the faint rim.
+  Hover and panel shapes are unchanged. One outline morphs between all three: the shape is a
+  blend of the circle segment and the rounded body, both drawn with the same number of points,
+  and the blend follows the height spring, so the arc swells into the capsule without a jump.
+  The reveal area is the arc's bounding box plus `island.reveal_distance`.
+- Settings (Appearance): `island.arc_width` (24–160 px, default 56) and `island.arc_depth`
+  (3–24 px, default 7), both sliders with a live preview drawn as the arc on a strip of screen
+  edge, and three presets (Small 36 × 5, Default 56 × 7, Large 88 × 10). The depth is capped at
+  half the width (a half circle) when drawn. Changes apply to the island at once.
+- Island states used: idle (arc), hover, panel.
+- Edge cases: values outside the range are refused by core; a hand-edited depth over half the
+  width draws a half circle; reduced motion swaps shapes with a cross-fade.
+- Failure messages: the standard "That value isn't allowed. Use 24 to 160."
+- Performance: same morph budgets (first frame ≤ 120 ms, complete ≤ 350 ms, 60 fps).
+- Tests: arc geometry (endpoints on the edge, depth at the center, depth cap, point count equal
+  to the body outline, blend endpoints), settings descriptors, pointer bounds; specimen rendered
+  for the user before the default is locked.
+
+### F-414 Chat that stays, and New chat
+- Phase / status: beta 2 stage A / built, Linux-verified (2026-10-17); Windows check pending. User report: closing the panel (Esc) lost
+  the conversation.
+- Behavior: the panel shows the whole session as a scrollable list, oldest at the top, newest at
+  the bottom, and scrolls to the newest message when it opens or a reply streams (unless the user
+  has scrolled up to read). Closing the panel by any route (Esc, click outside, hotkey) keeps the
+  session and any reply still streaming. A New chat button (icon, next to Settings) clears the
+  list and starts a new session: the running reply is cancelled and core's history is cleared
+  (`chat.reset`, additive protocol message). Quitting EV ends the session; the next launch starts
+  empty. Saved, searchable history is F-303 (stage E).
+- Effort level: n/a.
+- Permissions & risk: the session lives in memory only (UI and core); nothing is written to disk.
+- Settings: none.
+- Island states used: panel.
+- Edge cases: New chat while a reply streams → the reply stops ("Stopped" is not shown, the list
+  is cleared); core restarts → the list stays, core's history is empty, so a note "EV restarted.
+  Earlier messages aren't remembered." is added once; a long session is capped at the last 50
+  exchanges in the panel (core's history window is unchanged).
+- Failure messages: "Couldn't start a new chat. Try again."
+- Tests: chat state (append, stream into the right turn, reset, cap, restart note), core
+  `chat.reset` clears history and cancels the turn, protocol fixtures.
+
+### F-415 Settings controls: model picker, folder picker, shortcut recorder, sliders
+- Phase / status: beta 2 stage A / built, Linux-verified (2026-10-17); Windows check pending. User report: model and shortcut fields
+  needed typing exact text the user cannot know.
+- Behavior: each setting declares a control in the schema (`widget`), so no setting needs typing
+  unless it is free text:
+  - `model`: a menu of installed models for that role, each with its name, size and summary
+    from the catalog, plus files found in the models folder that are not in the catalog (shown
+    by file name), and "None". When nothing is installed: "No model installed" and a Download
+    button that goes to the model list.
+  - `folder`: the path, a Choose folder button (native dialog) and Reset.
+  - `shortcut`: a Record button; while recording, the next key combination is captured
+    (Ctrl / Alt / Shift / Win plus one key) and saved. Esc cancels; a key without a modifier is
+    refused with "Add Ctrl, Alt, Shift or Win." Clear turns the shortcut off. The status line
+    (active, taken, IME note) stays.
+  - `slider`: integers with bounds get a slider plus the number and unit; the value applies when
+    the slider is released or a key changes it.
+- Design pass over the whole window (DESIGN.md §6): a page header with a one-line summary per
+  section, settings grouped under subheadings, values aligned on one column, quieter defaults,
+  every state (core not running, loading, error, disabled) designed.
+- Settings: `widget` hints on `llm.model_*` (model), `llm.models_dir` (folder),
+  `hotkeys.open_panel` (shortcut), bounded integers (slider unless `widget` says otherwise).
+- Edge cases: the configured model file is missing → the menu shows "Missing: <file>" selected
+  and the description says "This file isn't in the models folder."; recording while another app
+  holds the shortcut → saved, then the status line says it is taken.
+- Failure messages: "Add Ctrl, Alt, Shift or Win." · "That key can't be used in a shortcut." ·
+  "Couldn't open the folder picker."
+- Tests: descriptors carry `widget`; shortcut capture → config string table (letters, digits,
+  F-keys, Space, modifiers, refusals); model menu entries from models state; slider commit.
+
+### F-416 Honesty benchmark
+- Phase / status: beta 2 stage A / built, Linux-verified (2026-10-17); Windows check pending.
+- Behavior: `bench/honesty/` runs fixed questions (made-up entities, niche real facts, common
+  facts, help requests) against a real model through the app's own prompt and sampling, scores
+  each answer (invented / not sure / right / wrong / refused) and writes a dated result file.
+  Used before any prompt or model change; results history is kept in the folder.
+- Pass mark for beta 2: Qwen3.5-4B invents nothing on made-up questions and refuses no help
+  request. Target, reported separately: every common fact answered right without hedging (first
+  runs: 8 and 9 of 10; the Titanic director is the miss).
+- Tests: the scorer has unit tests; the run itself is manual (needs a model).
+
 ### F-412 Tray icon and menu
 - Phase / status: 2 / draft.
 - Behavior: EV shows a tray icon with the tooltip "EV". Left click opens the island panel. The
@@ -242,3 +333,168 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
   checksum mismatch, cancel, retry after a dropped connection, disk space); catalog validation;
   module state and config filling; protocol fixtures; Rust conversion; UI formatting.
 
+
+## Phase 3 specs (beta 2 stage B, written 2026-10-17)
+
+Shared by every PC tool:
+- Tools live in core (`ev_core/tools/`) and act on the PC only through the `PcControl` interface
+  (`ev_core/interfaces/pc.py`). Windows: the real implementation (UI Automation via pywinauto,
+  Win32 and WinRT calls). Linux (development): a fake that keeps state in memory and records
+  every call, so the agent, confirmations and the action log run end to end; Windows behavior
+  is proven by tool tests on the `windows-latest` CI runner and the user's checklist.
+- Risk (CLAUDE.md §5.4): `safe` runs at once; `confirm` asks in the island (yes / no) unless the
+  user set the tool to Allow; `dangerous` asks every time, whatever the setting. Settings →
+  Permissions lists every tool with Allow / Ask / Block (F-418).
+- Every action that changes something is recorded in the action log (F-111) with an undo when
+  one exists. After each step the tool reads the state back (verification, CLAUDE.md §5.4.6);
+  on a mismatch it retries once, then reports the mismatch so EV asks the user.
+- Tool descriptions are at most 25 words (cached prompt prefix ≤ 1,000 tokens with all tools).
+- Failure copy is short and plain; the model receives `error: ...` with the reason.
+
+### F-101 Open / close / switch apps
+- Phase / status: 3 (beta 2 B) / draft.
+- Behavior: `open_app(name)` finds the app by name among Start menu shortcuts and installed
+  apps (fuzzy, best match) and starts it; `switch_to_app(name)` brings its window to the front;
+  `close_app(name)` asks the app to close normally (it may ask to save); `list_apps()` returns
+  the open windows. "Open Notepad" and "switch to Chrome" also go through the router (Instant).
+- Risk: open, switch, list `safe`; close `confirm` (unsaved work).
+- Verification: after open, a new window of that app exists within 10 s; after switch, it is the
+  foreground window; after close, its windows are gone (or a save prompt is up: reported).
+- Undo: open → close it; close → open it again.
+- Failure copy: "Couldn't find an app called {name}." · "{name} didn't open." · "{name} is
+  asking to save first."
+- Tests: name matching table; fake backend in CI (Linux); Windows CI opens, switches to and
+  closes Notepad.
+
+### F-102 Window snap / arrange
+- Phase / status: 3 / draft.
+- Behavior: `arrange_window(app, position)` with position left, right, top, bottom, top-left,
+  top-right, bottom-left, bottom-right, maximize, minimize, restore, center. Uses the work area
+  of the window's monitor. App omitted: the window the user was in before opening EV.
+- Risk: `safe`. Undo: the previous position and state. Verification: the window rectangle.
+- Failure copy: "Couldn't find that window."
+- Tests: rectangle math per position and DPI; Windows CI snaps Notepad left and restores it.
+
+### F-103 Volume, brightness, media
+- Phase / status: 3 / draft.
+- Behavior: `set_volume(level? 0–100, change? ±, mute? bool)`, `set_brightness(level?, change?)`,
+  `media(action: play_pause | next | previous | stop)`. Router covers "volume up/down/to 30",
+  "mute", "brightness 50", "next song", "pause".
+- Risk: `safe`. Undo: the previous level / mute state. Verification: read the level back.
+- Edge cases: no brightness control (desktop monitor without DDC/CI) → "This screen's brightness
+  can't be changed from Windows."; no media playing → media keys are sent anyway.
+- Tests: clamping and step math; Windows CI reads and restores the volume.
+
+### F-104 Wi-Fi / Bluetooth toggles
+- Phase / status: 3 / draft.
+- Behavior: `set_radio(kind: wifi | bluetooth, on: bool)` through Windows radio control.
+- Risk: turning Wi-Fi off `confirm` (EV's web search and the user's connection stop); others
+  `safe`. Undo: the previous state. Verification: read the radio state back.
+- Failure copy: "This PC has no Bluetooth." · "Windows didn't allow EV to change Wi-Fi."
+- Tests: fake backend; manual Windows check (CI runners have no radios).
+
+### F-105 Screenshots
+- Phase / status: 3 / draft.
+- Behavior: `take_screenshot(area: screen | window)` saves a PNG to Pictures\Screenshots
+  (`EV 2026-10-17 15.41.07.png`) and says where. Region capture by drag is F-203.
+- Risk: `safe` (stays on the PC). Undo: move the file to the Recycle Bin.
+- Tests: file naming; Windows CI captures the screen and checks the PNG size.
+
+### F-106 Smart clipboard
+- Phase / status: 3 / draft.
+- Behavior: with `clipboard.history` on (default on), EV keeps the last 25 copied texts in memory
+  only (never on disk; text matching the sensitive-data filter is not kept). Tools:
+  `read_clipboard()`, `write_clipboard(text)`, `clipboard_history(count)`. "Fix the text I
+  copied" → read, rewrite, write back, say "Copied. Paste it where you want it." Clipboard
+  actions (offering an action automatically when something is copied) stay off by default
+  (`clipboard.actions`).
+- Risk: read `safe` (data, never instructions); write `safe`. Undo: write restores the previous
+  clipboard text.
+- Tests: history ring and filter; fake clipboard; Windows CI round-trip.
+
+### F-107 File search / open / move
+- Phase / status: 3 / draft.
+- Behavior: `find_files(query, kind?, folder?)` searches file names in the user's folders
+  (Desktop, Documents, Downloads, Pictures, Music, Videos) and returns the newest matches;
+  `open_file(path)` opens it with its default app; `move_file(path, destination)`;
+  `delete_file(path)` sends it to the Recycle Bin (never a permanent delete).
+- Risk: find, open `safe`; move `confirm`; delete `dangerous`. Paths outside the user's profile
+  are refused unless the user named them in this request.
+- Undo: move → move back; delete → "Open the Recycle Bin" (restoring is done there).
+- Failure copy: "Couldn't find {query}." · "That file is in use."
+- Tests: search ranking on a temp tree; move/undo; delete goes to the trash (send2trash).
+
+### F-108 Reminders, timers, alarms
+- Phase / status: 3 / draft.
+- Behavior: `set_timer(duration)`, `set_reminder(text, at)`, `set_alarm(at, label?)`,
+  `list_timers()`, `cancel_timer(id)`. They survive restarts (stored in `ev.db`, migration 001).
+  When one fires, the island opens to the hover shape with the text and stays until dismissed
+  or 60 s pass; missed ones (PC off) are shown once at the next start, marked missed.
+- Risk: `safe`. Undo: cancel.
+- Router: "set a timer for 10 minutes", "remind me at 5 to call mom".
+- Tests: parsing durations and times ("in 10 minutes", "at 5 pm", "tomorrow at 9"), scheduler
+  with a fake clock, persistence across restart.
+
+### F-109 Focus mode
+- Phase / status: 3 / draft.
+- Behavior: `focus_mode(on, minutes?)` makes EV quiet: no proactive messages, timers show without
+  opening the island (alarms still do), and the arc shows a small focus mark. Windows has no
+  supported API to switch its own Do Not Disturb, so EV says so and offers to open the Windows
+  setting (`ms-settings:quiethours`). Ends after `minutes` or when turned off.
+- Risk: `safe`. Settings: none.
+- Tests: state machine with a fake clock.
+
+### F-110 Multi-step UI tasks with verification
+- Phase / status: 3 / draft.
+- Behavior: `ui_snapshot(app?)` returns the interactive elements of a window (id, role, name,
+  value, enabled) from UI Automation, at most 60, in reading order; `ui_click(id)`,
+  `ui_type(id, text)`, `ui_keys(keys)`. Each action re-reads the window and returns what
+  changed. Ids are valid only for the snapshot they came from.
+- Risk: snapshot `safe`; click, type, keys `confirm`, asked once per request: one yes covers the
+  remaining steps of that request. An element whose name means sending, buying, paying,
+  deleting, installing or posting makes that step `dangerous` (asked separately).
+- Tests: element filtering and ordering on a recorded tree; Windows CI types into Notepad and
+  reads it back; the golden test plans "open Notepad and type hello" as tool calls.
+
+### F-111 Action log with undo
+- Phase / status: 3 / draft.
+- Behavior: every action that changes something is written to `ev.db` (time, tool, one-line
+  summary, undo data). The island shows "Undo" under the reply that made the last change;
+  saying or typing "undo that" undoes the most recent undoable action. Settings → Diagnostics
+  lists the last 50 actions. Kept 30 days.
+- Tests: log and undo per tool with the fake backend; retention.
+
+### F-201 "This" awareness
+- Phase / status: 3 / draft.
+- Behavior: when the hotkey opens EV, it captures the text selected in the app the user was in
+  (UI Automation text selection; no clipboard tricks) and that app's window title. The panel
+  shows a removable chip ("Selected text from Notepad"); the next request receives it as
+  context (≤ 300 tokens, trimmed in the middle), marked as data.
+- Privacy: captured only on the hotkey, never in the background; not stored.
+- Tests: trimming; fake selection; Windows CI selects text in Notepad and reads it.
+
+### F-202 Selection quick actions
+- Phase / status: 3 / draft.
+- Behavior: with a selection chip present, the panel offers Explain, Fix, Shorten, Reply,
+  Translate (to English; other languages are out of scope). The result has Copy and Replace
+  (Replace types the result into the selection's app through UI Automation, so it needs that
+  app's text control to accept it; otherwise it copies and says "Copied. Paste it to replace.").
+- Risk: Replace is the user's own click, so it runs without a second question.
+- Tests: action prompts; fake replace; Windows CI replaces text in Notepad.
+
+### F-417 Date math
+- Phase / status: 3 / draft. Found in the beta test: "days until Christmas" was answered wrong.
+- Behavior: `date_math(operation: days_between | add | weekday, ...)` computes in the local time
+  zone. The model calls it for any date arithmetic.
+- Risk: `safe`. Tests: table of cases, leap years, past dates.
+
+### F-418 Confirmations and permissions
+- Phase / status: 3 / draft.
+- Behavior: a `confirm` or `dangerous` step pauses the turn and the island shows the `confirm`
+  state: one line saying exactly what will happen ("Close Notepad?", "Move report.pdf to
+  Documents?", shell commands shown verbatim) with Yes and No (Enter / Esc). No answer in 60 s
+  counts as No. Steps proposed right after reading untrusted content (web, files, screen,
+  clipboard) always ask. Settings → Permissions: every tool with Allow / Ask / Block
+  (`permissions.<tool>`); `dangerous` tools offer only Ask / Block.
+- Protocol: `tool.confirm` (core → app) and `tool.answer` (app → core), additive.
+- Tests: policy table (risk × setting × untrusted); timeout; protocol fixtures; island state.

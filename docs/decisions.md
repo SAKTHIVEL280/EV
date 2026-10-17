@@ -291,3 +291,42 @@ facts (Tamil films, IPL 2025), 5 common facts, 3 help requests.
   29.3 tok/s (llama-bench, 8 threads). Decision: not added to the catalog. It costs more memory
   than Qwen3.5-4B, which answers more. Revisit if a lighter build or mmap'd embeddings change the
   memory picture.
+
+## Beta 2, stage A (2026-10-17)
+- **Instant effort uses the default model** for anything the router doesn't answer (provisional;
+  the user was asked and has not answered yet). Reason: the 2B invents facts with every prompt
+  tried (see "Hallucination eval"). The small model is still used when it is the only installed
+  model. CLAUDE.md §5.5 and F-003 updated. The catalog now describes the 2B as "Fastest, but
+  often wrong on facts. For older PCs."
+- **Arc island (F-413).** One outline blends a circle segment (rest) and the rounded body
+  (hover, panel) with the same point count; the blend follows the height spring. Defaults 56 × 7
+  px, range 24–160 × 3–24, presets Small 36 × 5, Default 56 × 7, Large 88 × 10. The depth is
+  capped at a half circle when drawn. Checked on Linux: arc at rest, hover, panel, live resize
+  from Settings. The default is provisional until the user sees it on Windows.
+- **Chat stays (F-414).** Root cause of the lost chat: the conversation lived in the panel
+  component, which is destroyed when the panel closes. It now lives in a store for the island
+  window's lifetime. New chat sends `chat.reset` (additive protocol message, empty payload); core
+  cancels the running turn, then clears history. Checked on Linux: two exchanges survive Esc and
+  reopen; New chat clears the panel and core logs "chat reset".
+- **Settings controls (F-415).** Settings declare a control in the schema (`widget`: model,
+  folder, shortcut, slider; `role`, `steps`), carried by additive protocol fields. The model menu
+  also lists `.gguf` files in the models folder that are not in the catalog (`other_files`,
+  additive on `models.state`; mmproj files skipped). The folder picker uses
+  `tauri-plugin-dialog` 2.8.1 (Apache-2.0 OR MIT, official Tauri plugin; adds rfd 0.16 MIT and
+  tauri-plugin-fs 2.7.1 Apache-2.0 OR MIT), called from Rust only, so no JavaScript package and
+  no webview permission is added. 2.8.1 rather than 2.8.3: released 16 days before, 2.8.3 only 3.
+  Checked on Linux: recording Ctrl+Shift+K saved it and the shortcut registered; reset restored
+  Ctrl+Space; the Large preset resized the island live.
+- **Correction to an earlier claim:** a single key typed as the hotkey (for example `a`) was
+  never accepted: core's validation already requires a modifier. The recorder refuses it before
+  it reaches core.
+- **Linux test harness:** `bench/linux-e2e/run.sh` gained `EV_TEST_HIDDEN=1` (an invisible
+  Hyprland output, so test windows don't land on the desktop in use); the backdrop needed
+  `Gdk 3.0` pinned on current GTK. Keyboard tests run inside a separate rootful Xwayland display
+  (`Xwayland :99`), because opening the panel on the real desktop takes keyboard focus.
+- **Honesty benchmark (F-416) first runs**, Qwen3.5-4B, 21 questions × 2: with the "capital of
+  Japan" example 0 invented, common facts 8 right + 1 hedged + 1 "not sure"; with the example
+  swapped for "Who directed Jurassic Park? Steven Spielberg." 0 invented, common facts 9 right +
+  1 "not sure" (Titanic, one of two samples). Kept the film example. The pass mark is split:
+  required = nothing invented and no help refused (the goal's condition, met); target = every
+  common fact right (missed; reported in every run so it stays visible). Golden tests 12/12.

@@ -5,7 +5,8 @@ marked **(tune P2)** are starting points to be tuned in Phase 2 and then locked 
 
 ## 1. Art direction: "quiet hardware"
 EV is a physical object built into the screen. The island is pure black (`#000`) in every theme:
-a drop of black liquid hanging from the top edge of the screen. Depth comes from motion and blur,
+at rest, a shallow black arc hanging from the top edge of the screen (user decision 2026-10-17,
+replacing the earlier water drop). Depth comes from motion and blur,
 never from shadows or gradients. The only border is the island's faint rim, which keeps the drop
 visible on black backgrounds (dark browser tabs). One accent color, used only for live states.
 
@@ -47,16 +48,19 @@ Open Sans, `system-ui`. Alternatives on file: Hanken Grotesk, Schibsted Grotesk.
 locked after the Phase 2 specimen (Windows, ClearType, 100/125/150% DPI) is approved by the user.
 
 ### 2.4 Shape
-- The island is one outline (`app/src/lib/island/droplet.ts`): a body hanging from the top edge,
-  bottom corners as superellipses, and concave "neck" fillets where it meets the edge (water held
-  by surface tension). Drawn as an SVG path, never a plain `border-radius`.
-- Per state: width, height, bottom radius, neck and corner exponent (2 = round bead, 5 = squircle).
+- The island is one outline (`app/src/lib/island/outline.ts`, F-413). At rest it is a circle
+  segment: chord `island.arc_width` on the top edge, depth `island.arc_depth` (capped at a half
+  circle). Open, it is a body with superellipse bottom corners and concave "neck" fillets where it
+  meets the edge. An `arc` value blends the two (1 = segment, 0 = body); both use the same point
+  count, so the arc swells into the capsule without a jump. Drawn as an SVG path, never a plain
+  `border-radius`.
+- Per state: width, height, bottom radius, neck, corner exponent (2 = round, 5 = squircle), arc.
 
-  | State | Width × height | Radius | Neck | Exponent |
-  |---|---|---|---|---|
-  | idle (drop) | 16 × 13 | 8 | 5 | 2 |
-  | hover (capsule) | 168 × 30 | 15 | 8 | 3 |
-  | panel | 380 × 264 | 26 | 12 | 5 |
+  | State | Width × height | Radius | Neck | Exponent | Arc |
+  |---|---|---|---|---|---|
+  | idle (arc) | `island.arc_width` × `island.arc_depth` (default 56 × 7; Small 36 × 5, Large 88 × 10) | — | 0 | 2 | 1 |
+  | hover (capsule) | 168 × 30 | 15 | 8 | 3 | 0 |
+  | panel | 380 × 264 | 26 | 12 | 5 | 0 |
 - Hairline: 1 px at 8% opacity of the foreground.
 
 ### 2.5 Motion
@@ -66,7 +70,7 @@ locked after the Phase 2 specimen (Windows, ClearType, 100/125/150% DPI) is appr
 | `--ev-spring-height-*` | stiffness 650, damping 38, mass 1: ~2.7% overshoot, settles in ~336 ms, so the drop swells and settles like liquid |
 
 The Phase 0 default (400 / 32) settled in ~430 ms, over the 350 ms budget; replaced 2026-10-17.
-Radius, neck and exponent follow the height spring.
+Radius, neck, exponent and the arc blend follow the height spring.
 | Reduced motion | cross-fade only, ≤ 150 ms |
 | Animation strength | Full / Subtle / Reduced (scales spring displacement; Reduced = cross-fade) |
 
@@ -78,7 +82,7 @@ Windows "Animation effects" setting.
 ## 3. Island states
 | State | Shape | Content |
 |---|---|---|
-| `idle` | the drop (16 × 13), click-through | none |
+| `idle` | the arc (default 56 × 7), click-through | none |
 | `hover` | capsule (168 × 30), takes clicks | status text (13 px, fg-2); click opens the panel |
 | `listening` | medium | live level / captions (accent) |
 | `thinking` | medium | breathing / edge shimmer (no spinner) |
@@ -89,9 +93,9 @@ Windows "Animation effects" setting.
 Every surface also designs: empty, loading, error, offline, permission denied, disabled.
 Feedback lives in the island only — no toasts.
 
-Reveal (CLAUDE.md §6.1): the drop opens when the pointer stays within `island.reveal_distance`
+Reveal (CLAUDE.md §6.1): the arc opens when the pointer stays within `island.reveal_distance`
 (default 6 px) for `island.reveal_delay_ms` (default 150 ms) with no mouse button held. Leaving the
-capsule by more than 8 px closes it, and the drop is click-through again at once. Rules and tests:
+capsule by more than 8 px closes it, and the arc is click-through again at once. Rules and tests:
 `app/src-tauri/src/island/pointer.rs`. Every morph's frame times are logged to `app.log`.
 
 ## 4. Icons
@@ -105,8 +109,15 @@ Windows Focus / Do Not Disturb.
 
 ## 6. Settings window
 Windows 11 layout: left nav, right content, Mica background, editorial typography, hairline
-dividers, generous whitespace. Every setting: label, one-line description, default, instant apply,
-reset to default. Sections per `CLAUDE.md` §6.5.
+dividers, generous whitespace. Every setting: label, one-line description, default (shown when the
+value differs), instant apply, reset to default. Sections per `CLAUDE.md` §6.5.
+- Each page opens with its title (28 px) and a one-line summary (15 px, fg-2). Settings are grouped
+  under small uppercase headings (11 px, 6% tracking) when a page has more than one group.
+- Controls sit in one right-hand column 248 px wide (F-415): switch, segmented choice, slider with
+  its value in words ("Automatic", "8K tokens", "Never"), model menu with size and summary below,
+  folder path with Choose folder, shortcut recorder ("Press the keys", Esc cancels). Nothing that
+  needs exact text (file names, key names) is typed.
+- Appearance opens with the arc preview (twice actual size, labelled) and the size presets.
 
 ## 7. Review gate (every UI change)
 - Screenshot or recording at 100% and 150% DPI, light and dark.
