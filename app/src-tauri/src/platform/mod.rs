@@ -17,6 +17,29 @@ pub fn fullscreen_active() -> bool {
     }
 }
 
+/// Before the island panel takes keyboard focus: remember which window had it.
+/// `own` is the island's window handle. Linux development: no-op.
+pub fn remember_foreground(own: isize) {
+    #[cfg(windows)]
+    windows::remember_foreground(own);
+    #[cfg(not(windows))]
+    let _ = own;
+}
+
+/// After the panel closes while focused: hand keyboard focus back to the
+/// remembered window. `false` when there was none. Linux development: `false`.
+#[must_use]
+pub fn restore_foreground() -> bool {
+    #[cfg(windows)]
+    {
+        windows::restore_foreground()
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
 /// Whether a mouse button is held (e.g. dragging a browser tab). The island
 /// does not reveal meanwhile. Linux development: always `false`.
 #[must_use]

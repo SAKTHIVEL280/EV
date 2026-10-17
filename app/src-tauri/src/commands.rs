@@ -49,6 +49,11 @@ pub fn island_set_hit_rect(state: State<'_, IslandState>, rect: HitRect, clickab
 /// can take typing; closing returns to never-focus and, on Windows, hands
 /// keyboard focus back to the app that had it.
 ///
+/// Windows keeps focus on a window that just became non-activating, so the
+/// previous window is remembered on open and re-activated on close. (Hiding
+/// and re-showing the island did the same, but afterwards the drop no longer
+/// opened on hover: beta test, 2026-10-17.)
+///
 /// # Errors
 /// When the window rejects the focus change.
 #[tauri::command]
@@ -59,15 +64,23 @@ pub fn island_set_panel_open<R: Runtime>(
 ) -> Result<(), CommandError> {
     window.set_focusable(open)?;
     if open {
+        crate::platform::remember_foreground(native_handle(&window)?);
         window.set_focus()?;
-    } else if cfg!(windows) && window.is_focused()? {
-        // Windows keeps focus on a window that just became non-activating.
-        // Hiding activates the next window in z-order (the app the user came
-        // from); showing again does not activate (WS_EX_NOACTIVATE).
-        window.hide()?;
-        window.show()?;
+    } else if cfg!(windows) && window.is_focused()? && !crate::platform::restore_foreground() {
+        tracing::info!("panel closed with focus; no previous window to return it to");
     }
     Ok(())
+}
+
+#[cfg(windows)]
+fn native_handle<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<isize> {
+    Ok(window.hwnd()?.0 as isize)
+}
+
+#[cfg(not(windows))]
+#[allow(clippy::unnecessary_wraps)]
+fn native_handle<R: Runtime>(_window: &WebviewWindow<R>) -> tauri::Result<isize> {
+    Ok(0)
 }
 
 #[tauri::command]

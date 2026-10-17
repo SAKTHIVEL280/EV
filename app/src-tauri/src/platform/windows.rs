@@ -7,6 +7,7 @@
 //!    exactly covers its monitor. The desktop and shell windows are excluded.
 
 use std::mem::size_of;
+use std::sync::atomic::{AtomicIsize, Ordering};
 
 use windows_sys::Win32::Foundation::{HWND, RECT};
 use windows_sys::Win32::Graphics::Gdi::{
@@ -20,8 +21,33 @@ use windows_sys::Win32::UI::Shell::{
     SHQueryUserNotificationState,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GetClassNameW, GetDesktopWindow, GetForegroundWindow, GetShellWindow, GetWindowRect,
+    GetClassNameW, GetDesktopWindow, GetForegroundWindow, GetShellWindow, GetWindowRect, IsWindow,
+    SetForegroundWindow,
 };
+
+/// The window that had keyboard focus before the island panel took it.
+static PREVIOUS_FOREGROUND: AtomicIsize = AtomicIsize::new(0);
+
+/// Remember the foreground window unless it is the island (`own`) itself.
+pub fn remember_foreground(own: isize) {
+    // SAFETY: GetForegroundWindow takes no arguments and may return null.
+    let fg = unsafe { GetForegroundWindow() } as isize;
+    if fg != 0 && fg != own {
+        PREVIOUS_FOREGROUND.store(fg, Ordering::Relaxed);
+    }
+}
+
+/// Give keyboard focus back to the remembered window. `false` when there is
+/// none or it has closed. Allowed because the island is the foreground window.
+pub fn restore_foreground() -> bool {
+    let previous = PREVIOUS_FOREGROUND.swap(0, Ordering::Relaxed) as HWND;
+    // SAFETY: IsWindow accepts any value, including stale or null handles.
+    if previous.is_null() || unsafe { IsWindow(previous) } == 0 {
+        return false;
+    }
+    // SAFETY: `previous` is an existing top-level window handle.
+    unsafe { SetForegroundWindow(previous) != 0 }
+}
 
 /// Physical button state (also correct with swapped buttons, since all three are checked).
 pub fn pointer_button_down() -> bool {

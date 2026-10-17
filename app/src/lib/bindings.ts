@@ -18,6 +18,11 @@ export const commands = {
 	 *  can take typing; closing returns to never-focus and, on Windows, hands
 	 *  keyboard focus back to the app that had it.
 	 * 
+	 *  Windows keeps focus on a window that just became non-activating, so the
+	 *  previous window is remembered on open and re-activated on close. (Hiding
+	 *  and re-showing the island did the same, but afterwards the drop no longer
+	 *  opened on hover: beta test, 2026-10-17.)
+	 * 
 	 *  # Errors
 	 *  When the window rejects the focus change.
 	 */
