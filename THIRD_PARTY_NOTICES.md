@@ -307,13 +307,20 @@ model downloader) and the Microsoft Edge WebView2 runtime (part of Windows 11).
 | aiosignal | 1.4.0 | Apache Software License | https://github.com/aio-libs/aiosignal |
 | annotated-types | 0.8.0 | MIT | https://github.com/annotated-types/annotated-types |
 | attrs | 26.1.0 | MIT | https://github.com/python-attrs/attrs |
+| comtypes | 1.4.17 | MIT | https://github.com/enthought/comtypes |
 | frozenlist | 1.8.0 | Apache-2.0 | https://github.com/aio-libs/frozenlist |
 | idna | 3.20 | BSD-3-Clause | https://github.com/kjd/idna |
+| mss | 10.2.0 | MIT License | https://github.com/BoboTiG/python-mss |
 | multidict | 7.1.0 | Apache-2.0 | https://github.com/aio-libs/multidict |
 | propcache | 0.5.4 | Apache-2.0 | https://github.com/aio-libs/propcache |
 | psutil | 7.2.2 | BSD-3-Clause | https://github.com/giampaolo/psutil |
+| pycaw | 20260927 | MIT | https://github.com/AndreMiras/pycaw.git |
 | pydantic | 2.14.1 | MIT | https://github.com/pydantic/pydantic |
 | pydantic-core | 2.50.1 | MIT | https://github.com/pydantic/pydantic |
+| pywin32 | 312 | Python Software Foundation License | https://github.com/mhammond/pywin32 |
+| pywinauto | 0.6.9 | BSD License | https://github.com/pywinauto/pywinauto |
+| send2trash | 2.1.0 | BSD-3-Clause | https://github.com/arsenetar/send2trash.git |
+| six | 1.17.0 | MIT License | https://github.com/benjaminp/six |
 | tomlkit | 0.15.2 | MIT | https://github.com/python-poetry/tomlkit |
 | typing-extensions | 4.16.0 | PSF-2.0 | https://github.com/python/typing_extensions |
 | typing-inspection | 0.4.4 | MIT | https://github.com/pydantic/typing-inspection |

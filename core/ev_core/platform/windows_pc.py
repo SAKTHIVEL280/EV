@@ -335,9 +335,12 @@ class WindowsPcControl(PcControl):
 
     async def launch(self, app: AppEntry) -> None:
         def start() -> None:
-            subprocess.Popen(  # noqa: S603 -- explorer opening a Start menu app id
+            # explorer hands the app id to the shell and exits; waiting reaps it.
+            subprocess.run(  # noqa: S603 -- explorer opening a Start menu app id
                 ["explorer.exe", f"shell:AppsFolder\\{app.target}"],  # noqa: S607
                 creationflags=CREATE_NO_WINDOW,
+                check=False,
+                timeout=15,
             )
 
         await asyncio.to_thread(start)
@@ -440,9 +443,14 @@ class WindowsPcControl(PcControl):
     # --- sound, screen, media, radios
     @staticmethod
     def _endpoint() -> Any:
+        from comtypes import COMError
         from pycaw.pycaw import AudioUtilities
 
-        speakers = AudioUtilities.GetSpeakers()
+        try:
+            speakers = AudioUtilities.GetSpeakers()
+        except COMError as exc:
+            # 0x80070490 "Element not found": no output device at all.
+            raise PcError("This PC has no speakers turned on.", str(exc)) from exc
         if speakers is None:
             raise PcError("This PC has no speakers turned on.", "no default render device")
         endpoint = getattr(speakers, "EndpointVolume", None)
@@ -524,7 +532,7 @@ class WindowsPcControl(PcControl):
             import mss.tools
 
             path.parent.mkdir(parents=True, exist_ok=True)
-            with mss.mss() as sct:
+            with mss.MSS() as sct:
                 if window_id is not None:
                     frame, _ = _rects(window_id)
                     area = {

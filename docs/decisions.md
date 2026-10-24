@@ -346,3 +346,10 @@ facts (Tamil films, IPL 2025), 5 common facts, 3 help requests.
   as a follow-up. With a selection the request is about that text, so only its own words can
   bring in the PC tools; the shorter prompt is also faster on CPU. The conversation shows the
   quick action's name, not the long instruction sent to the model. Golden tests 19/19 on the 4B.
+- **First Windows CI run of the tool tests (2026-10-24).** Fixed: the runner has no audio
+  device, and pycaw raised a raw COM error ("Element not found") instead of "This PC has no
+  speakers turned on."; `mss.mss()` is deprecated in mss 10.2 (now `mss.MSS()`); child processes
+  were dropped without being reaped (ResourceWarning); a 50 ms wait measured 47 ms on Windows'
+  ~16 ms timer. `scripts/third-party-notices` read licenses only from installed packages, so the
+  seven Windows-only packages were missing from THIRD_PARTY_NOTICES.md and the Linux check failed;
+  it now reads their metadata from PyPI's JSON API when they are not installed.

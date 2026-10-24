@@ -21,25 +21,29 @@ from ev_core.interfaces.pc import PcError, Rect, WindowInfo, WindowState
 from ev_core.platform.windows_pc import WindowsPcControl
 
 
-async def _notepad(pc: WindowsPcControl) -> WindowInfo:
+async def _notepad(pc: WindowsPcControl) -> tuple[WindowInfo, subprocess.Popen[bytes]]:
     before = {w.id for w in await pc.windows()}
-    await asyncio.to_thread(subprocess.Popen, ["notepad.exe"])
+    proc = await asyncio.to_thread(subprocess.Popen, ["notepad.exe"])
     for _ in range(80):
         for window in await pc.windows():
             if window.id not in before and "notepad" in (window.app + window.title).lower():
-                return window
+                return window, proc
         await asyncio.sleep(0.25)
+    proc.kill()
+    proc.wait(timeout=10)
     pytest.fail("Notepad didn't open")
 
 
 @pytest.fixture
 async def notepad() -> AsyncIterator[tuple[WindowsPcControl, WindowInfo]]:
     pc = WindowsPcControl()
-    window = await _notepad(pc)
+    window, launcher = await _notepad(pc)
     yield pc, window
     for proc in psutil.process_iter(["name"]):
         if (proc.info["name"] or "").lower() == "notepad.exe":
             proc.kill()
+    # Reap the launched process (it may be Notepad itself or a stub that exited).
+    launcher.wait(timeout=10)
 
 
 async def test_windows_are_listed_front_to_back(

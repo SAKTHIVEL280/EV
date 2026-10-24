@@ -269,4 +269,5 @@ async def test_time_waiting_for_the_user_is_recorded(tmp_path: Path) -> None:
     box, _, events, _ = await make(tmp_path, SlowAnswer(allowed=True))
     turn = TurnState()
     await box.execute("t", call("apps", action="close", name="Notepad"), events.append, turn)
-    assert turn.waited_ms >= 50
+    # Windows timers tick every ~16 ms, so a 50 ms sleep can measure 47.
+    assert turn.waited_ms >= 40
