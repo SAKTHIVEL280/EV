@@ -45,9 +45,7 @@ def _probe(window_id: int) -> list[str]:
         info = w.element_info
         if info.control_type not in ("Edit", "Document"):
             continue
-        row = (
-            f"{info.control_type}/{info.class_name}/h={info.handle}/focus={info.has_keyboard_focus}"
-        )
+        row = f"{info.control_type}/{info.class_name}/h={info.handle}"
         try:
             ranges = w.iface_text.GetSelection()
             row += f" n={ranges.Length} " + repr(
