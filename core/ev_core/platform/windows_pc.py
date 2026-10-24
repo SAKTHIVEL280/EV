@@ -9,7 +9,8 @@
   API through Windows PowerShell 5.1, which ships with Windows.
 - Screenshots: mss. Recycle Bin: send2trash. UI Automation: pywinauto (uia).
 
-Blocking calls run in worker threads; COM is initialised per thread (multithreaded).
+Blocking calls run in worker threads; COM work runs on its own pool whose threads are
+initialised multithreaded at start.
 """
 
 import sys
@@ -24,6 +25,7 @@ import os
 import subprocess
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from ctypes import wintypes
 from dataclasses import dataclass
 from pathlib import Path
@@ -283,19 +285,24 @@ class _Snapshot:
     wrappers: dict[int, Any]
 
 
+def _com_thread_init() -> None:
+    import comtypes
+
+    # Multithreaded, as pywinauto and UI Automation expect. Set before anything
+    # else runs on the thread: a library that initialises COM first (pywin32
+    # does on import) would fix the thread as single-threaded for good.
+    comtypes.CoInitializeEx(comtypes.COINIT_MULTITHREADED)
+
+
+_COM_POOL: Final = ThreadPoolExecutor(
+    max_workers=4, thread_name_prefix="ev-com", initializer=_com_thread_init
+)
+"""Threads for UI Automation and audio endpoint calls; COM stays initialised
+for the thread's lifetime."""
+
+
 def _in_thread[T](work: Callable[[], T]) -> "asyncio.Future[T]":
-    def run() -> T:
-        import comtypes
-
-        # Multithreaded, as pywinauto and UI Automation expect: pywinauto
-        # probes for it on import and warns when a thread is already STA.
-        comtypes.CoInitializeEx(comtypes.COINIT_MULTITHREADED)
-        try:
-            return work()
-        finally:
-            comtypes.CoUninitialize()
-
-    return asyncio.ensure_future(asyncio.to_thread(run))
+    return asyncio.get_running_loop().run_in_executor(_COM_POOL, work)
 
 
 class WindowsPcControl(PcControl):
