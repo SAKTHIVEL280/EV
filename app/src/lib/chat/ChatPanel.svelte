@@ -13,6 +13,10 @@
   import { busy, latest, type Turn } from "./chat";
   import { chat } from "./store.svelte";
   import { QUICK_ACTIONS, pc } from "../pc/store.svelte";
+  import Icon from "../icons/Icon.svelte";
+  import { commands } from "../bindings";
+  import { voice } from "../voice/store.svelte";
+  import { needsSettings, typesText } from "../voice/voice";
 
   const TOOL_TEXT: Record<string, string> = {
     current_time: "Checking the time",
@@ -95,6 +99,17 @@
     if (!text) return;
     draft = "";
     await send(text);
+  }
+
+  /** Typing switches to text: the mic turns off and nothing is spoken (F-008). */
+  function onType(event: KeyboardEvent): void {
+    if ((voice.state.mic || voice.state.speaking) && typesText(event)) void voice.stop("typing");
+  }
+
+  async function toggleMic(): Promise<void> {
+    if (voice.state.mic) await voice.stop("button");
+    else await voice.start("button");
+    input?.focus();
   }
 
   async function copy(text: string): Promise<void> {
@@ -223,17 +238,43 @@
       </div>
     {/each}
 
+    {#if voice.state.message}
+      <div class="voice-note" role="status">
+        <p>{voice.state.message}</p>
+        {#if needsSettings(voice.state.code)}
+          <button type="button" onclick={() => void commands.settingsOpen()}>Settings</button>
+        {/if}
+      </div>
+    {/if}
+
     <form onsubmit={submit}>
-      <input
-        bind:this={input}
-        bind:value={draft}
-        type="text"
-        maxlength="8000"
-        placeholder="Ask EV"
-        aria-label="Message"
-        autocomplete="off"
-        spellcheck="true"
-      />
+      {#if voice.state.mic}
+        <p class="caption" aria-live="polite">{voice.state.heard || "Listening"}</p>
+      {/if}
+      <div class="entry">
+        <input
+          bind:this={input}
+          bind:value={draft}
+          type="text"
+          maxlength="8000"
+          placeholder={voice.state.mic ? "" : "Ask EV"}
+          aria-label="Message"
+          autocomplete="off"
+          spellcheck="true"
+          onkeydown={onType}
+        />
+        <button
+          type="button"
+          class="mic"
+          class:live={voice.state.mic}
+          aria-pressed={voice.state.mic}
+          aria-label={voice.state.mic ? "Stop listening" : "Talk to EV"}
+          title={voice.state.mic ? "Stop listening" : "Talk to EV"}
+          onclick={() => void toggleMic()}
+        >
+          <Icon name="mic" size={18} />
+        </button>
+      </div>
     </form>
   </div>
 {/if}
@@ -474,5 +515,74 @@
   input:focus-visible {
     outline: 2px solid var(--ev-focus-ring);
     outline-offset: 0;
+  }
+
+  .entry {
+    display: flex;
+    align-items: center;
+    gap: var(--ev-space-1);
+  }
+
+  .mic {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: var(--ev-control-height);
+    height: var(--ev-control-height);
+    color: var(--ev-island-fg-2);
+    background: transparent;
+    border: 0;
+    border-radius: var(--ev-radius-control);
+    cursor: pointer;
+  }
+
+  .mic:hover {
+    color: var(--ev-island-fg-1);
+    background: var(--ev-island-control-bg-hover);
+  }
+
+  .mic.live {
+    color: var(--ev-accent);
+  }
+
+  .mic:focus-visible {
+    outline: 2px solid var(--ev-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .caption {
+    margin: 0 0 var(--ev-space-1);
+    font-size: var(--ev-text-13);
+    color: var(--ev-island-fg-1);
+    overflow-wrap: anywhere;
+  }
+
+  .voice-note {
+    display: flex;
+    align-items: center;
+    gap: var(--ev-space-2);
+    font-size: var(--ev-text-11);
+    color: var(--ev-island-fg-2);
+  }
+
+  .voice-note p {
+    margin: 0;
+    flex: 1;
+  }
+
+  .voice-note button {
+    font: inherit;
+    font-weight: var(--ev-weight-medium);
+    color: var(--ev-island-fg-1);
+    background: var(--ev-island-control-bg);
+    border: 0;
+    border-radius: var(--ev-radius-control);
+    padding: var(--ev-space-1) var(--ev-space-2);
+    cursor: pointer;
+  }
+
+  .voice-note button:focus-visible {
+    outline: 2px solid var(--ev-focus-ring);
+    outline-offset: 2px;
   }
 </style>

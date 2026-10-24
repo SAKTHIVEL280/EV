@@ -15,6 +15,12 @@ export const PATHS = {
     "M10 6.75v3.5",
     "M8.25 8.5h3.5",
   ],
+  /** Voice: talk to EV, or stop listening (F-008). */
+  mic: [
+    "M10 3.25a2.25 2.25 0 0 0-2.25 2.25v4a2.25 2.25 0 0 0 4.5 0v-4A2.25 2.25 0 0 0 10 3.25z",
+    "M5.5 9.5a4.5 4.5 0 0 0 9 0",
+    "M10 14v2.75",
+  ],
   /** Stop a running task. */
   stop: ["M6.5 6.5h7v7h-7z"],
 } as const satisfies Record<string, readonly string[]>;

@@ -2,7 +2,10 @@
  * Model list helpers (docs/FEATURES.md F-403). Pure, so formatting and the
  * "does EV have a model yet" rule are testable.
  */
-import type { ModelInfo, ModelsState } from "../bindings";
+import type { ModelInfo, ModelsState, VoicePackInfo } from "../bindings";
+
+/** What a download row needs: a model or a voice pack (F-010). */
+export type Download = ModelInfo | VoicePackInfo;
 
 /** 1 kB = 1000 bytes, as on download pages. */
 export function formatSize(kb: number): string {
@@ -15,13 +18,13 @@ export function formatSpeed(kbPerSecond: number): string {
   return `${formatSize(kbPerSecond)}/s`;
 }
 
-export function percent(model: ModelInfo): number {
+export function percent(model: Download): number {
   if (model.size_kb <= 0) return 0;
   return Math.min(100, Math.floor((model.received_kb / model.size_kb) * 100));
 }
 
 /** "About 3 min left", or null while the speed is not known yet. */
-export function timeLeft(model: ModelInfo): string | null {
+export function timeLeft(model: Download): string | null {
   if (model.kb_per_second <= 0) return null;
   const seconds = (model.size_kb - model.received_kb) / model.kb_per_second;
   if (seconds < 60) return "Less than a minute left";
@@ -42,8 +45,9 @@ export function needsModel(state: ModelsState | null): boolean {
 }
 
 /** The download in progress, if any (one at a time is the common case). */
-export function active(state: ModelsState | null): ModelInfo | null {
-  return state?.models.find((m) => m.state === "downloading" || m.state === "verifying") ?? null;
+export function active(state: ModelsState | null): Download | null {
+  const all: Download[] = [...(state?.models ?? []), ...(state?.voice ?? [])];
+  return all.find((m) => m.state === "downloading" || m.state === "verifying") ?? null;
 }
 
 /** Short status for the island's hover capsule while a model downloads. */

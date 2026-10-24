@@ -159,7 +159,7 @@ async def test_listening_sends_what_was_said_after_a_pause(rig: Rig) -> None:
     assert len(rig.speaker.played) == 2  # plus the done earcon
     # Waiting for the spoken reply: the mic only watches now.
     assert rig.mic.open
-    assert rig.stt.sessions[0].closed
+    await rig.until(lambda: rig.stt.sessions[0].closed)
 
 
 async def test_spoken_turn_is_spoken_then_a_follow_up_is_heard(rig: Rig) -> None:
@@ -295,7 +295,7 @@ async def test_noise_before_the_reply_starts_keeps_the_reply(rig: Rig) -> None:
     await rig.publish(ChatDelta(TURN, "Done. "))
     await rig.until(lambda: rig.tts.spoken == ["Done."])
     await rig.until(lambda: rig.speaker.playing)
-    assert rig.stt.sessions[1].closed
+    await rig.until(lambda: rig.stt.sessions[1].closed)
 
 
 async def test_nothing_said_closes_the_mic_with_a_message(rig: Rig) -> None:

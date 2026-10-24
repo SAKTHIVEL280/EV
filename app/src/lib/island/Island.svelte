@@ -19,12 +19,15 @@
   import { downloadStatus } from "../models/models";
   import { models } from "../models/store.svelte";
   import { pc } from "../pc/store.svelte";
+  import { voice } from "../voice/store.svelte";
+  import { bars } from "../voice/voice";
   import { outlineBounds, outlinePath, type Outline } from "./outline";
   import { FrameRecorder } from "./frames";
   import { Spring, type SpringConfig } from "./spring";
 
-  /** `alert`: a question (F-418) or a timer notice (F-108) while the panel is closed. */
-  type Mode = "idle" | "hover" | "panel" | "alert";
+  /** `alert`: a question (F-418) or a timer notice (F-108) while the panel is closed.
+   *  `voice`: listening or speaking while the panel is closed (F-008). */
+  type Mode = "idle" | "hover" | "panel" | "alert" | "voice";
   interface Shape {
     width: number;
     height: number;
@@ -215,22 +218,44 @@
   /** Where the island goes when nothing is open. */
   function resting(): Mode {
     if (alerting) return "alert";
+    if (voiceActive) return "voice";
     return pointerInside ? "hover" : "idle";
   }
 
   function closePanel(): void {
     if (mode !== "panel") return;
+    // Closing stops listening; a reply being spoken goes on (F-008).
+    if (voice.state.mic) void voice.stop("closed");
     setMode(resting());
     void commands.islandSetPanelOpen(false);
   }
+
+  /** The hotkey opens EV listening (F-008); while EV speaks it stops and listens. */
+  function onHotkey(): void {
+    if (mode !== "panel") {
+      openPanel();
+      void voice.start("hotkey");
+    } else if (voice.state.speaking) {
+      void voice.start("hotkey");
+    } else {
+      closePanel();
+    }
+  }
+
+  const voiceActive = $derived(voice.state.mic || voice.state.speaking);
+  $effect(() => {
+    if (!ready) return;
+    if (voiceActive && (mode === "idle" || mode === "hover")) setMode("voice");
+    else if (!voiceActive && mode === "voice") setMode(resting());
+  });
 
   // Questions and timer notices show in the compact alert shape unless the
   // panel is open (then they appear inside it). No focus is taken.
   const alerting = $derived(pc.question !== null || pc.notices.length > 0);
   $effect(() => {
     if (!ready) return;
-    if (alerting && (mode === "idle" || mode === "hover")) setMode("alert");
-    else if (!alerting && mode === "alert") setMode(pointerInside ? "hover" : "idle");
+    if (alerting && (mode === "idle" || mode === "hover" || mode === "voice")) setMode("alert");
+    else if (!alerting && mode === "alert") setMode(resting());
   });
 
   async function newChat(): Promise<void> {
@@ -275,6 +300,7 @@
     // The session outlives the panel (F-414): listen from the start.
     chat.init();
     pc.init();
+    voice.init();
     // Spike S2: two frames later the first island frame has been painted.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => void commands.spikeIslandPainted());
@@ -302,10 +328,7 @@
         // The alert stays until answered or dismissed.
       }),
       // Hotkey and tray (F-004, F-412): open with focus, or close if open.
-      events.islandToggleRequested.listen(() => {
-        if (mode === "panel") closePanel();
-        else openPanel();
-      }),
+      events.islandToggleRequested.listen(onHotkey),
       events.settingsChanged.listen((event) => {
         applySettings(event.payload);
       }),
@@ -367,6 +390,30 @@
           >
         </div>
       {/if}
+    </div>
+  {:else if mode === "voice"}
+    <div class="voice" role="status" aria-live="polite">
+      <button class="voice-open" type="button" onclick={openPanel} aria-label="Open EV">
+        {#if voice.state.mic}
+          <span class="meter" aria-hidden="true">
+            {#each bars(voice.state.level) as height, i (i)}
+              <span class="bar" style:transform={`scaleY(${String(height)})`}></span>
+            {/each}
+          </span>
+          <span class="voice-text">{voice.state.heard || "Listening"}</span>
+        {:else}
+          <span class="voice-text">Speaking</span>
+        {/if}
+      </button>
+      <button
+        class="voice-stop"
+        type="button"
+        aria-label={voice.state.mic ? "Stop listening" : "Stop speaking"}
+        title={voice.state.mic ? "Stop listening" : "Stop speaking"}
+        onclick={() => void voice.stop(voice.state.mic ? "button" : "silence")}
+      >
+        <Icon name="stop" size={16} />
+      </button>
     </div>
   {:else if mode === "hover"}
     <button class="hover" type="button" onclick={openPanel} aria-label="Open EV">
@@ -443,6 +490,89 @@
     top: 0;
     transform: translateX(-50%);
     animation: fade-in var(--ev-fade-content) ease-out both;
+  }
+
+  .voice {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    width: var(--ev-island-voice-width);
+    height: var(--ev-island-voice-height);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: var(--ev-space-1);
+    padding: 0 var(--ev-space-1) 0 var(--ev-space-4);
+    animation: fade-in var(--ev-fade-content) ease-out both;
+  }
+
+  .voice-open {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--ev-space-2);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .meter {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--ev-meter-gap);
+    height: var(--ev-meter-height);
+  }
+
+  .bar {
+    width: var(--ev-meter-bar-width);
+    height: var(--ev-meter-height);
+    border-radius: calc(var(--ev-meter-bar-width) / 2);
+    background: var(--ev-accent);
+    transform-origin: center;
+    transition: transform var(--ev-fade-content) ease-out;
+  }
+
+  .voice-text {
+    min-width: 0;
+    font-size: var(--ev-text-13);
+    color: var(--ev-island-fg-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Newest words stay visible: show the end of a long caption. */
+    direction: rtl;
+    text-align: left;
+  }
+
+  .voice-stop {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: var(--ev-control-height);
+    height: var(--ev-control-height);
+    color: var(--ev-island-fg-2);
+    background: transparent;
+    border: 0;
+    border-radius: var(--ev-radius-control);
+    cursor: pointer;
+  }
+
+  .voice-stop:hover {
+    color: var(--ev-island-fg-1);
+    background: var(--ev-island-control-bg-hover);
+  }
+
+  .voice-open:focus-visible,
+  .voice-stop:focus-visible {
+    outline: 2px solid var(--ev-focus-ring);
+    outline-offset: 2px;
   }
 
   .hover {

@@ -114,4 +114,15 @@
   --ev-island-alert-neck: 10px;
   --ev-island-alert-exponent: 4;
   --ev-island-alert-arc: 0;
+  /* Voice: listening or speaking while the panel is closed (F-008). */
+  --ev-island-voice-width: 248px;
+  --ev-island-voice-height: 40px;
+  --ev-island-voice-radius: 20px;
+  --ev-island-voice-neck: 10px;
+  --ev-island-voice-exponent: 4;
+  --ev-island-voice-arc: 0;
+  /* Mic level meter: five bars. */
+  --ev-meter-bar-width: 3px;
+  --ev-meter-height: 14px;
+  --ev-meter-gap: 2px;
 }

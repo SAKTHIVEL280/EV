@@ -1,27 +1,35 @@
 <!--
-  Model choices with download progress (docs/FEATURES.md F-403). Used in the
-  island panel (first run, white on black) and in Settings (theme colors).
+  Model choices with download progress (docs/FEATURES.md F-403), or the voice
+  packs (F-010). Used in the island panel (first run, white on black) and in
+  Settings (theme colors).
 -->
 <script lang="ts">
   import Icon from "../icons/Icon.svelte";
-  import { formatSize, formatSpeed, ordered, percent, timeLeft } from "./models";
+  import { formatSize, formatSpeed, ordered, percent, timeLeft, type Download } from "./models";
   import { models } from "./store.svelte";
 
   interface Props {
     variant: "island" | "settings";
+    kind?: "models" | "voice";
   }
 
-  const { variant }: Props = $props();
+  const { variant, kind = "models" }: Props = $props();
 
   let errors = $state<Record<string, string>>({});
   let showAll = $state(false);
-  const all = $derived(ordered(models.state));
+  const all = $derived<Download[]>(
+    kind === "voice" ? (models.state?.voice ?? []) : ordered(models.state),
+  );
   // The island leads with the recommended model; the others are one click away.
   const compact = $derived(variant === "island" && !showAll);
   const list = $derived(
-    compact ? all.filter((m) => m.recommended || m.state !== "available") : all,
+    compact ? all.filter((m) => recommended(m) || m.state !== "available") : all,
   );
   const hidden = $derived(all.length - list.length);
+
+  function recommended(item: Download): boolean {
+    return "recommended" in item && item.recommended;
+  }
 
   async function act(id: string, action: "download" | "cancel"): Promise<void> {
     const error = await (action === "download" ? models.download(id) : models.cancel(id));
@@ -37,7 +45,7 @@
         <div class="text">
           <p class="name">
             {model.name}
-            {#if model.recommended}<span class="tag">Recommended</span>{/if}
+            {#if recommended(model)}<span class="tag">Recommended</span>{/if}
           </p>
           <p class="summary">{model.summary}</p>
         </div>

@@ -172,6 +172,16 @@
       </section>
     {/if}
 
+    {#if current === "voice"}
+      <section class="block">
+        <h2>Voice files</h2>
+        <p class="description">
+          Speech recognition and EV's voice run on this PC. Download both to talk with EV.
+        </p>
+        <ModelList variant="settings" kind="voice" />
+      </section>
+    {/if}
+
     {#if current === "appearance" && arcWidth && arcDepth}
       <ArcPreview
         width={arcWidth}
