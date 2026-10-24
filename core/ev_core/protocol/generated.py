@@ -1578,6 +1578,186 @@ class FocusChangedMessage(BaseModel):
     payload: FocusChangedPayload
 
 
+class ContextCaptureMessage(BaseModel):
+    """
+    Rust -> core. The hotkey opened EV: read the text selected in the app the user was in (F-201).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["context.capture"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: EmptyPayload
+
+
+class ContextCapturedPayload(BaseModel):
+    text: Annotated[str | None, Field(max_length=20000)] = None
+    app: Annotated[str | None, Field(max_length=200)] = None
+    title: Annotated[str | None, Field(max_length=300)] = None
+
+
+class ContextCapturedMessage(BaseModel):
+    """
+    core -> Rust. Result of context.capture; text is absent when nothing was selected.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["context.captured"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ContextCapturedPayload
+
+
+class ContextClearMessage(BaseModel):
+    """
+    Rust -> core. The user removed the selection chip.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["context.clear"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: EmptyPayload
+
+
+class ContextReplacePayload(BaseModel):
+    text: Annotated[str, Field(max_length=20000)]
+
+
+class ContextReplaceMessage(BaseModel):
+    """
+    Rust -> core. Replace the captured selection with this text (F-202).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["context.replace"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ContextReplacePayload
+
+
+class ContextReplacedPayload(BaseModel):
+    ok: bool
+    message: Annotated[str, Field(max_length=300)]
+
+
+class ContextReplacedMessage(BaseModel):
+    """
+    core -> Rust. Result of context.replace.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["context.replaced"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ContextReplacedPayload
+
+
 class EvMessage(
     RootModel[
         HelloMessage
@@ -1612,6 +1792,11 @@ class EvMessage(
         | ActionUndoneMessage
         | TimerFiredMessage
         | FocusChangedMessage
+        | ContextCaptureMessage
+        | ContextCapturedMessage
+        | ContextClearMessage
+        | ContextReplaceMessage
+        | ContextReplacedMessage
     ]
 ):
     root: Annotated[
@@ -1646,7 +1831,12 @@ class EvMessage(
         | ActionUndoMessage
         | ActionUndoneMessage
         | TimerFiredMessage
-        | FocusChangedMessage,
+        | FocusChangedMessage
+        | ContextCaptureMessage
+        | ContextCapturedMessage
+        | ContextClearMessage
+        | ContextReplaceMessage
+        | ContextReplacedMessage,
         Field(
             description="EV wire protocol between the Tauri app (Rust) and ev-core (Python). One JSON object per WebSocket text frame. Changes are additive; removing or renaming a field requires a protocol version bump.",
             title="EvMessage",

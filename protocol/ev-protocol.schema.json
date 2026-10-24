@@ -100,6 +100,21 @@
     },
     {
       "$ref": "#/$defs/FocusChangedMessage"
+    },
+    {
+      "$ref": "#/$defs/ContextCaptureMessage"
+    },
+    {
+      "$ref": "#/$defs/ContextCapturedMessage"
+    },
+    {
+      "$ref": "#/$defs/ContextClearMessage"
+    },
+    {
+      "$ref": "#/$defs/ContextReplaceMessage"
+    },
+    {
+      "$ref": "#/$defs/ContextReplacedMessage"
     }
   ],
   "$defs": {
@@ -1907,6 +1922,197 @@
         },
         "payload": {
           "$ref": "#/$defs/FocusChangedPayload"
+        }
+      }
+    },
+    "ContextCaptureMessage": {
+      "description": "Rust -> core. The hotkey opened EV: read the text selected in the app the user was in (F-201).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "context.capture"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/EmptyPayload"
+        }
+      }
+    },
+    "ContextCapturedPayload": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 20000
+        },
+        "app": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 300
+        }
+      }
+    },
+    "ContextCapturedMessage": {
+      "description": "core -> Rust. Result of context.capture; text is absent when nothing was selected.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "context.captured"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ContextCapturedPayload"
+        }
+      }
+    },
+    "ContextClearMessage": {
+      "description": "Rust -> core. The user removed the selection chip.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "context.clear"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/EmptyPayload"
+        }
+      }
+    },
+    "ContextReplacePayload": {
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 20000
+        }
+      }
+    },
+    "ContextReplaceMessage": {
+      "description": "Rust -> core. Replace the captured selection with this text (F-202).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "context.replace"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ContextReplacePayload"
+        }
+      }
+    },
+    "ContextReplacedPayload": {
+      "type": "object",
+      "required": [
+        "ok",
+        "message"
+      ],
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 300
+        }
+      }
+    },
+    "ContextReplacedMessage": {
+      "description": "core -> Rust. Result of context.replace.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "context.replaced"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/ContextReplacedPayload"
         }
       }
     }

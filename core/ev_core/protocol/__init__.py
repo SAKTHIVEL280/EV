@@ -46,6 +46,13 @@ from ev_core.protocol.generated import (
     ConfigStateMessage,
     ConfigStatePayload,
     ConfigWarningItem,
+    ContextCapturedMessage,
+    ContextCapturedPayload,
+    ContextCaptureMessage,
+    ContextClearMessage,
+    ContextReplacedMessage,
+    ContextReplacedPayload,
+    ContextReplaceMessage,
     Effort,
     EmptyPayload,
     ErrorMessage,
@@ -137,7 +144,12 @@ type AnyMessage = Annotated[
     | ActionUndoMessage
     | ActionUndoneMessage
     | TimerFiredMessage
-    | FocusChangedMessage,
+    | FocusChangedMessage
+    | ContextCaptureMessage
+    | ContextCapturedMessage
+    | ContextClearMessage
+    | ContextReplaceMessage
+    | ContextReplacedMessage,
     Field(discriminator="type"),
 ]
 
@@ -475,6 +487,26 @@ def focus_changed(on: bool, minutes: int | None) -> FocusChangedMessage:
     )
 
 
+def context_captured(text: str | None, app: str, title: str) -> ContextCapturedMessage:
+    payload = (
+        ContextCapturedPayload(text=text[:20000], app=app[:200], title=title[:300])
+        if text
+        else ContextCapturedPayload()
+    )
+    return ContextCapturedMessage(
+        v=PROTOCOL_VERSION, type="context.captured", id=new_id(), payload=payload
+    )
+
+
+def context_replaced(ok: bool, message: str) -> ContextReplacedMessage:
+    return ContextReplacedMessage(
+        v=PROTOCOL_VERSION,
+        type="context.replaced",
+        id=new_id(),
+        payload=ContextReplacedPayload(ok=ok, message=message),
+    )
+
+
 def _readable_id(raw: str | bytes) -> str | None:
     try:
         obj = json.loads(raw)
@@ -509,6 +541,11 @@ __all__ = [
     "ConfigSetMessage",
     "ConfigStateMessage",
     "ConfigWarningItem",
+    "ContextCaptureMessage",
+    "ContextCapturedMessage",
+    "ContextClearMessage",
+    "ContextReplaceMessage",
+    "ContextReplacedMessage",
     "DecodeError",
     "Effort",
     "ErrorMessage",
@@ -554,6 +591,8 @@ __all__ = [
     "config_reset",
     "config_set",
     "config_state",
+    "context_captured",
+    "context_replaced",
     "decode",
     "encode",
     "error",

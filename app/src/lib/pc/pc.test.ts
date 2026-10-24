@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../bindings", () => ({
-  commands: { toolAnswer: vi.fn(), actionUndo: vi.fn() },
+  commands: {
+    toolAnswer: vi.fn(),
+    actionUndo: vi.fn(),
+    contextCapture: vi.fn(),
+    contextClear: vi.fn(),
+    contextReplace: vi.fn(),
+  },
   events: { pcUpdate: { listen: vi.fn() } },
 }));
 
@@ -69,5 +75,19 @@ describe("pc store", () => {
     expect(pc.notices.map((n) => n.text)).toEqual(["Reminder: standup"]);
     pc.dismiss(9);
     expect(pc.notices).toEqual([]);
+  });
+});
+
+describe("selection", () => {
+  it("shows the captured selection until it is used or removed", () => {
+    pc.apply({ kind: "context", text: "teh fox", app: "notepad", title: "notes.txt" });
+    expect(pc.context).toEqual({ text: "teh fox", app: "notepad", title: "notes.txt" });
+    pc.used("turn-1");
+    expect(pc.context).toBeNull();
+    expect(pc.contextTurn).toBe("turn-1");
+    pc.apply({ kind: "context", text: null, app: "", title: "" });
+    expect(pc.context).toBeNull();
+    pc.apply({ kind: "replaced", ok: false, message: "Copied. Paste it to replace." });
+    expect(pc.replaced).toBe("Copied. Paste it to replace.");
   });
 });

@@ -42,6 +42,11 @@ from ev_core.interfaces.events import (
     ConfigResetRequested,
     ConfigSetRequested,
     ConfigStateChanged,
+    ContextCaptured,
+    ContextCaptureRequested,
+    ContextClearRequested,
+    ContextReplaced,
+    ContextReplaceRequested,
     FocusModeChanged,
     LlmStatusChanged,
     ModelCancelRequested,
@@ -169,6 +174,10 @@ def to_message(event: Event) -> protocol.AnyMessage | None:
             return protocol.timer_fired(event.timer_id, event.kind, event.label, event.missed)
         case FocusModeChanged():
             return protocol.focus_changed(event.on, event.minutes)
+        case ContextCaptured():
+            return protocol.context_captured(event.text, event.app, event.title)
+        case ContextReplaced():
+            return protocol.context_replaced(event.ok, event.message)
     return None
 
 
@@ -188,6 +197,8 @@ OUTBOUND_EVENTS: tuple[type[Event], ...] = (
     ActionUndone,
     TimerFired,
     FocusModeChanged,
+    ContextCaptured,
+    ContextReplaced,
 )
 
 
@@ -382,6 +393,12 @@ class CoreServer:
                     self._bus.publish(ToolAnswered(str(answer.request_id), answer.allowed))
                 case protocol.ActionUndoMessage():
                     self._bus.publish(UndoRequested(message.payload.action_id))
+                case protocol.ContextCaptureMessage():
+                    self._bus.publish(ContextCaptureRequested())
+                case protocol.ContextClearMessage():
+                    self._bus.publish(ContextClearRequested())
+                case protocol.ContextReplaceMessage():
+                    self._bus.publish(ContextReplaceRequested(message.payload.text))
                 case (
                     protocol.HelloAckMessage()
                     | protocol.PongMessage()
@@ -400,6 +417,8 @@ class CoreServer:
                     | protocol.ActionUndoneMessage()
                     | protocol.TimerFiredMessage()
                     | protocol.FocusChangedMessage()
+                    | protocol.ContextCapturedMessage()
+                    | protocol.ContextReplacedMessage()
                 ):
                     await self._send_error(
                         connection,

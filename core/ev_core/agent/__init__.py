@@ -19,6 +19,7 @@ from typing import Final
 
 from ev_core.agent.actions import ActionLog
 from ev_core.agent.confirm import Confirmer
+from ev_core.agent.context import selection_note
 from ev_core.agent.effort import POLICIES, parse_prefix
 from ev_core.agent.history import History
 from ev_core.agent.loop import TurnRequest, run_turn
@@ -32,6 +33,8 @@ from ev_core.interfaces.events import (
     ChatFailed,
     ChatRequested,
     ChatResetRequested,
+    ContextCaptured,
+    ContextClearRequested,
     LlmStatusChanged,
     UndoRequested,
 )
@@ -71,6 +74,8 @@ class AgentModule(Module):
         self._task: asyncio.Task[None] | None = None
         self._turn_id: str | None = None
         self._switch = asyncio.Lock()
+        self._context: str | None = None
+        """The captured selection, worded for the next request (F-201)."""
 
     async def start(self, ctx: ModuleContext) -> None:
         self._bus = ctx.bus
@@ -78,6 +83,8 @@ class AgentModule(Module):
         ctx.bus.subscribe(ChatCancelRequested, self._on_cancel)
         ctx.bus.subscribe(ChatResetRequested, self._on_reset)
         ctx.bus.subscribe(UndoRequested, self._on_undo)
+        ctx.bus.subscribe(ContextCaptured, self._on_context)
+        ctx.bus.subscribe(ContextClearRequested, self._on_context_clear)
         ctx.bus.subscribe(ConfigChanged, self._on_config)
         ctx.bus.subscribe(LlmStatusChanged, self._on_llm_status)
 
@@ -126,7 +133,10 @@ class AgentModule(Module):
                 effort=prefix_effort or event.effort or self._settings.default_effort,
                 context_tokens=self._llm_settings.context,
                 received_at=received_at,
+                context=self._context,
             )
+            # The selection goes with one request only.
+            self._context = None
             self._turn_id = event.turn_id
             self._task = asyncio.create_task(
                 run_turn(request, self._provider, self._toolbox, self._history, bus.publish)
@@ -145,6 +155,12 @@ class AgentModule(Module):
             await self._cancel_running()
             self._history.clear()
         logger.info("chat reset")
+
+    async def _on_context(self, event: ContextCaptured) -> None:
+        self._context = selection_note(event.text, event.app, event.title) if event.text else None
+
+    async def _on_context_clear(self, _: ContextClearRequested) -> None:
+        self._context = None
 
     async def _on_undo(self, event: UndoRequested) -> None:
         # The island's Undo button (F-111).

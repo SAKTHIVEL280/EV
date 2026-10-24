@@ -67,6 +67,9 @@ pub fn specta_builder<R: Runtime>() -> tauri_specta::Builder<R> {
             commands::pick_folder::<tauri::Wry>,
             commands::tool_answer,
             commands::action_undo,
+            commands::context_capture,
+            commands::context_clear,
+            commands::context_replace,
             commands::llm_status,
             commands::settings_refresh,
             commands::settings_set,
@@ -298,6 +301,8 @@ impl<R: Runtime> CoreObserver for AppObserver<R> {
                 | Message::ActionUndone(_)
                 | Message::TimerFired(_)
                 | Message::FocusChanged(_)
+                | Message::ContextCaptured(_)
+                | Message::ContextReplaced(_)
         ) {
             if let Some(update) = pc::update(message)
                 && let Err(e) = pc::PcUpdate(update).emit(&self.app)

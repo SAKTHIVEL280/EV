@@ -21,6 +21,22 @@ export interface Action {
   undone: string | null;
 }
 
+/** What the hotkey captured from the app the user was in (F-201). */
+export interface Context {
+  text: string;
+  app: string;
+  title: string;
+}
+
+/** Quick actions on the captured selection (F-202): label and request text. */
+export const QUICK_ACTIONS = [
+  { label: "Explain", text: "Explain this briefly." },
+  { label: "Fix", text: "Fix the spelling and grammar of this. Reply with only the fixed text." },
+  { label: "Shorten", text: "Shorten this. Reply with only the shorter text." },
+  { label: "Reply", text: "Write a short, friendly reply to this. Reply with only the reply." },
+  { label: "Translate", text: "Translate this to English. Reply with only the translation." },
+] as const;
+
 export interface Notice {
   id: number;
   text: string;
@@ -48,6 +64,10 @@ class PcStore {
   actions = $state<Action[]>([]);
   notices = $state<Notice[]>([]);
   focus = $state(false);
+  context = $state<Context | null>(null);
+  /** The turn a quick action started; its reply gets Copy and Replace. */
+  contextTurn = $state<string | null>(null);
+  replaced = $state<string | null>(null);
   private started = false;
 
   init(): void {
@@ -104,6 +124,14 @@ class PcStore {
       case "focus":
         this.focus = update.on;
         break;
+      case "context":
+        this.context = update.text
+          ? { text: update.text, app: update.app, title: update.title }
+          : null;
+        break;
+      case "replaced":
+        this.replaced = update.message;
+        break;
     }
   }
 
@@ -116,6 +144,28 @@ class PcStore {
 
   async undo(actionId: number): Promise<void> {
     await commands.actionUndo(actionId);
+  }
+
+  /** Read the selection as the panel opens (only then; never in the background). */
+  async capture(): Promise<void> {
+    this.replaced = null;
+    await commands.contextCapture();
+  }
+
+  async clearContext(): Promise<void> {
+    this.context = null;
+    await commands.contextClear();
+  }
+
+  /** The selection went with a request (core uses it once). */
+  used(turnId: string | null): void {
+    this.context = null;
+    this.contextTurn = turnId;
+  }
+
+  async replace(text: string): Promise<void> {
+    this.replaced = null;
+    await commands.contextReplace(text);
   }
 
   dismiss(id: number): void {

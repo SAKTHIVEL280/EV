@@ -1,5 +1,6 @@
 """Picks the PC control for this platform (docs/FEATURES.md Phase 3)."""
 
+import os
 import sys
 from pathlib import Path
 
@@ -13,6 +14,11 @@ def make_pc_control(data_dir: Path) -> PcControl:
         from ev_core.platform.windows_pc import WindowsPcControl
 
         return WindowsPcControl()
+    from ev_core.interfaces.pc import Selection
     from ev_core.platform.fake_pc import FakePcControl
 
-    return FakePcControl(data_dir / "dev-home")
+    fake = FakePcControl(data_dir / "dev-home")
+    # Development only: pretend this text is selected in Notepad (F-201 checks).
+    if selected := os.environ.get("EV_DEV_SELECTION"):
+        fake.selected = Selection(selected, "notepad", "notes.txt - Notepad")
+    return fake

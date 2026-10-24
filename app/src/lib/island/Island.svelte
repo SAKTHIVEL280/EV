@@ -206,6 +206,8 @@
   }
 
   function openPanel(): void {
+    // "This" (F-201): read the selection before EV takes focus.
+    void pc.capture();
     setMode("panel");
     void commands.islandSetPanelOpen(true).then(() => chatPanel?.focus());
   }

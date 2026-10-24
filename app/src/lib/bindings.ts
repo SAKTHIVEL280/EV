@@ -78,6 +78,27 @@ export const commands = {
 	 *  When core is not connected.
 	 */
 	actionUndo: (actionId: number | null) => typedError<null, CommandError>(__TAURI_INVOKE("action_undo", { actionId })),
+	/**
+	 *  Read the selection in the app the user was in, as the panel opens (F-201).
+	 * 
+	 *  # Errors
+	 *  When core is not connected.
+	 */
+	contextCapture: () => typedError<null, CommandError>(__TAURI_INVOKE("context_capture")),
+	/**
+	 *  The user removed the selection chip.
+	 * 
+	 *  # Errors
+	 *  When core is not connected.
+	 */
+	contextClear: () => typedError<null, CommandError>(__TAURI_INVOKE("context_clear")),
+	/**
+	 *  Replace the captured selection with `text` (F-202).
+	 * 
+	 *  # Errors
+	 *  When core is not connected or the text is too long.
+	 */
+	contextReplace: (text: string) => typedError<null, CommandError>(__TAURI_INVOKE("context_replace", { text })),
 	llmStatus: () => __TAURI_INVOKE<LlmStatus>("llm_status"),
 	/**
 	 *  Ask core for the current settings; the answer arrives as `SettingsChanged`.
@@ -313,7 +334,14 @@ risk: string } |
 /**  A timer, reminder or alarm came due. */
 { kind: "timer"; timer_id: number; 
 /**  timer | reminder | alarm */
-timer_kind: string; label: string; missed: boolean } | { kind: "focus"; on: boolean; minutes: number | null };
+timer_kind: string; label: string; missed: boolean } | { kind: "focus"; on: boolean; minutes: number | null } | 
+/**
+ *  What the hotkey captured from the app the user was in (F-201); `text`
+ *  is `None` when nothing was selected.
+ */
+{ kind: "context"; text: string | null; app: string; title: string } | 
+/**  Result of a quick action's Replace (F-202). */
+{ kind: "replaced"; ok: boolean; message: string };
 
 export type SettingItem = {
 	section: string,

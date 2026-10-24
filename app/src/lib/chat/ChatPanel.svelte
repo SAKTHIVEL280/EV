@@ -12,7 +12,7 @@
   import { models } from "../models/store.svelte";
   import { busy, latest, type Turn } from "./chat";
   import { chat } from "./store.svelte";
-  import { pc } from "../pc/store.svelte";
+  import { QUICK_ACTIONS, pc } from "../pc/store.svelte";
 
   const TOOL_TEXT: Record<string, string> = {
     current_time: "Checking the time",
@@ -82,13 +82,28 @@
     if (growth && pinned) void tick().then(toBottom);
   });
 
+  async function send(text: string, shown: string = text): Promise<void> {
+    pinned = true;
+    const withContext = pc.context !== null;
+    const turnId = await chat.send(text, shown);
+    if (withContext) pc.used(turnId);
+  }
+
   async function submit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const text = draft.trim();
     if (!text) return;
     draft = "";
-    pinned = true;
-    await chat.send(text);
+    await send(text);
+  }
+
+  async function copy(text: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text);
+      pc.replaced = "Copied.";
+    } catch {
+      pc.replaced = "Couldn't copy that.";
+    }
   }
 
   onMount(() => {
@@ -124,6 +139,13 @@
               <p class="reply">{entry.reply}</p>
             {/if}
             {#if entry.status === "cancelled"}<p class="meta">Stopped</p>{/if}
+            {#if entry.id !== null && entry.id === pc.contextTurn && entry.status === "done"}
+              <div class="result-actions">
+                <button type="button" onclick={() => void copy(entry.reply)}>Copy</button>
+                <button type="button" onclick={() => void pc.replace(entry.reply)}>Replace</button>
+                {#if pc.replaced}<span class="meta">{pc.replaced}</span>{/if}
+              </div>
+            {/if}
             {#if pc.undoFor(entry.id)}
               {@const action = pc.undoFor(entry.id)}
               {#if action?.undone}
@@ -150,6 +172,28 @@
         <p class="hint">Ask anything. Press Enter to send.</p>
       {/each}
     </div>
+
+    {#if pc.context}
+      <div class="context">
+        <div class="chip">
+          <span>Selected text from {pc.context.app || "your app"}</span>
+          <button
+            type="button"
+            class="chip-remove"
+            aria-label="Don't use the selected text"
+            title="Don't use it"
+            onclick={() => void pc.clearContext()}>×</button
+          >
+        </div>
+        <div class="quick">
+          {#each QUICK_ACTIONS as action (action.label)}
+            <button type="button" onclick={() => void send(action.text, action.label)}
+              >{action.label}</button
+            >
+          {/each}
+        </div>
+      </div>
+    {/if}
 
     {#if pc.question}
       <div class="ask" role="alertdialog" aria-live="assertive">
@@ -281,6 +325,70 @@
 
   .muted {
     color: var(--ev-island-fg-2);
+  }
+
+  .context {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ev-space-2);
+  }
+
+  .chip {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ev-space-1);
+    font-size: var(--ev-text-11);
+    color: var(--ev-island-fg-1);
+    background: var(--ev-island-control-bg);
+    border-radius: var(--ev-radius-control);
+    padding: var(--ev-space-1) var(--ev-space-1) var(--ev-space-1) var(--ev-space-2);
+  }
+
+  .chip-remove {
+    font: inherit;
+    font-size: var(--ev-text-13);
+    line-height: 1;
+    color: var(--ev-island-fg-2);
+    background: transparent;
+    border: 0;
+    padding: 0 var(--ev-space-1);
+    cursor: pointer;
+  }
+
+  .quick,
+  .result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--ev-space-1);
+  }
+
+  .quick button,
+  .result-actions button {
+    font: inherit;
+    font-size: var(--ev-text-11);
+    font-weight: var(--ev-weight-medium);
+    color: var(--ev-island-fg-1);
+    background: var(--ev-island-control-bg);
+    border: 0;
+    border-radius: var(--ev-radius-control);
+    padding: var(--ev-space-1) var(--ev-space-2);
+    cursor: pointer;
+  }
+
+  .quick button:hover,
+  .result-actions button:hover,
+  .chip-remove:hover {
+    background: var(--ev-island-control-bg-hover);
+    color: var(--ev-island-fg-1);
+  }
+
+  .quick button:focus-visible,
+  .result-actions button:focus-visible,
+  .chip-remove:focus-visible {
+    outline: 2px solid var(--ev-focus-ring);
+    outline-offset: 2px;
   }
 
   .undo {

@@ -215,6 +215,36 @@ pub fn action_undo(state: State<'_, AppState>, action_id: Option<u32>) -> Result
     send(&state, protocol::action_undo(action_id))
 }
 
+/// Read the selection in the app the user was in, as the panel opens (F-201).
+///
+/// # Errors
+/// When core is not connected.
+#[tauri::command]
+#[specta::specta]
+pub fn context_capture(state: State<'_, AppState>) -> Result<(), CommandError> {
+    send(&state, protocol::context_capture())
+}
+
+/// The user removed the selection chip.
+///
+/// # Errors
+/// When core is not connected.
+#[tauri::command]
+#[specta::specta]
+pub fn context_clear(state: State<'_, AppState>) -> Result<(), CommandError> {
+    send(&state, protocol::context_clear())
+}
+
+/// Replace the captured selection with `text` (F-202).
+///
+/// # Errors
+/// When core is not connected or the text is too long.
+#[tauri::command]
+#[specta::specta]
+pub fn context_replace(state: State<'_, AppState>, text: String) -> Result<(), CommandError> {
+    send(&state, protocol::context_replace(&text))
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn llm_status(state: State<'_, AppState>) -> LlmStatus {

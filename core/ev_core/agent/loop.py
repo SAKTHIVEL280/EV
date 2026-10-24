@@ -44,6 +44,8 @@ class TurnRequest:
     context_tokens: int
     received_at: float
     """time.monotonic() when the request arrived."""
+    context: str | None = None
+    """"This" (F-201): the selection captured by the hotkey, already worded as data."""
 
 
 def _ms(since: float, waited_ms: int = 0) -> int:
@@ -74,16 +76,21 @@ async def run_turn(
     user = ChatMessage("user", request.text)
     # The model sees the local time on this message only; history keeps the
     # plain text, so earlier turns never carry a stale time.
-    stamped = ChatMessage("user", f"{localtime.stamp(now())}\n{request.text}")
+    context = f"{request.context}\n" if request.context else ""
+    stamped = ChatMessage("user", f"{localtime.stamp(now())}\n{context}{request.text}")
     prior = history.window(budget_chars(request.context_tokens, policy.max_tokens))
     turn: list[ChatMessage] = [user]
     reply: list[str] = []
     first_token_ms: int | None = None
     prompt_tokens = generated_tokens = 0
     # A single step cannot follow up on a tool result, so Instant gets no tools.
-    pc = needs_pc_tools(request.text, history.last_turn_used_tools())
+    # A selection makes the request about that text, so an earlier tool turn
+    # doesn't pull in the PC tools; only the request's own words can.
+    follow_up = request.context is None and history.last_turn_used_tools()
+    pc = needs_pc_tools(request.text, follow_up)
     tools = toolbox.specs(pc=pc) if policy.max_steps > 1 else []
-    state = TurnState()
+    # A selection from another app is outside text: later risky steps always ask.
+    state = TurnState(untrusted=request.context is not None)
 
     try:
         for _ in range(policy.max_steps):

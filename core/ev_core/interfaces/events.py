@@ -241,3 +241,31 @@ class ActionUndone(Event):
     action_id: int
     ok: bool
     message: str
+
+
+@dataclass(frozen=True, slots=True)
+class ContextCaptureRequested(Event):
+    """The hotkey opened EV: read the selection in the app the user was in (F-201)."""
+
+
+@dataclass(frozen=True, slots=True)
+class ContextCaptured(Event):
+    text: str | None
+    app: str = ""
+    title: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ContextClearRequested(Event):
+    """The user removed the selection chip."""
+
+
+@dataclass(frozen=True, slots=True)
+class ContextReplaceRequested(Event):
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
+class ContextReplaced(Event):
+    ok: bool
+    message: str

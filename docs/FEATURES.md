@@ -38,25 +38,25 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 ### PC
 | ID | Feature | Phase | Status |
 |---|---|---|---|
-| F-101 | Open / close / switch apps | 3 (beta 2 B) | draft |
-| F-102 | Window snap / arrange | 3 (beta 2 B) | draft |
-| F-103 | Volume, brightness, media | 3 (beta 2 B) | draft |
-| F-104 | Wi-Fi / Bluetooth toggles | 3 (beta 2 B) | draft |
-| F-105 | Screenshots | 3 (beta 2 B) | draft |
-| F-106 | Smart clipboard (history + actions, actions off by default) | 3 (beta 2 B) | draft |
-| F-107 | File search / open / move (delete = dangerous) | 3 (beta 2 B) | draft |
-| F-108 | Reminders, timers, alarms | 3 (beta 2 B) | draft |
-| F-109 | Focus mode | 3 (beta 2 B) | draft |
-| F-110 | Multi-step UI tasks with verification | 3 (beta 2 B) | draft |
-| F-111 | Action log with undo | 3 (beta 2 B) | draft |
+| F-101 | Open / close / switch apps | 3 (beta 2 B) | built (Linux + Windows CI; Windows check pending) |
+| F-102 | Window snap / arrange | 3 (beta 2 B) | built (Linux + Windows CI; Windows check pending) |
+| F-103 | Volume, brightness, media | 3 (beta 2 B) | built (Linux + Windows CI; Windows check pending) |
+| F-104 | Wi-Fi / Bluetooth toggles | 3 (beta 2 B) | built (Linux + Windows CI; Windows check pending) |
+| F-105 | Screenshots | 3 (beta 2 B) | built (Linux + Windows CI; Windows check pending) |
+| F-106 | Smart clipboard (history + actions, actions off by default) | 3 (beta 2 B) | built (Linux + Windows CI; Windows check pending) |
+| F-107 | File search / open / move (delete = dangerous) | 3 (beta 2 B) | built (Linux + Windows CI; Windows check pending) |
+| F-108 | Reminders, timers, alarms | 3 (beta 2 B) | built (Linux + Windows CI; Windows check pending) |
+| F-109 | Focus mode | 3 (beta 2 B) | built (Linux + Windows CI; Windows check pending) |
+| F-110 | Multi-step UI tasks with verification | 3 (beta 2 B) | built (Linux + Windows CI; Windows check pending) |
+| F-111 | Action log with undo | 3 (beta 2 B) | built (Linux + Windows CI; Windows check pending) |
 | F-112 | Routines ("Work mode") | 7 | index |
 | F-113 | Notification digest | 7 | index |
 
 ### Understanding
 | ID | Feature | Phase | Status |
 |---|---|---|---|
-| F-201 | "This" awareness (selection + active window) | 3 (beta 2 B) | draft |
-| F-202 | Selection quick actions (Explain, Fix, Shorten, Reply, Translate) | 3 (beta 2 B) | draft |
+| F-201 | "This" awareness (selection + active window) | 3 (beta 2 B) | built (Linux + Windows CI; Windows check pending) |
+| F-202 | Selection quick actions (Explain, Fix, Shorten, Reply, Translate) | 3 (beta 2 B) | built (Linux + Windows CI; Windows check pending) |
 | F-203 | Screen explain (drag a region) | 5 | index |
 | F-204 | Documents / PDF Q&A | 5 | index |
 | F-205 | Video Q&A | 5 | index |
@@ -92,8 +92,8 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 | F-414 | Chat that stays, and New chat | beta 2 A | built (Linux-verified; Windows check pending) |
 | F-415 | Settings controls: model picker, folder picker, shortcut recorder, sliders | beta 2 A | built (Linux-verified; Windows check pending) |
 | F-416 | Honesty benchmark (`bench/honesty`) | beta 2 A | built (Linux-verified) |
-| F-417 | Date math | 3 (beta 2 B) | draft |
-| F-418 | Confirmations and permissions | 3 (beta 2 B) | draft |
+| F-417 | Date math | 3 (beta 2 B) | built (Linux + Windows CI; Windows check pending) |
+| F-418 | Confirmations and permissions | 3 (beta 2 B) | built (Linux + Windows CI; Windows check pending) |
 
 ## Specs
 
@@ -352,7 +352,7 @@ Shared by every PC tool:
 - Failure copy is short and plain; the model receives `error: ...` with the reason.
 
 ### F-101 Open / close / switch apps
-- Phase / status: 3 (beta 2 B) / draft.
+- Phase / status: 3 (beta 2 B) / built (2026-10-17); Linux end to end with the fake PC, Windows by CI tool tests; the user's Windows check pending.
 - Behavior: `open_app(name)` finds the app by name among Start menu shortcuts and installed
   apps (fuzzy, best match) and starts it; `switch_to_app(name)` brings its window to the front;
   `close_app(name)` asks the app to close normally (it may ask to save); `list_apps()` returns
@@ -367,7 +367,7 @@ Shared by every PC tool:
   closes Notepad.
 
 ### F-102 Window snap / arrange
-- Phase / status: 3 / draft.
+- Phase / status: 3 (beta 2 B) / built (2026-10-17); Linux end to end with the fake PC, Windows by CI tool tests; the user's Windows check pending.
 - Behavior: `arrange_window(app, position)` with position left, right, top, bottom, top-left,
   top-right, bottom-left, bottom-right, maximize, minimize, restore, center. Uses the work area
   of the window's monitor. App omitted: the window the user was in before opening EV.
@@ -376,7 +376,7 @@ Shared by every PC tool:
 - Tests: rectangle math per position and DPI; Windows CI snaps Notepad left and restores it.
 
 ### F-103 Volume, brightness, media
-- Phase / status: 3 / draft.
+- Phase / status: 3 (beta 2 B) / built (2026-10-17); Linux end to end with the fake PC, Windows by CI tool tests; the user's Windows check pending.
 - Behavior: `set_volume(level? 0–100, change? ±, mute? bool)`, `set_brightness(level?, change?)`,
   `media(action: play_pause | next | previous | stop)`. Router covers "volume up/down/to 30",
   "mute", "brightness 50", "next song", "pause".
@@ -386,7 +386,7 @@ Shared by every PC tool:
 - Tests: clamping and step math; Windows CI reads and restores the volume.
 
 ### F-104 Wi-Fi / Bluetooth toggles
-- Phase / status: 3 / draft.
+- Phase / status: 3 (beta 2 B) / built (2026-10-17); Linux end to end with the fake PC, Windows by CI tool tests; the user's Windows check pending.
 - Behavior: `set_radio(kind: wifi | bluetooth, on: bool)` through Windows radio control.
 - Risk: turning Wi-Fi off `confirm` (EV's web search and the user's connection stop); others
   `safe`. Undo: the previous state. Verification: read the radio state back.
@@ -394,14 +394,14 @@ Shared by every PC tool:
 - Tests: fake backend; manual Windows check (CI runners have no radios).
 
 ### F-105 Screenshots
-- Phase / status: 3 / draft.
+- Phase / status: 3 (beta 2 B) / built (2026-10-17); Linux end to end with the fake PC, Windows by CI tool tests; the user's Windows check pending.
 - Behavior: `take_screenshot(area: screen | window)` saves a PNG to Pictures\Screenshots
   (`EV 2026-10-17 15.41.07.png`) and says where. Region capture by drag is F-203.
 - Risk: `safe` (stays on the PC). Undo: move the file to the Recycle Bin.
 - Tests: file naming; Windows CI captures the screen and checks the PNG size.
 
 ### F-106 Smart clipboard
-- Phase / status: 3 / draft.
+- Phase / status: 3 (beta 2 B) / built (2026-10-17); Linux end to end with the fake PC, Windows by CI tool tests; the user's Windows check pending.
 - Behavior: with `clipboard.history` on (default on), EV keeps the last 25 copied texts in memory
   only (never on disk; text matching the sensitive-data filter is not kept). Tools:
   `read_clipboard()`, `write_clipboard(text)`, `clipboard_history(count)`. "Fix the text I
@@ -413,21 +413,22 @@ Shared by every PC tool:
 - Tests: history ring and filter; fake clipboard; Windows CI round-trip.
 
 ### F-107 File search / open / move
-- Phase / status: 3 / draft.
+- Phase / status: 3 (beta 2 B) / built (2026-10-17); Linux end to end with the fake PC, Windows by CI tool tests; the user's Windows check pending.
 - Behavior: `find_files(query, kind?, folder?)` searches file names in the user's folders
   (Desktop, Documents, Downloads, Pictures, Music, Videos) and returns the newest matches;
   `open_file(path)` opens it with its default app; `move_file(path, destination)`;
   `delete_file(path)` sends it to the Recycle Bin (never a permanent delete).
 - Risk: find, open `safe`; move `confirm`; delete `dangerous`. Paths outside the user's profile
   are refused unless the user named them in this request.
-- Undo: move → move back; delete → "Open the Recycle Bin" (restoring is done there).
+- Undo: move → move back. Delete has no undo in EV: the reply says the file is in the Recycle
+  Bin, where Windows restores it.
 - Failure copy: "Couldn't find {query}." · "That file is in use."
 - Tests: search ranking on a temp tree; move/undo; delete goes to the trash (send2trash).
 
 ### F-108 Reminders, timers, alarms
-- Phase / status: 3 / draft.
-- Behavior: `set_timer(duration)`, `set_reminder(text, at)`, `set_alarm(at, label?)`,
-  `list_timers()`, `cancel_timer(id)`. They survive restarts (stored in `ev.db`, migration 001).
+- Phase / status: 3 (beta 2 B) / built (2026-10-17); Linux end to end with the fake PC, Windows by CI tool tests; the user's Windows check pending.
+- Behavior: one `timer` tool with the actions timer (minutes), reminder (text, at), alarm (at,
+  label), list and cancel (id). They survive restarts (stored in `ev.db`, migration 001).
   When one fires, the island opens to the hover shape with the text and stays until dismissed
   or 60 s pass; missed ones (PC off) are shown once at the next start, marked missed.
 - Risk: `safe`. Undo: cancel.
@@ -436,7 +437,7 @@ Shared by every PC tool:
   with a fake clock, persistence across restart.
 
 ### F-109 Focus mode
-- Phase / status: 3 / draft.
+- Phase / status: 3 (beta 2 B) / built (2026-10-17); Linux end to end with the fake PC, Windows by CI tool tests; the user's Windows check pending.
 - Behavior: `focus_mode(on, minutes?)` makes EV quiet: no proactive messages, timers show without
   opening the island (alarms still do), and the arc shows a small focus mark. Windows has no
   supported API to switch its own Do Not Disturb, so EV says so and offers to open the Windows
@@ -445,7 +446,7 @@ Shared by every PC tool:
 - Tests: state machine with a fake clock.
 
 ### F-110 Multi-step UI tasks with verification
-- Phase / status: 3 / draft.
+- Phase / status: 3 (beta 2 B) / built (2026-10-17); Linux end to end with the fake PC, Windows by CI tool tests; the user's Windows check pending.
 - Behavior: `ui_snapshot(app?)` returns the interactive elements of a window (id, role, name,
   value, enabled) from UI Automation, at most 60, in reading order; `ui_click(id)`,
   `ui_type(id, text)`, `ui_keys(keys)`. Each action re-reads the window and returns what
@@ -457,39 +458,44 @@ Shared by every PC tool:
   reads it back; the golden test plans "open Notepad and type hello" as tool calls.
 
 ### F-111 Action log with undo
-- Phase / status: 3 / draft.
+- Phase / status: 3 (beta 2 B) / built (2026-10-17); Linux end to end with the fake PC, Windows by CI tool tests; the user's Windows check pending.
 - Behavior: every action that changes something is written to `ev.db` (time, tool, one-line
-  summary, undo data). The island shows "Undo" under the reply that made the last change;
-  saying or typing "undo that" undoes the most recent undoable action. Settings → Diagnostics
-  lists the last 50 actions. Kept 30 days.
+  summary, undo data). The island shows "Undo" under each reply that made a change; saying or
+  typing "undo" or "undo that" undoes the most recent undoable action (router, instant). Kept 30
+  days. A searchable list of past actions comes with searchable history (F-303, stage E).
 - Tests: log and undo per tool with the fake backend; retention.
 
 ### F-201 "This" awareness
-- Phase / status: 3 / draft.
-- Behavior: when the hotkey opens EV, it captures the text selected in the app the user was in
-  (UI Automation text selection; no clipboard tricks) and that app's window title. The panel
+- Phase / status: 3 (beta 2 B) / built (2026-10-17); Linux end to end with the fake PC, Windows by CI tool tests; the user's Windows check pending.
+- Behavior: when the panel opens (hotkey or click), EV reads the text selected in the app the
+  user was in (UI Automation text selection of its front-most window; no clipboard tricks) and
+  that app's name and window title. The panel
   shows a removable chip ("Selected text from Notepad"); the next request receives it as
   context (≤ 300 tokens, trimmed in the middle), marked as data.
+- Tools: a request with a selection is about that text, so it gets the PC tools only when its own
+  words ask for a PC action (an earlier tool turn doesn't count). Risky steps after it always ask,
+  because the selection is outside text (CLAUDE.md §8).
 - Privacy: captured only on the hotkey, never in the background; not stored.
 - Tests: trimming; fake selection; Windows CI selects text in Notepad and reads it.
 
 ### F-202 Selection quick actions
-- Phase / status: 3 / draft.
+- Phase / status: 3 (beta 2 B) / built (2026-10-17); Linux end to end with the fake PC, Windows by CI tool tests; the user's Windows check pending.
 - Behavior: with a selection chip present, the panel offers Explain, Fix, Shorten, Reply,
-  Translate (to English; other languages are out of scope). The result has Copy and Replace
+  Translate (to English; other languages are out of scope). The conversation shows the action's
+  name; the request the model gets says exactly what to return. The result has Copy and Replace
   (Replace types the result into the selection's app through UI Automation, so it needs that
   app's text control to accept it; otherwise it copies and says "Copied. Paste it to replace.").
 - Risk: Replace is the user's own click, so it runs without a second question.
 - Tests: action prompts; fake replace; Windows CI replaces text in Notepad.
 
 ### F-417 Date math
-- Phase / status: 3 / draft. Found in the beta test: "days until Christmas" was answered wrong.
+- Phase / status: 3 (beta 2 B) / built (2026-10-17); Linux end to end with the fake PC, Windows by CI tool tests; the user's Windows check pending. Found in the beta test: "days until Christmas" was answered wrong.
 - Behavior: `date_math(operation: days_between | add | weekday, ...)` computes in the local time
   zone. The model calls it for any date arithmetic.
 - Risk: `safe`. Tests: table of cases, leap years, past dates.
 
 ### F-418 Confirmations and permissions
-- Phase / status: 3 / draft.
+- Phase / status: 3 (beta 2 B) / built (2026-10-17); Linux end to end with the fake PC, Windows by CI tool tests; the user's Windows check pending.
 - Behavior: a `confirm` or `dangerous` step pauses the turn and the island shows the `confirm`
   state: one line saying exactly what will happen ("Close Notepad?", "Move report.pdf to
   Documents?", shell commands shown verbatim) with Yes and No (Enter / Esc). No answer in 60 s

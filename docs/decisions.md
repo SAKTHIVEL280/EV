@@ -341,3 +341,8 @@ facts (Tamil films, IPL 2025), 5 common facts, 3 help requests.
   unit-tested; every hide/show is logged with its reason ("busy" never hides any more). The cause
   is inferred, not observed: confirm on Windows, and the log line "fullscreen state changed"
   names the reason if it happens again.
+- **Selection and tools (F-201, 2026-10-24).** In the Linux end-to-end check, a quick action
+  right after a PC command got the full PC tool list, because "the last turn used a tool" counts
+  as a follow-up. With a selection the request is about that text, so only its own words can
+  bring in the PC tools; the shorter prompt is also faster on CPU. The conversation shows the
+  quick action's name, not the long instruction sent to the model. Golden tests 19/19 on the 4B.

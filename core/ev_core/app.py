@@ -116,7 +116,7 @@ async def run(env: Mapping[str, str], stdout: TextIO, stdin: TextIO | None) -> i
         enabled=True,
     )
     registry.register(ModelsModule(config.llm, root, load_catalog()), enabled=True)
-    registry.register(PcModule(db, root / "backups", actions, timers, clipboard), enabled=True)
+    registry.register(PcModule(db, root / "backups", actions, timers, clipboard, pc), enabled=True)
 
     async def on_config_changed(event: ConfigChanged) -> None:
         if "logging" in event.sections:

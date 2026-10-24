@@ -11,6 +11,12 @@ dependencies = [
     "pydantic==2.14.1",
     "tomlkit==0.15.2",
     "websockets==17.2",
+    # Windows PC control (docs/decisions.md, beta 2 stage B).
+    "comtypes==1.4.17; sys_platform == 'win32'",
+    "mss==10.2.0; sys_platform == 'win32'",
+    "pycaw==20260927; sys_platform == 'win32'",
+    "pywinauto==0.6.9; sys_platform == 'win32'",
+    "send2trash==2.1.0; sys_platform == 'win32'",
 ]
 
 [project.scripts]
@@ -52,12 +58,23 @@ ignore = ["TRY003"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106"]
+# The Windows-only assert must precede the imports; the PowerShell script has long lines.
+"ev_core/platform/windows_pc.py" = ["E402", "E501"]
+"tests/test_windows_pc.py" = ["E402", "S101", "S603", "S607"]
 
 [tool.mypy]
 strict = true
 python_version = "3.12"
 plugins = ["pydantic.mypy"]
 files = ["ev_core", "tests", "../bench/honesty"]
+
+[[tool.mypy.overrides]]
+# Untyped Windows-only libraries (ev_core/platform/windows_pc.py).
+module = [
+    "pywinauto", "pywinauto.*", "pycaw", "pycaw.*", "comtypes", "comtypes.*", "send2trash",
+    "mss", "mss.*",
+]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -126,6 +126,11 @@ messages! {
     ActionUndone(ActionUndoneMessage) = "action.undone",
     TimerFired(TimerFiredMessage) = "timer.fired",
     FocusChanged(FocusChangedMessage) = "focus.changed",
+    ContextCapture(ContextCaptureMessage) = "context.capture",
+    ContextCaptured(ContextCapturedMessage) = "context.captured",
+    ContextClear(ContextClearMessage) = "context.clear",
+    ContextReplace(ContextReplaceMessage) = "context.replace",
+    ContextReplaced(ContextReplacedMessage) = "context.replaced",
 }
 
 /// Who sends a message type.
@@ -162,7 +167,10 @@ impl Message {
             | Self::ModelsDownload(_)
             | Self::ModelsCancel(_)
             | Self::ToolAnswer(_)
-            | Self::ActionUndo(_) => Direction::ToCore,
+            | Self::ActionUndo(_)
+            | Self::ContextCapture(_)
+            | Self::ContextClear(_)
+            | Self::ContextReplace(_) => Direction::ToCore,
             Self::ChatStarted(_)
             | Self::ChatDelta(_)
             | Self::ChatTool(_)
@@ -177,7 +185,9 @@ impl Message {
             | Self::ActionRecorded(_)
             | Self::ActionUndone(_)
             | Self::TimerFired(_)
-            | Self::FocusChanged(_) => Direction::FromCore,
+            | Self::FocusChanged(_)
+            | Self::ContextCaptured(_)
+            | Self::ContextReplaced(_) => Direction::FromCore,
         }
     }
 }
@@ -337,6 +347,53 @@ pub fn action_undo(action_id: Option<u32>) -> Result<Message, AppError> {
         },
         reply_to: None,
         type_: "action.undo".into(),
+        v: version(),
+    }))
+}
+
+/// Read the selection in the app the user was in (F-201).
+///
+/// # Errors
+/// When the OS random source fails.
+pub fn context_capture() -> Result<Message, AppError> {
+    Ok(Message::ContextCapture(generated::ContextCaptureMessage {
+        id: id()?,
+        payload: EmptyPayload(serde_json::Map::new()),
+        reply_to: None,
+        type_: "context.capture".into(),
+        v: version(),
+    }))
+}
+
+/// The user removed the selection chip.
+///
+/// # Errors
+/// When the OS random source fails.
+pub fn context_clear() -> Result<Message, AppError> {
+    Ok(Message::ContextClear(generated::ContextClearMessage {
+        id: id()?,
+        payload: EmptyPayload(serde_json::Map::new()),
+        reply_to: None,
+        type_: "context.clear".into(),
+        v: version(),
+    }))
+}
+
+/// Replace the captured selection (F-202).
+///
+/// # Errors
+/// When the OS random source fails or the text is too long for the protocol.
+pub fn context_replace(text: &str) -> Result<Message, AppError> {
+    let text = text
+        .parse()
+        .map_err(|e: generated::error::ConversionError| {
+            AppError::ProtocolMismatch(e.to_string())
+        })?;
+    Ok(Message::ContextReplace(generated::ContextReplaceMessage {
+        id: id()?,
+        payload: generated::ContextReplacePayload { text },
+        reply_to: None,
+        type_: "context.replace".into(),
         v: version(),
     }))
 }

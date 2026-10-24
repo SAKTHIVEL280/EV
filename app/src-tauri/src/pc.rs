@@ -48,6 +48,18 @@ pub enum PcUpdateKind {
         on: bool,
         minutes: Option<u32>,
     },
+    /// What the hotkey captured from the app the user was in (F-201); `text`
+    /// is `None` when nothing was selected.
+    Context {
+        text: Option<String>,
+        app: String,
+        title: String,
+    },
+    /// Result of a quick action's Replace (F-202).
+    Replaced {
+        ok: bool,
+        message: String,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Type, tauri_specta::Event)]
@@ -93,6 +105,15 @@ pub fn update(message: Message) -> Option<PcUpdateKind> {
         Message::FocusChanged(m) => PcUpdateKind::Focus {
             on: m.payload.on,
             minutes: m.payload.minutes.map(|n| small(n.get())),
+        },
+        Message::ContextCaptured(m) => PcUpdateKind::Context {
+            text: m.payload.text.map(|t| t.to_string()),
+            app: m.payload.app.map(|a| a.to_string()).unwrap_or_default(),
+            title: m.payload.title.map(|t| t.to_string()).unwrap_or_default(),
+        },
+        Message::ContextReplaced(m) => PcUpdateKind::Replaced {
+            ok: m.payload.ok,
+            message: m.payload.message.to_string(),
         },
         _ => return None,
     })
@@ -164,6 +185,26 @@ mod tests {
                 minutes: Some(25),
             })
         );
+        assert_eq!(
+            update(fixture("context_captured.json")),
+            Some(PcUpdateKind::Context {
+                text: Some("teh quick brown fox".into()),
+                app: "notepad".into(),
+                title: "notes.txt - Notepad".into(),
+            })
+        );
+        assert_eq!(
+            update(fixture("context_captured_none.json")),
+            Some(PcUpdateKind::Context {
+                text: None,
+                app: String::new(),
+                title: String::new(),
+            })
+        );
+        assert!(matches!(
+            update(fixture("context_replaced.json")),
+            Some(PcUpdateKind::Replaced { ok: true, .. })
+        ));
         assert_eq!(update(fixture("ping.json")), None);
     }
 }

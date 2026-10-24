@@ -45,13 +45,17 @@ class ChatStore {
     }
   }
 
-  async send(text: string): Promise<void> {
-    this.state = begin(this.state, text);
+  /** Send a message; returns its turn id, or null when it couldn't be sent.
+   *  `shown` is what the conversation displays (a quick action's label). */
+  async send(text: string, shown: string = text): Promise<string | null> {
+    this.state = begin(this.state, shown);
     const result = await commands.chatSend(text, null);
-    this.state =
-      result.status === "ok"
-        ? sent(this.state, result.data)
-        : sendFailed(this.state, result.error.message);
+    if (result.status === "ok") {
+      this.state = sent(this.state, result.data);
+      return result.data;
+    }
+    this.state = sendFailed(this.state, result.error.message);
+    return null;
   }
 
   /** New chat. Returns an error message, or null. */

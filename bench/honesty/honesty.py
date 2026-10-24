@@ -146,7 +146,12 @@ async def _run(llama_dir: Path, model: Path, samples: int) -> list[Answer]:
     from ev_core.interfaces.events import ChatDone
     from ev_core.llm import LlmModule
     from ev_core.modules import ModuleContext
-    from ev_core.tools.clock import CurrentTimeTool
+    from ev_core.platform.fake_pc import FakePcControl
+    from ev_core.storage import Database
+    from ev_core.tools import build_tools
+    from ev_core.tools.clipboard import ClipboardHistory
+    from ev_core.tools.focus import FocusMode
+    from ev_core.tools.timers import Timers
 
     llm = LlmModule(
         LlmSection(models_dir=str(model.parent), model_default=model.name),
@@ -154,6 +159,16 @@ async def _run(llama_dir: Path, model: Path, samples: int) -> list[Answer]:
         llama_dir,
     )
     await llm.start(ModuleContext(bus=EventBus(), logger=logging.getLogger("honesty")))
+    # The app's own tool set (on the fake PC), so the prompt is exactly what users get.
+    data = Path(tempfile.mkdtemp(prefix="ev-honesty-pc-"))
+    db = Database(data / "ev.db")
+    await db.open()
+    pc = FakePcControl(data / "home")
+    box = Toolbox(
+        build_tools(
+            pc, Timers(db, lambda _e: None), ClipboardHistory(pc), FocusMode(lambda _e: None)
+        )
+    )
     answers: list[Answer] = []
     try:
         for question in QUESTIONS:
@@ -167,7 +182,7 @@ async def _run(llama_dir: Path, model: Path, samples: int) -> list[Answer]:
                     time.monotonic(),
                 )
                 # A fresh history each time: questions must not see each other.
-                await run_turn(request, llm, Toolbox([CurrentTimeTool()]), History(), events.append)
+                await run_turn(request, llm, box, History(), events.append)
                 done = next((e for e in reversed(events) if isinstance(e, ChatDone)), None)
                 reply = done.text if done is not None else ""
                 answers.append(
@@ -175,6 +190,7 @@ async def _run(llama_dir: Path, model: Path, samples: int) -> list[Answer]:
                 )
     finally:
         await llm.stop()
+        await db.close()
     return answers
 
 
