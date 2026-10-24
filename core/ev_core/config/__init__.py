@@ -10,6 +10,10 @@ from ev_core.config.schema import (
     LogLevel,
     Permission,
     PermissionsSection,
+    Recognizer,
+    SpeakReplies,
+    Voice,
+    VoiceSection,
 )
 from ev_core.config.store import ConfigStore, ConfigWarning, LoadedConfig
 from ev_core.config.watcher import ConfigChanged, ConfigWatcher
@@ -29,4 +33,8 @@ __all__ = [
     "LoggingSection",
     "Permission",
     "PermissionsSection",
+    "Recognizer",
+    "SpeakReplies",
+    "Voice",
+    "VoiceSection",
 ]

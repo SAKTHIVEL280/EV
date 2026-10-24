@@ -12,7 +12,7 @@ from ev_core.config.store import bounds
 
 type SettingValue = bool | int | str
 type SettingKind = Literal["boolean", "choice", "integer", "text"]
-type SettingWidget = Literal["model", "folder", "shortcut", "slider"]
+type SettingWidget = Literal["model", "folder", "shortcut", "slider", "menu"]
 type ModelRoleName = Literal["small", "default", "large"]
 
 
@@ -37,6 +37,8 @@ class SettingItem:
     """For ``widget="model"``: the model role the setting chooses."""
     steps: tuple[int, ...] = ()
     """For ``widget="slider"``: the values the slider stops at."""
+    labels: tuple[str, ...] = ()
+    """For choices: display names, in the order of ``options``."""
 
 
 def _plain(value: object) -> SettingValue:
@@ -70,6 +72,8 @@ def _declared_widget(extra: object) -> SettingWidget | None:
                 return "shortcut"
             case "slider":
                 return "slider"
+            case "menu":
+                return "menu"
     return None
 
 
@@ -88,6 +92,12 @@ def _declared_role(extra: object) -> ModelRoleName | None:
 def _declared_steps(extra: object) -> tuple[int, ...]:
     if isinstance(extra, dict) and isinstance(steps := extra.get("steps"), list):
         return tuple(v for v in steps if isinstance(v, int) and not isinstance(v, bool))
+    return ()
+
+
+def _declared_labels(extra: object, options: tuple[str, ...]) -> tuple[str, ...]:
+    if isinstance(extra, dict) and isinstance(labels := extra.get("labels"), dict):
+        return tuple(str(labels.get(option, option)) for option in options)
     return ()
 
 
@@ -132,6 +142,7 @@ def describe(config: EvConfig) -> list[SettingItem]:
                     widget=_declared_widget(field.json_schema_extra),
                     role=_declared_role(field.json_schema_extra),
                     steps=_declared_steps(field.json_schema_extra),
+                    labels=_declared_labels(field.json_schema_extra, options),
                 )
             )
     return items

@@ -10,6 +10,7 @@ composition root then fills the model's empty config slot.
 import asyncio
 import contextlib
 import logging
+import shutil
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -27,9 +28,10 @@ from ev_core.interfaces.events import (
     ModelInstalled,
     ModelsGetRequested,
     ModelsStateChanged,
+    VoicePackInfo,
 )
-from ev_core.models.catalog import Catalog, CatalogModel
-from ev_core.models.downloader import DownloadError, Progress, download, part_path
+from ev_core.models.catalog import Catalog, CatalogModel, VoicePack
+from ev_core.models.downloader import WRITE_TEXT, DownloadError, Progress, download, part_path
 from ev_core.modules import Module, ModuleContext
 
 logger = logging.getLogger(__name__)
@@ -65,6 +67,16 @@ class _Live:
 def models_folder(settings: LlmSection, data_dir: Path) -> Path:
     configured = settings.models_dir.strip()
     return Path(configured) if configured else data_dir / "models"
+
+
+def pack_folder(models: Path, pack: VoicePack) -> Path:
+    """Where an installed voice pack lives (the voice module reads it from here)."""
+    return models / "voice" / pack.folder
+
+
+def pack_part_folder(models: Path, pack: VoicePack) -> Path:
+    """Where a pack downloads; renamed to ``pack_folder`` once every file is verified."""
+    return models / "voice" / f"{pack.folder}.part"
 
 
 class ModelsModule(Module):
@@ -115,6 +127,7 @@ class ModelsModule(Module):
             models=tuple(self._info(m, folder) for m in self._catalog.models),
             reply_to=reply_to,
             other_files=self._other_files(folder),
+            voice=tuple(self._pack_info(p, folder) for p in self._catalog.voice),
         )
 
     def _other_files(self, folder: Path) -> tuple[str, ...]:
@@ -158,6 +171,36 @@ class ModelsModule(Module):
             error=error,
         )
 
+    def _pack_info(self, pack: VoicePack, folder: Path) -> VoicePackInfo:
+        live = self._live.get(pack.id)
+        if pack.id in self._tasks and live is not None:
+            state, received, speed, error = (
+                live.state,
+                live.received_bytes,
+                live.bytes_per_second,
+                None,
+            )
+        elif _pack_installed(folder, pack):
+            state, received, speed, error = "installed", pack.size_bytes, 0, None
+        else:
+            partial = _pack_received(pack_part_folder(folder, pack), pack)
+            failed = live is not None and live.state == "failed"
+            state = "failed" if failed else ("partial" if partial else "available")
+            received, speed = partial, 0
+            error = live.error if failed and live is not None else None
+        return VoicePackInfo(
+            id=pack.id,
+            name=pack.name,
+            summary=pack.summary,
+            kind=pack.kind,
+            option=pack.option,
+            size_bytes=pack.size_bytes,
+            state=state,
+            received_bytes=received,
+            bytes_per_second=speed,
+            error=error,
+        )
+
     def _publish(self, reply_to: str | None = None) -> None:
         if self._bus is not None:
             self._bus.publish(self.state(reply_to))
@@ -167,6 +210,14 @@ class ModelsModule(Module):
 
     async def _on_download(self, event: ModelDownloadRequested) -> None:
         model = self._catalog.get(event.model_id)
+        pack = self._catalog.pack(event.model_id)
+        if pack is not None:
+            if pack.id not in self._tasks and not _pack_installed(self.folder, pack):
+                received = _pack_received(pack_part_folder(self.folder, pack), pack)
+                self._live[pack.id] = _Live("downloading", received)
+                self._tasks[pack.id] = asyncio.create_task(self._run_pack(pack))
+            self._publish(event.request_id)
+            return
         if model is None:
             logger.warning("unknown model requested", extra={"fields": {"model": event.model_id}})
         elif event.model_id not in self._tasks and not _installed(
@@ -221,6 +272,70 @@ class ModelsModule(Module):
         finally:
             self._tasks.pop(model.id, None)
             self._publish()
+
+    async def _run_pack(self, pack: VoicePack) -> None:
+        part = pack_part_folder(self.folder, pack)
+        try:
+            if self._session is None:
+                self._session = self._session_factory()
+            for file in pack.files:
+                if _installed(part / file.path, file.size_bytes):
+                    continue
+                done = sum(
+                    f.size_bytes for f in pack.files if _installed(part / f.path, f.size_bytes)
+                )
+
+                def on_progress(progress: Progress, done: int = done) -> None:
+                    phase = "verifying" if progress.phase == "verifying" else "downloading"
+                    self._live[pack.id] = _Live(
+                        phase, done + progress.received_bytes, round(progress.bytes_per_second)
+                    )
+                    self._publish()
+
+                await download(self._session, file, part, on_progress)
+            final = pack_folder(self.folder, pack)
+            await asyncio.to_thread(_replace_folder, part, final)
+        except asyncio.CancelledError:
+            logger.info("download stopped", extra={"fields": {"model": pack.id}})
+            self._live.pop(pack.id, None)
+            raise
+        except DownloadError as exc:
+            logger.warning(
+                "download failed",
+                extra={"fields": {"model": pack.id, "code": exc.code, "detail": exc.detail}},
+            )
+            self._live[pack.id] = replace(_Live("failed"), error=exc.user_message)
+        except OSError as exc:
+            logger.warning(
+                "download failed", extra={"fields": {"model": pack.id, "detail": str(exc)}}
+            )
+            self._live[pack.id] = replace(_Live("failed"), error=WRITE_TEXT)
+        else:
+            self._live.pop(pack.id, None)
+            logger.info("voice pack installed", extra={"fields": {"pack": pack.id}})
+        finally:
+            self._tasks.pop(pack.id, None)
+            self._publish()
+
+
+def _replace_folder(part: Path, final: Path) -> None:
+    if final.exists():
+        shutil.rmtree(final)
+    part.rename(final)
+
+
+def _pack_installed(models: Path, pack: VoicePack) -> bool:
+    folder = pack_folder(models, pack)
+    return all(_installed(folder / f.path, f.size_bytes) for f in pack.files)
+
+
+def _pack_received(part: Path, pack: VoicePack) -> int:
+    """Bytes already on disk in a pack's download folder (whole and partial files)."""
+    total = 0
+    for f in pack.files:
+        path = part / f.path
+        total += f.size_bytes if _installed(path, f.size_bytes) else _size(part_path(path))
+    return total
 
 
 def _size(path: Path) -> int:

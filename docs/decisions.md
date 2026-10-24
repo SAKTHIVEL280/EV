@@ -353,3 +353,37 @@ facts (Tamil films, IPL 2025), 5 common facts, 3 help requests.
   ~16 ms timer. `scripts/third-party-notices` read licenses only from installed packages, so the
   seven Windows-only packages were missing from THIRD_PARTY_NOTICES.md and the Linux check failed;
   it now reads their metadata from PyPI's JSON API when they are not installed.
+
+## Stage C — voice (2026-10-24)
+- **Runtime: moonshine-voice 0.1.5 (MIT), not sherpa-onnx.** Measured on the i7-11800H, CPU:
+  sherpa-onnx 1.13.8 runs Kokoro int8 at 1.0–1.4x realtime (1.6–1.9 s for "Okay, opening
+  Notepad."), moonshine-voice's Kokoro at 4.5–6x (0.48 s). License: the sherpa-onnx wheels
+  statically link espeak-ng (GPL-3.0) for Kokoro/Kitten phonemes, which CLAUDE.md §2 forbids in
+  shipped code, the same reason Piper was rejected; moonshine-voice has its own G2P (dictionary +
+  a small model; third-party sources Eigen MPL-2.0, the rest MIT/BSD/Apache, no espeak-ng). It
+  also covers speech recognition (Moonshine v2 streaming, as CLAUDE.md §2 lists) and voice
+  activity detection, so EV has one voice runtime (the "single voice runtime" decision), now
+  moonshine-voice instead of sherpa-onnx. Wheel ~44 MB (its own onnxruntime included).
+- **Speech recognition: Moonshine small-streaming by default, tiny as the low-memory option.**
+  Kokoro sentences read back: small got 4/4 right apart from one name ("Priya" → "Priza"); tiny
+  wrote "notepads". Final words ~10 ms after audio stops. Peak RSS in one process: recognizer
+  small 426 MB, + Kokoro 785 MB, ~870 MB after a round trip (python base 33 MB), so the 4B total
+  stays near 4.3 GB (budget 5.0). Listening to near-silence: 3.4 % of one core.
+- **Endpointing:** Moonshine completes a line 0.1–0.4 s after speech stops, which would cut
+  requests at natural pauses. EV waits 0.7 s after the last completed line, and a line that
+  starts in that window joins the request.
+- **Echo guard instead of echo cancellation** (F-006): energy detector, 150 ms of speech, mic
+  level must exceed 2.5x the learned echo ratio times the output level. Without the mic in
+  WASAPI communications mode there is no AEC; this keeps laptop speakers from triggering
+  barge-in. Unverified with real speakers until the Windows check.
+- **Voice packs from download.moonshine.ai**, pinned by size and SHA-256 per file (the CDN's
+  speech-recognition paths carry a version; Kokoro's don't, so the hash is the pin). Moonshine's
+  Hugging Face repo holds a different file layout that moonshine-voice 0.1.5 doesn't load. The
+  CDN (Cloudflare) refuses Python's default user agent; EV's downloader sends its own and works.
+  A pack downloads into `<folder>.part/` and is renamed when every file is verified.
+- **Transitive pins:** `uv add` picked certifi 2026.10.23, filelock 4.2.4 and pycparser 3.12,
+  all under two weeks old; held at 2026.7.22, 4.1.0 and 3.11 with `constraint-dependencies`.
+- **Spoken reply rules:** a spoken request gets a spoken reply; "Okay, on it." when a tool starts
+  before any words; after the reply EV listens 5 s for a follow-up. Recognizer noise words alone
+  ("you", "um") are never sent. Noise while EV is still thinking opens a listening session but
+  keeps the reply unless real words follow.

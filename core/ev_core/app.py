@@ -35,11 +35,12 @@ from ev_core.errors import EvError
 from ev_core.interfaces.events import ModelInstalled
 from ev_core.llm import LlmModule
 from ev_core.log import set_level, setup_logging
-from ev_core.models import ModelsModule
+from ev_core.models import ModelsModule, models_folder
 from ev_core.models.catalog import load_catalog
 from ev_core.modules import ModuleRegistry
 from ev_core.paths import data_dir
 from ev_core.platform.pc import make_pc_control
+from ev_core.platform.quiet import windows_wants_quiet
 from ev_core.server import CoreServer
 from ev_core.storage import Database
 from ev_core.tools import build_tools
@@ -47,6 +48,9 @@ from ev_core.tools.clipboard import ClipboardHistory
 from ev_core.tools.focus import FocusMode
 from ev_core.tools.pc_module import PcModule
 from ev_core.tools.timers import Timers
+from ev_core.voice import VoiceModule
+from ev_core.voice.audio import SoundDeviceInput, SoundDeviceOutput
+from ev_core.voice.moonshine import MoonshineStt, MoonshineTts
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +121,19 @@ async def run(env: Mapping[str, str], stdout: TextIO, stdin: TextIO | None) -> i
     )
     registry.register(ModelsModule(config.llm, root, load_catalog()), enabled=True)
     registry.register(PcModule(db, root / "backups", actions, timers, clipboard, pc), enabled=True)
+    registry.register(
+        VoiceModule(
+            config.voice,
+            lambda: models_folder(watcher.current.config.llm, root),
+            lambda: watcher.current.config.llm.idle_unload_minutes,
+            stt=MoonshineStt(),
+            tts=MoonshineTts(),
+            mic=SoundDeviceInput(),
+            speaker=SoundDeviceOutput(),
+            quiet=windows_wants_quiet,
+        ),
+        enabled=True,
+    )
 
     async def on_config_changed(event: ConfigChanged) -> None:
         if "logging" in event.sections:

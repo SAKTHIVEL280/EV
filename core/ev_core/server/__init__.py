@@ -58,6 +58,11 @@ from ev_core.interfaces.events import (
     ToolConfirmClosed,
     ToolConfirmRequested,
     UndoRequested,
+    VoiceHeard,
+    VoiceLevel,
+    VoiceStartRequested,
+    VoiceStateChanged,
+    VoiceStopRequested,
 )
 from ev_core.modules import ModuleStatus
 
@@ -129,6 +134,7 @@ def to_message(event: Event) -> protocol.AnyMessage | None:
                     widget=protocol.SettingWidget(i.widget) if i.widget else None,
                     role=protocol.SettingRole(i.role) if i.role else None,
                     steps=list(i.steps) or None,
+                    labels=list(i.labels) or None,
                 )
                 for i in event.items
             ]
@@ -155,8 +161,25 @@ def to_message(event: Event) -> protocol.AnyMessage | None:
                 )
                 for m in event.models
             ]
+            voice = [
+                protocol.VoicePackEntry.model_validate(
+                    {
+                        "id": p.id,
+                        "name": p.name,
+                        "summary": p.summary,
+                        "kind": p.kind,
+                        "option": p.option,
+                        "size_bytes": p.size_bytes,
+                        "state": p.state,
+                        "received_bytes": p.received_bytes,
+                        "bytes_per_second": p.bytes_per_second,
+                        "error": p.error,
+                    }
+                )
+                for p in event.voice
+            ]
             return protocol.models_state(
-                event.models_dir, models, event.reply_to, list(event.other_files)
+                event.models_dir, models, event.reply_to, list(event.other_files), voice
             )
         case ToolConfirmRequested():
             return protocol.tool_confirm(
@@ -178,6 +201,12 @@ def to_message(event: Event) -> protocol.AnyMessage | None:
             return protocol.context_captured(event.text, event.app, event.title)
         case ContextReplaced():
             return protocol.context_replaced(event.ok, event.message)
+        case VoiceStateChanged():
+            return protocol.voice_state(event.mic, event.speaking, event.message, event.code)
+        case VoiceLevel():
+            return protocol.voice_level(event.level)
+        case VoiceHeard():
+            return protocol.voice_heard(event.text, event.final)
     return None
 
 
@@ -199,6 +228,9 @@ OUTBOUND_EVENTS: tuple[type[Event], ...] = (
     FocusModeChanged,
     ContextCaptured,
     ContextReplaced,
+    VoiceStateChanged,
+    VoiceLevel,
+    VoiceHeard,
 )
 
 
@@ -366,6 +398,7 @@ class CoreServer:
                             message.id,
                             message.payload.text,
                             EffortLevel(effort.value) if effort is not None else None,
+                            spoken=bool(message.payload.spoken),
                         )
                     )
                 case protocol.ChatCancelMessage():
@@ -399,6 +432,10 @@ class CoreServer:
                     self._bus.publish(ContextClearRequested())
                 case protocol.ContextReplaceMessage():
                     self._bus.publish(ContextReplaceRequested(message.payload.text))
+                case protocol.VoiceStartMessage():
+                    self._bus.publish(VoiceStartRequested(message.payload.source.value))
+                case protocol.VoiceStopMessage():
+                    self._bus.publish(VoiceStopRequested(message.payload.reason.value))
                 case (
                     protocol.HelloAckMessage()
                     | protocol.PongMessage()
@@ -419,6 +456,9 @@ class CoreServer:
                     | protocol.FocusChangedMessage()
                     | protocol.ContextCapturedMessage()
                     | protocol.ContextReplacedMessage()
+                    | protocol.VoiceStateMessage()
+                    | protocol.VoiceLevelMessage()
+                    | protocol.VoiceHeardMessage()
                 ):
                     await self._send_error(
                         connection,

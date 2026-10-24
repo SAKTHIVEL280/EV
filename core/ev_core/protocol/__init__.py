@@ -92,6 +92,15 @@ from ev_core.protocol.generated import (
     ToolConfirmClosedPayload,
     ToolConfirmMessage,
     ToolConfirmPayload,
+    VoiceHeardMessage,
+    VoiceHeardPayload,
+    VoiceLevelMessage,
+    VoiceLevelPayload,
+    VoicePackEntry,
+    VoiceStartMessage,
+    VoiceStateMessage,
+    VoiceStatePayload,
+    VoiceStopMessage,
 )
 from ev_core.protocol.generated import (
     Kind as SettingKind,
@@ -149,7 +158,12 @@ type AnyMessage = Annotated[
     | ContextCapturedMessage
     | ContextClearMessage
     | ContextReplaceMessage
-    | ContextReplacedMessage,
+    | ContextReplacedMessage
+    | VoiceStartMessage
+    | VoiceStopMessage
+    | VoiceStateMessage
+    | VoiceLevelMessage
+    | VoiceHeardMessage,
     Field(discriminator="type"),
 ]
 
@@ -407,6 +421,7 @@ def models_state(
     models: list[ModelEntry],
     reply_to: str | None = None,
     other_files: list[str] | None = None,
+    voice: list[VoicePackEntry] | None = None,
 ) -> ModelsStateMessage:
     return ModelsStateMessage(
         v=PROTOCOL_VERSION,
@@ -414,7 +429,10 @@ def models_state(
         id=new_id(),
         reply_to=reply_to,
         payload=ModelsStatePayload(
-            models_dir=models_dir, models=models, other_files=other_files or None
+            models_dir=models_dir,
+            models=models,
+            other_files=other_files or None,
+            voice=voice or None,
         ),
     )
 
@@ -507,6 +525,37 @@ def context_replaced(ok: bool, message: str) -> ContextReplacedMessage:
     )
 
 
+def voice_state(
+    mic: bool, speaking: bool, message: str | None = None, code: str | None = None
+) -> VoiceStateMessage:
+    return VoiceStateMessage(
+        v=PROTOCOL_VERSION,
+        type="voice.state",
+        id=new_id(),
+        payload=VoiceStatePayload.model_validate(
+            {"mic": mic, "speaking": speaking, "message": message, "code": code}
+        ),
+    )
+
+
+def voice_level(level: float) -> VoiceLevelMessage:
+    return VoiceLevelMessage(
+        v=PROTOCOL_VERSION,
+        type="voice.level",
+        id=new_id(),
+        payload=VoiceLevelPayload(level=max(0.0, min(1.0, level))),
+    )
+
+
+def voice_heard(text: str, final: bool) -> VoiceHeardMessage:
+    return VoiceHeardMessage(
+        v=PROTOCOL_VERSION,
+        type="voice.heard",
+        id=new_id(),
+        payload=VoiceHeardPayload(text=text[:20000], final=final),
+    )
+
+
 def _readable_id(raw: str | bytes) -> str | None:
     try:
         obj = json.loads(raw)
@@ -576,6 +625,12 @@ __all__ = [
     "ToolAnswerMessage",
     "ToolConfirmClosedMessage",
     "ToolConfirmMessage",
+    "VoiceHeardMessage",
+    "VoiceLevelMessage",
+    "VoicePackEntry",
+    "VoiceStartMessage",
+    "VoiceStateMessage",
+    "VoiceStopMessage",
     "action_recorded",
     "action_undone",
     "chat_cancel",

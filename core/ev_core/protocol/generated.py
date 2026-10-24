@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, RootModel
-from enum import StrEnum
+from enum import Enum, StrEnum
 
 
 class ModuleState(StrEnum):
@@ -303,6 +303,10 @@ class ChatSendPayload(BaseModel):
     ]
     effort: Annotated[
         Effort | None, Field(description="Requested effort; omitted means the configured default.")
+    ] = None
+    spoken: Annotated[
+        bool | None,
+        Field(description="The user said it (F-008); core speaks the reply. Omitted means typed."),
     ] = None
 
 
@@ -758,13 +762,14 @@ class Option(RootModel[str]):
 
 class Widget(StrEnum):
     """
-    Control the Settings window draws instead of the plain one for its kind (F-415). Absent: the plain control.
+    Control the Settings window draws instead of the plain one for its kind (F-415). menu: a drop-down for long choice lists. Absent: the plain control.
     """
 
     model = "model"
     folder = "folder"
     shortcut = "shortcut"
     slider = "slider"
+    menu = "menu"
 
 
 class Role(StrEnum):
@@ -775,6 +780,10 @@ class Role(StrEnum):
     small = "small"
     default = "default"
     large = "large"
+
+
+class Label(RootModel[str]):
+    root: Annotated[str, Field(max_length=64)]
 
 
 class SettingItem(BaseModel):
@@ -799,7 +808,7 @@ class SettingItem(BaseModel):
     widget: Annotated[
         Widget | None,
         Field(
-            description="Control the Settings window draws instead of the plain one for its kind (F-415). Absent: the plain control."
+            description="Control the Settings window draws instead of the plain one for its kind (F-415). menu: a drop-down for long choice lists. Absent: the plain control."
         ),
     ] = None
     role: Annotated[
@@ -813,6 +822,12 @@ class SettingItem(BaseModel):
         Field(
             description="For widget = slider: the values the slider stops at, ascending. Absent: every integer from minimum to maximum.",
             max_length=64,
+        ),
+    ] = None
+    labels: Annotated[
+        list[Label] | None,
+        Field(
+            description="For kind = choice: display names, in the same order as options. Absent: show the options as they are."
         ),
     ] = None
 
@@ -1077,20 +1092,6 @@ class OtherFile(RootModel[str]):
     root: Annotated[str, Field(max_length=255)]
 
 
-class ModelsStatePayload(BaseModel):
-    models_dir: Annotated[
-        str, Field(description="Absolute path of the models folder.", max_length=4096)
-    ]
-    models: list[ModelEntry]
-    other_files: Annotated[
-        list[OtherFile] | None,
-        Field(
-            description="Model files (.gguf) in the models folder that are not in the catalog, by file name (F-415).",
-            max_length=256,
-        ),
-    ] = None
-
-
 class ModelsGetMessage(BaseModel):
     """
     Rust -> core. Ask for the model list; core answers models.state.
@@ -1188,39 +1189,6 @@ class ModelsCancelMessage(BaseModel):
         ),
     ] = None
     payload: ModelRequestPayload
-
-
-class ModelsStateMessage(BaseModel):
-    """
-    core -> Rust. Every catalog model with its state; also sent on download progress (at most 4/s).
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    v: Annotated[
-        int,
-        Field(
-            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
-            ge=1,
-        ),
-    ]
-    type: Literal["models.state"]
-    id: Annotated[
-        str,
-        Field(
-            description="UUID v4, unique per message.",
-            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-        ),
-    ]
-    reply_to: Annotated[
-        str | None,
-        Field(
-            description="UUID v4, unique per message.",
-            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-        ),
-    ] = None
-    payload: ModelsStatePayload
 
 
 class Risk(StrEnum):
@@ -1758,6 +1726,329 @@ class ContextReplacedMessage(BaseModel):
     payload: ContextReplacedPayload
 
 
+class Kind2(StrEnum):
+    recognizer = "recognizer"
+    speech = "speech"
+
+
+class VoicePackEntry(BaseModel):
+    """
+    One voice pack and its state on this PC (F-010).
+    """
+
+    id: Annotated[
+        str,
+        Field(
+            description="Catalog model id (core/ev_core/models/manifest.json).",
+            pattern="^[a-z0-9][a-z0-9.\\-]{1,63}$",
+        ),
+    ]
+    name: Annotated[str, Field(max_length=40)]
+    summary: Annotated[str, Field(max_length=80)]
+    kind: Kind2
+    option: Annotated[
+        str,
+        Field(
+            description="The setting value that uses this pack (voice.recognizer size, or kokoro).",
+            max_length=32,
+        ),
+    ]
+    size_bytes: Annotated[int, Field(ge=0)]
+    state: ModelState
+    received_bytes: Annotated[int, Field(ge=0)]
+    bytes_per_second: Annotated[int, Field(ge=0)]
+    error: Annotated[
+        str | None, Field(description="User-facing reason when state is failed.", max_length=300)
+    ] = None
+
+
+class Source(StrEnum):
+    hotkey = "hotkey"
+    button = "button"
+    push_to_talk = "push_to_talk"
+
+
+class VoiceStartPayload(BaseModel):
+    source: Source
+
+
+class Reason1(StrEnum):
+    """
+    typing: mic off and speech stops. closed: panel closed, mic off, speech goes on. button: mic off. send: push-to-talk released, send what was heard. silence: stop speaking and close the mic.
+    """
+
+    typing = "typing"
+    closed = "closed"
+    button = "button"
+    send = "send"
+    silence = "silence"
+
+
+class VoiceStopPayload(BaseModel):
+    reason: Annotated[
+        Reason1,
+        Field(
+            description="typing: mic off and speech stops. closed: panel closed, mic off, speech goes on. button: mic off. send: push-to-talk released, send what was heard. silence: stop speaking and close the mic."
+        ),
+    ]
+
+
+class Code(Enum):
+    not_installed = "not_installed"
+    no_mic = "no_mic"
+    mic_blocked = "mic_blocked"
+    no_speaker = "no_speaker"
+    failed = "failed"
+    no_speech = "no_speech"
+    off = "off"
+    NoneType_None = None
+
+
+class VoiceStatePayload(BaseModel):
+    mic: Annotated[bool, Field(description="The microphone is open.")]
+    speaking: bool
+    message: Annotated[
+        str | None,
+        Field(description="Why voice stopped or could not start, in plain words.", max_length=300),
+    ] = None
+    code: Code | None = None
+
+
+class VoiceLevelPayload(BaseModel):
+    level: Annotated[
+        float,
+        Field(
+            description="Mic level 0..1, about 15 times a second while the mic is open.",
+            ge=0.0,
+            le=1.0,
+        ),
+    ]
+
+
+class VoiceHeardPayload(BaseModel):
+    text: Annotated[str, Field(max_length=20000)]
+    final: Annotated[
+        bool,
+        Field(description="The user stopped talking: the app sends text as a spoken chat message."),
+    ]
+
+
+class VoiceStartMessage(BaseModel):
+    """
+    Rust -> core. Open the mic and listen (F-008).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["voice.start"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: VoiceStartPayload
+
+
+class VoiceStopMessage(BaseModel):
+    """
+    Rust -> core. Stop listening and/or speaking (F-008).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["voice.stop"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: VoiceStopPayload
+
+
+class VoiceStateMessage(BaseModel):
+    """
+    core -> Rust. Mic and speech state, with a message when voice stopped or failed.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["voice.state"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: VoiceStatePayload
+
+
+class VoiceLevelMessage(BaseModel):
+    """
+    core -> Rust. Live mic level for the island.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["voice.level"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: VoiceLevelPayload
+
+
+class VoiceHeardMessage(BaseModel):
+    """
+    core -> Rust. Words recognized so far; final when the user stopped talking.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["voice.heard"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: VoiceHeardPayload
+
+
+class ModelsStatePayload(BaseModel):
+    models_dir: Annotated[
+        str, Field(description="Absolute path of the models folder.", max_length=4096)
+    ]
+    models: list[ModelEntry]
+    other_files: Annotated[
+        list[OtherFile] | None,
+        Field(
+            description="Model files (.gguf) in the models folder that are not in the catalog, by file name (F-415).",
+            max_length=256,
+        ),
+    ] = None
+    voice: Annotated[
+        list[VoicePackEntry] | None,
+        Field(description="Voice packs (F-010). Absent: none offered.", max_length=32),
+    ] = None
+
+
+class ModelsStateMessage(BaseModel):
+    """
+    core -> Rust. Every catalog model with its state; also sent on download progress (at most 4/s).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    v: Annotated[
+        int,
+        Field(
+            description="Protocol version of the sender. Receivers compare it with their own and reply with an error of code protocol_mismatch when they differ.",
+            ge=1,
+        ),
+    ]
+    type: Literal["models.state"]
+    id: Annotated[
+        str,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ]
+    reply_to: Annotated[
+        str | None,
+        Field(
+            description="UUID v4, unique per message.",
+            pattern="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        ),
+    ] = None
+    payload: ModelsStatePayload
+
+
 class EvMessage(
     RootModel[
         HelloMessage
@@ -1797,6 +2088,11 @@ class EvMessage(
         | ContextClearMessage
         | ContextReplaceMessage
         | ContextReplacedMessage
+        | VoiceStartMessage
+        | VoiceStopMessage
+        | VoiceStateMessage
+        | VoiceLevelMessage
+        | VoiceHeardMessage
     ]
 ):
     root: Annotated[
@@ -1836,7 +2132,12 @@ class EvMessage(
         | ContextCapturedMessage
         | ContextClearMessage
         | ContextReplaceMessage
-        | ContextReplacedMessage,
+        | ContextReplacedMessage
+        | VoiceStartMessage
+        | VoiceStopMessage
+        | VoiceStateMessage
+        | VoiceLevelMessage
+        | VoiceHeardMessage,
         Field(
             description="EV wire protocol between the Tauri app (Rust) and ev-core (Python). One JSON object per WebSocket text frame. Changes are additive; removing or renaming a field requires a protocol version bump.",
             title="EvMessage",

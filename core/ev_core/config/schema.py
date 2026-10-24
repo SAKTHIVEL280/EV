@@ -262,6 +262,112 @@ class IslandSection(BaseModel):
     )
 
 
+class SpeakReplies(StrEnum):
+    WHEN_SPOKEN = "when_spoken"
+    ALWAYS = "always"
+    NEVER = "never"
+
+
+class Recognizer(StrEnum):
+    SMALL = "small"
+    TINY = "tiny"
+
+
+class Voice(StrEnum):
+    """Kokoro's American English voices (F-008)."""
+
+    HEART = "af_heart"
+    BELLA = "af_bella"
+    NICOLE = "af_nicole"
+    SARAH = "af_sarah"
+    SKY = "af_sky"
+    NOVA = "af_nova"
+    RIVER = "af_river"
+    JESSICA = "af_jessica"
+    ALLOY = "af_alloy"
+    AOEDE = "af_aoede"
+    KORE = "af_kore"
+    MICHAEL = "am_michael"
+    ADAM = "am_adam"
+    ERIC = "am_eric"
+    LIAM = "am_liam"
+    ONYX = "am_onyx"
+    ECHO = "am_echo"
+    FENRIR = "am_fenrir"
+    PUCK = "am_puck"
+
+
+def _voice_label(voice: Voice) -> str:
+    gender = "female" if voice.value.startswith("af_") else "male"
+    return f"{voice.name.title()} ({gender})"
+
+
+class VoiceSection(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    enabled: bool = Field(
+        default=True,
+        title="Voice",
+        description="Talk to EV with the hotkey or the mic button, and hear its replies.",
+    )
+    speak_replies: SpeakReplies = Field(
+        default=SpeakReplies.WHEN_SPOKEN,
+        title="Spoken replies",
+        description="When EV answers out loud.",
+        json_schema_extra={
+            "labels": {"when_spoken": "When I speak", "always": "Always", "never": "Never"}
+        },
+    )
+    voice: Voice = Field(
+        default=Voice.HEART,
+        title="Voice",
+        description="How EV sounds.",
+        json_schema_extra={
+            "widget": "menu",
+            "labels": {v.value: _voice_label(v) for v in Voice},
+        },
+    )
+    speed: int = Field(
+        default=100,
+        ge=70,
+        le=150,
+        title="Speaking speed",
+        description="How fast EV talks.",
+        json_schema_extra={
+            "unit": "%",
+            "widget": "slider",
+            "steps": [70, 80, 90, 100, 110, 120, 130, 140, 150],
+        },
+    )
+    volume: int = Field(
+        default=80,
+        ge=0,
+        le=100,
+        title="Speaking volume",
+        description="How loud EV talks, on top of the Windows volume.",
+        json_schema_extra={"unit": "%", "widget": "slider"},
+    )
+    recognizer: Recognizer = Field(
+        default=Recognizer.SMALL,
+        title="Speech recognition",
+        description="Small understands more; Tiny uses less memory.",
+        json_schema_extra={"labels": {"small": "Small", "tiny": "Tiny"}},
+    )
+    follow_up: bool = Field(
+        default=True,
+        title="Listen for a follow-up",
+        description="After a spoken reply, keep listening for 5 seconds.",
+    )
+    earcons_volume: int = Field(
+        default=50,
+        ge=0,
+        le=100,
+        title="Sounds",
+        description="Volume of the listening, done and error sounds. 0 turns them off.",
+        json_schema_extra={"unit": "%", "widget": "slider"},
+    )
+
+
 class EvConfig(BaseModel):
     """Root of config.toml. Each field is one [section]."""
 
@@ -301,4 +407,9 @@ class EvConfig(BaseModel):
         default_factory=ClipboardSection,
         description="Copied text.",
         json_schema_extra=_nav(Nav.MEMORY),
+    )
+    voice: VoiceSection = Field(
+        default_factory=VoiceSection,
+        description="Talking with EV.",
+        json_schema_extra=_nav(Nav.VOICE),
     )

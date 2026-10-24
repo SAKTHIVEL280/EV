@@ -114,10 +114,23 @@ def test_descriptors_cover_every_key_with_metadata(tmp_path: Path) -> None:
         "permissions.ui",
         "clipboard.history",
         "clipboard.actions",
+        "voice.enabled",
+        "voice.speak_replies",
+        "voice.voice",
+        "voice.speed",
+        "voice.volume",
+        "voice.recognizer",
+        "voice.follow_up",
+        "voice.earcons_volume",
     }
     assert items["permissions.files"].options == ("allow", "ask", "block")
     assert items["permissions.files"].nav is Nav.PERMISSIONS
     assert items["clipboard.actions"].default is False
+    assert items["voice.voice"].widget == "menu"
+    assert items["voice.voice"].labels[0] == "Heart (female)"
+    assert len(items["voice.voice"].labels) == len(items["voice.voice"].options)
+    assert items["voice.speak_replies"].labels == ("When I speak", "Always", "Never")
+    assert items["permissions.files"].labels == ()
     assert items["island.reveal_distance"].nav is Nav.APPEARANCE
     assert (items["island.reveal_distance"].unit, items["island.reveal_delay_ms"].unit) == (
         "px",

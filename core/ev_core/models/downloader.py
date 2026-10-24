@@ -20,12 +20,27 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import BinaryIO, Final, Literal
+from typing import BinaryIO, Final, Literal, Protocol
 
 import aiohttp
 
 from ev_core.errors import EvError
-from ev_core.models.catalog import CatalogModel
+
+
+class Downloadable(Protocol):
+    """A pinned file: a catalog model or one file of a voice pack."""
+
+    @property
+    def id(self) -> str: ...
+    @property
+    def file(self) -> str: ...
+    @property
+    def url(self) -> str: ...
+    @property
+    def size_bytes(self) -> int: ...
+    @property
+    def sha256(self) -> str: ...
+
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +151,7 @@ class _Reporter:
 
 async def download(
     session: aiohttp.ClientSession,
-    model: CatalogModel,
+    model: Downloadable,
     folder: Path,
     on_progress: Callable[[Progress], None],
     *,
@@ -146,7 +161,7 @@ async def download(
     final = folder / model.file
     part = part_path(final)
     try:
-        await asyncio.to_thread(folder.mkdir, parents=True, exist_ok=True)
+        await asyncio.to_thread(final.parent.mkdir, parents=True, exist_ok=True)
         partial = _Partial(hashlib.sha256(), 0)
         if part.exists():
             partial.digest, partial.received = await asyncio.to_thread(_hash_file, part)
@@ -205,7 +220,7 @@ async def download(
 
 async def _fetch(
     session: aiohttp.ClientSession,
-    model: CatalogModel,
+    model: Downloadable,
     part: Path,
     partial: _Partial,
     reporter: _Reporter,

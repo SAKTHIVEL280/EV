@@ -23,6 +23,8 @@ class ChatRequested(Event):
     turn_id: str
     text: str
     effort: EffortLevel | None
+    spoken: bool = False
+    """The user said it (F-008): the reply is spoken too."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,12 +161,31 @@ class ModelInfo:
 
 
 @dataclass(frozen=True, slots=True)
+class VoicePackInfo:
+    """One voice pack and its state on this PC (F-010)."""
+
+    id: str
+    name: str
+    summary: str
+    kind: str
+    """recognizer | speech"""
+    option: str
+    size_bytes: int
+    state: str
+    """available | partial | downloading | verifying | installed | failed"""
+    received_bytes: int
+    bytes_per_second: int
+    error: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class ModelsStateChanged(Event):
     models_dir: str
     models: tuple[ModelInfo, ...]
     reply_to: str | None = None
     other_files: tuple[str, ...] = ()
     """``.gguf`` files in the models folder that are not catalog models."""
+    voice: tuple[VoicePackInfo, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -269,3 +290,43 @@ class ContextReplaceRequested(Event):
 class ContextReplaced(Event):
     ok: bool
     message: str
+
+
+@dataclass(frozen=True, slots=True)
+class VoiceStartRequested(Event):
+    """Open the mic (F-008): hotkey, mic button or push-to-talk."""
+
+    source: str
+    """hotkey | button | push_to_talk"""
+
+
+@dataclass(frozen=True, slots=True)
+class VoiceStopRequested(Event):
+    reason: str
+    """typing (mic off, speech stops) | closed (mic off, speech goes on) |
+    button (mic off) | send (push-to-talk released: send what was heard now) |
+    silence (stop speaking, keep the mic as it is)"""
+
+
+@dataclass(frozen=True, slots=True)
+class VoiceStateChanged(Event):
+    mic: bool
+    """The microphone is open (the island shows the mic indicator)."""
+    speaking: bool
+    message: str | None = None
+    """Why voice stopped or couldn't start, in plain words."""
+    code: str | None = None
+    """not_installed | no_mic | mic_blocked | no_speaker | failed | no_speech"""
+
+
+@dataclass(frozen=True, slots=True)
+class VoiceLevel(Event):
+    level: float
+    """Mic level, 0..1, about 15 times a second while the mic is open."""
+
+
+@dataclass(frozen=True, slots=True)
+class VoiceHeard(Event):
+    text: str
+    final: bool
+    """True once the user stopped talking: the app sends ``text`` as a spoken chat message."""

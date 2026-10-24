@@ -43,11 +43,67 @@ class CatalogModel(BaseModel):
         return url
 
 
+VOICE_HOST: Final = "download.moonshine.ai"
+_SEGMENT: Final = r"[A-Za-z0-9_\-]+(\.[A-Za-z0-9_\-]+)*"
+_PACK_PATH: Final = rf"^{_SEGMENT}(/{_SEGMENT})*$"
+
+
+class PackFile(BaseModel):
+    """One file of a voice pack, pinned by size and SHA-256."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    path: Annotated[str, Field(pattern=_PACK_PATH)]
+    """Relative to the pack folder. Segments are names with single dots, so
+    ``..`` and absolute paths can't appear."""
+    url: str
+    size_bytes: Annotated[int, Field(gt=0)]
+    sha256: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+
+    @field_validator("url")
+    @classmethod
+    def _voice_host(cls, url: str) -> str:
+        parts = urlparse(url)
+        if parts.scheme != "https" or parts.hostname != VOICE_HOST:
+            raise ValueError(f"voice URLs must be https://{VOICE_HOST}/...")
+        return url
+
+    @property
+    def id(self) -> str:
+        return self.path
+
+    @property
+    def file(self) -> str:
+        return self.path
+
+
+class VoicePack(BaseModel):
+    """Files that together make one voice engine (F-010)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    id: Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9.\-]{1,63}$")]
+    name: Annotated[str, Field(min_length=1, max_length=40)]
+    summary: Annotated[str, Field(min_length=1, max_length=80)]
+    kind: Literal["recognizer", "speech"]
+    option: str
+    """The setting value that uses it: ``voice.recognizer`` size, or "kokoro"."""
+    folder: Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9.\-]{1,63}$")]
+    """Folder under ``models/voice``."""
+    license: str
+    files: tuple[PackFile, ...]
+
+    @property
+    def size_bytes(self) -> int:
+        return sum(f.size_bytes for f in self.files)
+
+
 class Catalog(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     manifest_version: Literal[1]
     models: tuple[CatalogModel, ...]
+    voice: tuple[VoicePack, ...] = ()
 
     @field_validator("models")
     @classmethod
@@ -60,8 +116,20 @@ class Catalog(BaseModel):
             raise ValueError("exactly one model must be recommended")
         return models
 
+    @field_validator("voice")
+    @classmethod
+    def _unique_packs(cls, packs: tuple[VoicePack, ...]) -> tuple[VoicePack, ...]:
+        for field in ("id", "folder"):
+            values = [getattr(p, field) for p in packs]
+            if len(values) != len(set(values)):
+                raise ValueError(f"duplicate voice pack {field}")
+        return packs
+
     def get(self, model_id: str) -> CatalogModel | None:
         return next((m for m in self.models if m.id == model_id), None)
+
+    def pack(self, pack_id: str) -> VoicePack | None:
+        return next((p for p in self.voice if p.id == pack_id), None)
 
 
 def load_catalog(text: str | None = None) -> Catalog:

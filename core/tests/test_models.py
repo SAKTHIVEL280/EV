@@ -30,8 +30,8 @@ from ev_core.interfaces.events import (
     ModelsStateChanged,
 )
 from ev_core.interfaces.llm import ModelRole
-from ev_core.models import ModelsModule
-from ev_core.models.catalog import Catalog, CatalogModel, load_catalog
+from ev_core.models import ModelsModule, pack_folder, pack_part_folder
+from ev_core.models.catalog import Catalog, CatalogModel, PackFile, VoicePack, load_catalog
 from ev_core.models.downloader import DownloadError, Progress, download, part_path
 from ev_core.modules import ModuleContext
 
@@ -400,3 +400,93 @@ async def test_installed_model_fills_only_an_empty_slot() -> None:
     chosen = LlmSection(model_default="Mine.gguf")
     await fill_model_slot(event, chosen, settings)  # type: ignore[arg-type]
     assert settings.calls == []
+
+
+# --- voice packs (F-010) ---------------------------------------------------------
+
+
+def test_bundled_voice_packs_are_pinned() -> None:
+    catalog = load_catalog()
+    kinds = {(p.kind, p.option) for p in catalog.voice}
+    assert kinds == {("recognizer", "small"), ("recognizer", "tiny"), ("speech", "kokoro")}
+    for pack in catalog.voice:
+        assert pack.files
+        for f in pack.files:
+            assert f.url.startswith("https://download.moonshine.ai/")
+            assert f.url.endswith("/" + f.path)
+    speech = next(p for p in catalog.voice if p.kind == "speech")
+    voices = {
+        f.path.removeprefix("kokoro/voices/").removesuffix(".kokorovoice") for f in speech.files
+    }
+    from ev_core.config import Voice
+
+    assert {v.value for v in Voice} <= voices
+
+
+def pack(server: Server, *sha: str) -> VoicePack:
+    files = tuple(
+        PackFile.model_construct(
+            path=f"sub/file{i}.ort",
+            url=f"{server.base_url}/model.gguf",
+            size_bytes=len(DATA),
+            sha256=digest,
+        )
+        for i, digest in enumerate(sha)
+    )
+    return VoicePack.model_construct(
+        id="test-voice",
+        name="Voice",
+        summary="Test voice.",
+        kind="speech",
+        option="kokoro",
+        folder="test-voice",
+        license="MIT",
+        files=files,
+    )
+
+
+async def started_with_pack(
+    tmp_path: Path, bus: EventBus, voice: VoicePack
+) -> tuple[ModelsModule, Recorder]:
+    recorder = Recorder(bus)
+    catalog = Catalog.model_construct(manifest_version=1, models=(), voice=(voice,))
+    module = ModelsModule(LlmSection(), tmp_path, catalog)
+    await module.start(ModuleContext(bus=bus, logger=logging.getLogger("models")))
+    return module, recorder
+
+
+async def test_pack_downloads_every_file_then_appears(server: Server, tmp_path: Path) -> None:
+    bus = EventBus()
+    voice = pack(server, SHA, SHA)
+    module, rec = await started_with_pack(tmp_path, bus, voice)
+    bus.publish(ModelsGetRequested("r1"))
+    await bus.drain()
+    assert rec.states[-1].voice[0].state == "available"
+    assert rec.states[-1].voice[0].size_bytes == 2 * len(DATA)
+    bus.publish(ModelDownloadRequested("r2", "test-voice"))
+    await rec.wait_for(lambda: rec.states[-1].voice[0].state == "installed")
+    folder = pack_folder(tmp_path / "models", voice)
+    assert (folder / "sub/file0.ort").read_bytes() == DATA
+    assert (folder / "sub/file1.ort").read_bytes() == DATA
+    assert not pack_part_folder(tmp_path / "models", voice).exists()
+    received = [s.voice[0].received_bytes for s in rec.states if s.voice[0].state == "downloading"]
+    assert received == sorted(received)
+    assert max(received) > len(DATA)  # counts across files
+    await module.stop()
+
+
+async def test_damaged_pack_file_leaves_no_installed_folder(server: Server, tmp_path: Path) -> None:
+    bus = EventBus()
+    voice = pack(server, SHA, "0" * 64)
+    module, rec = await started_with_pack(tmp_path, bus, voice)
+    bus.publish(ModelDownloadRequested("r1", "test-voice"))
+    await rec.wait_for(lambda: bool(rec.states) and rec.states[-1].voice[0].state == "failed")
+    info = rec.states[-1].voice[0]
+    assert info.error == "The download was damaged. Try again."
+    assert not pack_folder(tmp_path / "models", voice).exists()
+    # The good file stays for the next try.
+    assert (pack_part_folder(tmp_path / "models", voice) / "sub/file0.ort").exists()
+    bus.publish(ModelsGetRequested("r2"))
+    await bus.drain()
+    assert rec.states[-1].voice[0].state == "failed"
+    await module.stop()

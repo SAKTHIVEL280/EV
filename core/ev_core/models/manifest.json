@@ -37,5 +37,304 @@
       "sha256": "03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8",
       "license": "Apache-2.0"
     }
+  ],
+  "voice": [
+    {
+      "id": "moonshine-small-streaming-en",
+      "name": "Speech recognition",
+      "summary": "Understands you well. About 140 MB.",
+      "kind": "recognizer",
+      "option": "small",
+      "folder": "moonshine-small-streaming-en",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "adapter.ort",
+          "url": "https://download.moonshine.ai/model/small-streaming-en/quantized_26_08_21/adapter.ort",
+          "size_bytes": 2870368,
+          "sha256": "c665f742364febad597cc9ac1e0b341ffbee0e24a1466e2f3bde95e6e4771762"
+        },
+        {
+          "path": "cross_kv.ort",
+          "url": "https://download.moonshine.ai/model/small-streaming-en/quantized_26_08_21/cross_kv.ort",
+          "size_bytes": 5356536,
+          "sha256": "e2d3417144e9514055ebfefe8dcc4c0a55a55adcb8530435844c75c53e352bf6"
+        },
+        {
+          "path": "decoder_kv.ort",
+          "url": "https://download.moonshine.ai/model/small-streaming-en/quantized_26_08_21/decoder_kv.ort",
+          "size_bytes": 81878600,
+          "sha256": "1a05465b1dd955858dfcbee039c0020fb5dd982b0f5094c34e61735d518d771b"
+        },
+        {
+          "path": "encoder.ort",
+          "url": "https://download.moonshine.ai/model/small-streaming-en/quantized_26_08_21/encoder.ort",
+          "size_bytes": 44148576,
+          "sha256": "2d4d973e91e8aca08c51e7e7efa28a46ab265b63d809d5294d18b86bcd85b993"
+        },
+        {
+          "path": "frontend.model.ort",
+          "url": "https://download.moonshine.ai/model/small-streaming-en/quantized_26_08_21/frontend.model.ort",
+          "size_bytes": 26944,
+          "sha256": "09b1210ae30dc5f0f3e45f0ebab914c254741323114f53fbbe5ae62cca35058f"
+        },
+        {
+          "path": "frontend.weights.ort",
+          "url": "https://download.moonshine.ai/model/small-streaming-en/quantized_26_08_21/frontend.weights.ort",
+          "size_bytes": 7769464,
+          "sha256": "7ef97521bd4bad3928f5bb6808586f4fcc6e92bd5990394112eed7d4052ec338"
+        },
+        {
+          "path": "streaming_config.json",
+          "url": "https://download.moonshine.ai/model/small-streaming-en/quantized_26_08_21/streaming_config.json",
+          "size_bytes": 512,
+          "sha256": "26f02b6afb22d60871a5efd85c3d38e569cc0ddb6c5eb6e93d3260152ae8a47a"
+        },
+        {
+          "path": "tokenizer.bin",
+          "url": "https://download.moonshine.ai/model/small-streaming-en/quantized_26_08_21/tokenizer.bin",
+          "size_bytes": 249974,
+          "sha256": "6884b35fd6377d4c4d32336a0bc152f36b64d1e45b6503683cdc238250a8472d"
+        }
+      ]
+    },
+    {
+      "id": "moonshine-tiny-streaming-en",
+      "name": "Speech recognition (Tiny)",
+      "summary": "Uses less memory, makes more mistakes. About 45 MB.",
+      "kind": "recognizer",
+      "option": "tiny",
+      "folder": "moonshine-tiny-streaming-en",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "adapter.ort",
+          "url": "https://download.moonshine.ai/model/tiny-streaming-en/quantized_26_08_21/adapter.ort",
+          "size_bytes": 1319664,
+          "sha256": "22ecc949e146c49667fda28d102d4e30749a107dc88a396292aa8f277ef1347c"
+        },
+        {
+          "path": "cross_kv.ort",
+          "url": "https://download.moonshine.ai/model/tiny-streaming-en/quantized_26_08_21/cross_kv.ort",
+          "size_bytes": 1287544,
+          "sha256": "143a36667b8d05fd9d04e8c337b7ee121f37ef299aea6b3d82bdb3d3401950b4"
+        },
+        {
+          "path": "decoder_kv.ort",
+          "url": "https://download.moonshine.ai/model/tiny-streaming-en/quantized_26_08_21/decoder_kv.ort",
+          "size_bytes": 32583720,
+          "sha256": "8852553f312adb6c9aa4d17418015049b30f412209ee569d336548c0044627de"
+        },
+        {
+          "path": "encoder.ort",
+          "url": "https://download.moonshine.ai/model/tiny-streaming-en/quantized_26_08_21/encoder.ort",
+          "size_bytes": 7675440,
+          "sha256": "a8414e1a5dedf9f2093d7680601dd8a9b0433e7020260eafe0e370ead91134ca"
+        },
+        {
+          "path": "frontend.model.ort",
+          "url": "https://download.moonshine.ai/model/tiny-streaming-en/quantized_26_08_21/frontend.model.ort",
+          "size_bytes": 23344,
+          "sha256": "5121b561417b638afce0c6c31b760e37c93cf97f80d9b0031aad1fe7b6f25d61"
+        },
+        {
+          "path": "frontend.weights.ort",
+          "url": "https://download.moonshine.ai/model/tiny-streaming-en/quantized_26_08_21/frontend.weights.ort",
+          "size_bytes": 2093464,
+          "sha256": "217da24ac6f522ebf02da8ef288e77d1ac68d50d4a6821433182e4fbf4204bbd"
+        },
+        {
+          "path": "streaming_config.json",
+          "url": "https://download.moonshine.ai/model/tiny-streaming-en/quantized_26_08_21/streaming_config.json",
+          "size_bytes": 509,
+          "sha256": "74fe5ddebd63b17caf59e8a3b18c17547ff7bce1642050edbb1c3962674f8950"
+        },
+        {
+          "path": "tokenizer.bin",
+          "url": "https://download.moonshine.ai/model/tiny-streaming-en/quantized_26_08_21/tokenizer.bin",
+          "size_bytes": 249974,
+          "sha256": "6884b35fd6377d4c4d32336a0bc152f36b64d1e45b6503683cdc238250a8472d"
+        }
+      ]
+    },
+    {
+      "id": "kokoro-en",
+      "name": "Voice",
+      "summary": "How EV speaks: Kokoro, 19 English voices. About 120 MB.",
+      "kind": "speech",
+      "option": "kokoro",
+      "folder": "kokoro",
+      "license": "Apache-2.0 (Kokoro); MIT (Moonshine G2P)",
+      "files": [
+        {
+          "path": "en_us/dict_filtered_heteronyms.tsv",
+          "url": "https://download.moonshine.ai/tts/en_us/dict_filtered_heteronyms.tsv",
+          "size_bytes": 2900453,
+          "sha256": "8fb0fa0e3ce1a74b864f03c06ace015257660fa2116c6157d11061f4e35bb6b7"
+        },
+        {
+          "path": "en_us/g2p-config.json",
+          "url": "https://download.moonshine.ai/tts/en_us/g2p-config.json",
+          "size_bytes": 60,
+          "sha256": "f10e652b28c49edd90a94ceb139b94d2368de5814650d81289fcb985fe1ca0f5"
+        },
+        {
+          "path": "en_us/oov/model.ort",
+          "url": "https://download.moonshine.ai/tts/en_us/oov/model.ort",
+          "size_bytes": 22143488,
+          "sha256": "ef8d07a0577a07617fabf5282d80d680e4e17ad07a763e7e3748417f94554d94"
+        },
+        {
+          "path": "en_us/oov/onnx-config.json",
+          "url": "https://download.moonshine.ai/tts/en_us/oov/onnx-config.json",
+          "size_bytes": 4641,
+          "sha256": "60a7cf2592ae66702f56e4368a8614e72235eef89205de96f4cf6bace96c5692"
+        },
+        {
+          "path": "kokoro/config.json",
+          "url": "https://download.moonshine.ai/tts/kokoro/config.json",
+          "size_bytes": 2351,
+          "sha256": "5abb01e2403b072bf03d04fde160443e209d7a0dad49a423be15196b9b43c17f"
+        },
+        {
+          "path": "kokoro/decoder.model.ort",
+          "url": "https://download.moonshine.ai/tts/kokoro/decoder.model.ort",
+          "size_bytes": 39257640,
+          "sha256": "1deaf4c42124a9034e325cf6057ebe58f80f429af68401c573c519a3dd7e56bd"
+        },
+        {
+          "path": "kokoro/decoder.weights.ort",
+          "url": "https://download.moonshine.ai/tts/kokoro/decoder.weights.ort",
+          "size_bytes": 15299512,
+          "sha256": "80272c16d48026641ee0971252be2a3e24ae0bea75a35ad1a822c124cb3a266e"
+        },
+        {
+          "path": "kokoro/prosody.model.ort",
+          "url": "https://download.moonshine.ai/tts/kokoro/prosody.model.ort",
+          "size_bytes": 12376656,
+          "sha256": "e4f83bf18d786ab8c9cd2ad21e326021b9d7d5fe776458755e075c8574ff876a"
+        },
+        {
+          "path": "kokoro/prosody.weights.ort",
+          "url": "https://download.moonshine.ai/tts/kokoro/prosody.weights.ort",
+          "size_bytes": 16480288,
+          "sha256": "7ead0eed0498a6b8f7abebb7c9bc2867293c5d7cbb71d2bdf442b7ba48ae77e7"
+        },
+        {
+          "path": "kokoro/voices/af_heart.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/af_heart.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "908e14de5b4709da55562129164e618f5d135fcc34dac419e0c3de5189b72d2c"
+        },
+        {
+          "path": "kokoro/voices/af_bella.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/af_bella.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "2adf09d23249eb9bb9be45e1c9ef65f7f292240e90ad7ec4dc7887481b21e216"
+        },
+        {
+          "path": "kokoro/voices/af_nicole.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/af_nicole.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "3a1fa3a798870036af991dd5818380f3996dc8ed1478e5bfa0f4ac319bcfceba"
+        },
+        {
+          "path": "kokoro/voices/af_sarah.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/af_sarah.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "4f38350f886419ce78eb058040dfba6d06c6fbe73ca0fccf97157b5ab7597cde"
+        },
+        {
+          "path": "kokoro/voices/af_sky.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/af_sky.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "9fc39a92cd6f989e50bc38ef95a0ad94fa22816d60867acaae196c9fcf391cd5"
+        },
+        {
+          "path": "kokoro/voices/af_nova.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/af_nova.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "7362730dd196e6216e811dd95a89bd75e6376d4c10f71de2463c285ee12e83cd"
+        },
+        {
+          "path": "kokoro/voices/af_river.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/af_river.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "efad2eaa88e01e18c766c828a872047b9105769fb773ea96b6a245b4be5fd73d"
+        },
+        {
+          "path": "kokoro/voices/af_jessica.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/af_jessica.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "7b2b29d32a4a292ee222d76768a3ad5d8789c76cbeaad6aeaee6cc27e1f2ec30"
+        },
+        {
+          "path": "kokoro/voices/af_alloy.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/af_alloy.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "0d4028c8cd15343d00516396426c4cb7a90c769ce857d80a55c7af0d521a56c8"
+        },
+        {
+          "path": "kokoro/voices/af_aoede.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/af_aoede.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "f43fce0480d47b9af884594eaae2bacb12310ec81b4ba98403e7cb3f35a07467"
+        },
+        {
+          "path": "kokoro/voices/af_kore.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/af_kore.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "9cdd710e0b636b9eac35d394b5f398f53a3f0d604e0b2d25022b6deacf3b9a15"
+        },
+        {
+          "path": "kokoro/voices/am_michael.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/am_michael.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "5656ad6770d9cce2bddf6c0d0446569151555a7d284971fe3cd763f4f74f726f"
+        },
+        {
+          "path": "kokoro/voices/am_adam.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/am_adam.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "0031e6b84a18cfb63a16bbf09dec469d3e24494259bd1bc3b87aea318a147a93"
+        },
+        {
+          "path": "kokoro/voices/am_eric.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/am_eric.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "74199ac0496647cbfbe008554ba9e61a327cc036aa172202727d7d166fd7ea08"
+        },
+        {
+          "path": "kokoro/voices/am_liam.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/am_liam.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "d370afa3729bb29e51ec771aeaeb0403f408089db439c6e5625829259916fa6c"
+        },
+        {
+          "path": "kokoro/voices/am_onyx.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/am_onyx.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "4d8ff4ae330688e2675e3cefcb0fbafcf9de53e828f9065124dffa3258b95478"
+        },
+        {
+          "path": "kokoro/voices/am_echo.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/am_echo.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "62bf8b55a7c95d83487af9739b63e799363967bdb6e64bad3c318acba2f5429e"
+        },
+        {
+          "path": "kokoro/voices/am_fenrir.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/am_fenrir.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "57e0509083844601a51b5f2d511a6c4b8d73299767621841ff559a0ad8307f96"
+        },
+        {
+          "path": "kokoro/voices/am_puck.kokorovoice",
+          "url": "https://download.moonshine.ai/tts/kokoro/voices/am_puck.kokorovoice",
+          "size_bytes": 522252,
+          "sha256": "afb24c8b7ca685bd0fe60bc2e10fd3b943165f329fb2c70d61418fb9f043b09f"
+        }
+      ]
+    }
   ]
 }

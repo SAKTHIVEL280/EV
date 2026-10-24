@@ -77,7 +77,7 @@ files = ["ev_core", "tests", "../bench/honesty"]
 # Untyped Windows-only libraries (ev_core/platform/windows_pc.py).
 module = [
     "pywinauto", "pywinauto.*", "pycaw", "pycaw.*", "comtypes", "comtypes.*", "send2trash",
-    "mss", "mss.*",
+    "mss", "mss.*", "moonshine_voice", "moonshine_voice.*", "sounddevice",
 ]
 ignore_missing_imports = true
 

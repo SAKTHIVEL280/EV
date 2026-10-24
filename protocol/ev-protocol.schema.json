@@ -115,6 +115,21 @@
     },
     {
       "$ref": "#/$defs/ContextReplacedMessage"
+    },
+    {
+      "$ref": "#/$defs/VoiceStartMessage"
+    },
+    {
+      "$ref": "#/$defs/VoiceStopMessage"
+    },
+    {
+      "$ref": "#/$defs/VoiceStateMessage"
+    },
+    {
+      "$ref": "#/$defs/VoiceLevelMessage"
+    },
+    {
+      "$ref": "#/$defs/VoiceHeardMessage"
     }
   ],
   "$defs": {
@@ -420,7 +435,7 @@
       }
     },
     "Effort": {
-      "description": "Effort level (CLAUDE.md §5.5).",
+      "description": "Effort level (CLAUDE.md \u00a75.5).",
       "type": "string",
       "enum": [
         "instant",
@@ -457,6 +472,10 @@
         "effort": {
           "description": "Requested effort; omitted means the configured default.",
           "$ref": "#/$defs/Effort"
+        },
+        "spoken": {
+          "description": "The user said it (F-008); core speaks the reply. Omitted means typed.",
+          "type": "boolean"
         }
       }
     },
@@ -906,7 +925,7 @@
       }
     },
     "SettingNav": {
-      "description": "Settings section (CLAUDE.md §6.5).",
+      "description": "Settings section (CLAUDE.md \u00a76.5).",
       "type": "string",
       "enum": [
         "general",
@@ -999,13 +1018,14 @@
           "maxLength": 16
         },
         "widget": {
-          "description": "Control the Settings window draws instead of the plain one for its kind (F-415). Absent: the plain control.",
+          "description": "Control the Settings window draws instead of the plain one for its kind (F-415). menu: a drop-down for long choice lists. Absent: the plain control.",
           "type": "string",
           "enum": [
             "model",
             "folder",
             "shortcut",
-            "slider"
+            "slider",
+            "menu"
           ]
         },
         "role": {
@@ -1024,6 +1044,14 @@
             "type": "integer"
           },
           "maxItems": 64
+        },
+        "labels": {
+          "description": "For kind = choice: display names, in the same order as options. Absent: show the options as they are.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 64
+          }
         }
       }
     },
@@ -1402,6 +1430,14 @@
           "items": {
             "type": "string",
             "maxLength": 255
+          }
+        },
+        "voice": {
+          "description": "Voice packs (F-010). Absent: none offered.",
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/VoicePackEntry"
           }
         }
       }
@@ -2113,6 +2149,317 @@
         },
         "payload": {
           "$ref": "#/$defs/ContextReplacedPayload"
+        }
+      }
+    },
+    "VoicePackEntry": {
+      "description": "One voice pack and its state on this PC (F-010).",
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "summary",
+        "kind",
+        "option",
+        "size_bytes",
+        "state",
+        "received_bytes",
+        "bytes_per_second"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ModelId"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "recognizer",
+            "speech"
+          ]
+        },
+        "option": {
+          "description": "The setting value that uses this pack (voice.recognizer size, or kokoro).",
+          "type": "string",
+          "maxLength": 32
+        },
+        "size_bytes": {
+          "$ref": "#/$defs/Bytes"
+        },
+        "state": {
+          "$ref": "#/$defs/ModelState"
+        },
+        "received_bytes": {
+          "$ref": "#/$defs/Bytes"
+        },
+        "bytes_per_second": {
+          "$ref": "#/$defs/Bytes"
+        },
+        "error": {
+          "description": "User-facing reason when state is failed.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 300
+        }
+      }
+    },
+    "VoiceStartPayload": {
+      "type": "object",
+      "required": [
+        "source"
+      ],
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "hotkey",
+            "button",
+            "push_to_talk"
+          ]
+        }
+      }
+    },
+    "VoiceStopPayload": {
+      "type": "object",
+      "required": [
+        "reason"
+      ],
+      "properties": {
+        "reason": {
+          "description": "typing: mic off and speech stops. closed: panel closed, mic off, speech goes on. button: mic off. send: push-to-talk released, send what was heard. silence: stop speaking and close the mic.",
+          "type": "string",
+          "enum": [
+            "typing",
+            "closed",
+            "button",
+            "send",
+            "silence"
+          ]
+        }
+      }
+    },
+    "VoiceStatePayload": {
+      "type": "object",
+      "required": [
+        "mic",
+        "speaking"
+      ],
+      "properties": {
+        "mic": {
+          "description": "The microphone is open.",
+          "type": "boolean"
+        },
+        "speaking": {
+          "type": "boolean"
+        },
+        "message": {
+          "description": "Why voice stopped or could not start, in plain words.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 300
+        },
+        "code": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "not_installed",
+            "no_mic",
+            "mic_blocked",
+            "no_speaker",
+            "failed",
+            "no_speech",
+            "off",
+            null
+          ]
+        }
+      }
+    },
+    "VoiceLevelPayload": {
+      "type": "object",
+      "required": [
+        "level"
+      ],
+      "properties": {
+        "level": {
+          "description": "Mic level 0..1, about 15 times a second while the mic is open.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "VoiceHeardPayload": {
+      "type": "object",
+      "required": [
+        "text",
+        "final"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 20000
+        },
+        "final": {
+          "description": "The user stopped talking: the app sends text as a spoken chat message.",
+          "type": "boolean"
+        }
+      }
+    },
+    "VoiceStartMessage": {
+      "description": "Rust -> core. Open the mic and listen (F-008).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "voice.start"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/VoiceStartPayload"
+        }
+      }
+    },
+    "VoiceStopMessage": {
+      "description": "Rust -> core. Stop listening and/or speaking (F-008).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "voice.stop"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/VoiceStopPayload"
+        }
+      }
+    },
+    "VoiceStateMessage": {
+      "description": "core -> Rust. Mic and speech state, with a message when voice stopped or failed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "voice.state"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/VoiceStatePayload"
+        }
+      }
+    },
+    "VoiceLevelMessage": {
+      "description": "core -> Rust. Live mic level for the island.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "voice.level"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/VoiceLevelPayload"
+        }
+      }
+    },
+    "VoiceHeardMessage": {
+      "description": "core -> Rust. Words recognized so far; final when the user stopped talking.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "type": {
+          "type": "string",
+          "const": "voice.heard"
+        },
+        "id": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/MessageId"
+        },
+        "payload": {
+          "$ref": "#/$defs/VoiceHeardPayload"
         }
       }
     }
