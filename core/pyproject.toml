@@ -17,6 +17,9 @@ dependencies = [
     "pycaw==20260927; sys_platform == 'win32'",
     "pywinauto==0.6.9; sys_platform == 'win32'",
     "send2trash==2.1.0; sys_platform == 'win32'",
+    # Voice: Moonshine speech recognition and Kokoro speech (docs/decisions.md, beta 2 stage C).
+    "moonshine-voice==0.1.5",
+    "sounddevice==0.5.6",
 ]
 
 [project.scripts]
@@ -43,6 +46,8 @@ build-backend = "uv_build"
 
 [tool.uv]
 default-groups = ["dev"]
+# Transitive packages held at releases at least two weeks old (docs/decisions.md).
+constraint-dependencies = ["certifi==2026.7.22", "filelock==4.1.0", "pycparser==3.11"]
 
 [tool.uv.build-backend]
 module-root = ""
@@ -81,7 +86,11 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests", "../bench/honesty"]
 addopts = "--strict-markers --strict-config -ra"
-filterwarnings = ["error"]
+filterwarnings = [
+    "error",
+    # pywinauto 0.6.9 (latest) has a docstring with "\\;" in it; compile-time only.
+    "ignore:invalid escape sequence:SyntaxWarning",
+]
 
 [tool.datamodel-codegen]
 input = "../protocol/ev-protocol.schema.json"
