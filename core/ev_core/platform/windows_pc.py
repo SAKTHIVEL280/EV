@@ -73,6 +73,9 @@ SW_RESTORE: Final = 9
 SWP_NOZORDER: Final = 0x0004
 SWP_NOACTIVATE: Final = 0x0010
 WM_CLOSE: Final = 0x0010
+WM_GETTEXT: Final = 0x000D
+WM_GETTEXTLENGTH: Final = 0x000E
+EM_GETSEL: Final = 0x00B0
 KEYEVENTF_KEYUP: Final = 0x0002
 VK_MENU: Final = 0x12
 MEDIA_KEYS: Final = {
@@ -148,6 +151,8 @@ def _signatures() -> None:
     user32.IsIconic.argtypes = [H]
     user32.IsZoomed.argtypes = [H]
     user32.IsWindow.argtypes = [H]
+    user32.SendMessageW.argtypes = [H, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+    user32.SendMessageW.restype = wintypes.LPARAM
     user32.GetWindowRect.argtypes = [H, ctypes.POINTER(RECT)]
     user32.ShowWindow.argtypes = [H, ctypes.c_int]
     user32.SetWindowPos.argtypes = [
@@ -284,6 +289,27 @@ $radio.State.ToString()
 class _Snapshot:
     window: int
     wrappers: dict[int, Any]
+
+
+def _selected_text(wrapper: Any) -> str:
+    """Selected text of an edit or document control: the UIA Text pattern, or
+    for classic Win32 edit controls without one, EM_GETSEL on the window text."""
+    with contextlib.suppress(Exception):
+        ranges = wrapper.iface_text.GetSelection()
+        text = "".join(ranges.GetElement(i).GetText(-1) for i in range(ranges.Length)).strip()
+        if text:
+            return str(text)
+    handle = wrapper.element_info.handle
+    if not handle:
+        return ""
+    start, end = wintypes.DWORD(), wintypes.DWORD()
+    user32.SendMessageW(handle, EM_GETSEL, ctypes.addressof(start), ctypes.addressof(end))
+    if end.value <= start.value:
+        return ""
+    length = user32.SendMessageW(handle, WM_GETTEXTLENGTH, 0, 0)
+    buffer = ctypes.create_unicode_buffer(length + 1)
+    user32.SendMessageW(handle, WM_GETTEXT, length + 1, ctypes.addressof(buffer))
+    return buffer.value[start.value : end.value].strip()
 
 
 MAX_TEXT_READ: Final = 4_000
@@ -738,12 +764,9 @@ class WindowsPcControl(PcControl):
             for wrapper in window.descendants():
                 if wrapper.element_info.control_type not in ("Edit", "Document"):
                     continue
-                with contextlib.suppress(Exception):
-                    ranges = wrapper.iface_text.GetSelection()
-                    texts = [ranges.GetElement(i).GetText(-1) for i in range(ranges.Length)]
-                    text = "".join(texts).strip()
-                    if text:
-                        return text
+                text = _selected_text(wrapper)
+                if text:
+                    return text
             return None
 
         text = await _in_thread(read)
