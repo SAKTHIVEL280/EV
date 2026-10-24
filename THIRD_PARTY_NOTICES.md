@@ -307,23 +307,37 @@ model downloader) and the Microsoft Edge WebView2 runtime (part of Windows 11).
 | aiosignal | 1.4.0 | Apache Software License | https://github.com/aio-libs/aiosignal |
 | annotated-types | 0.8.0 | MIT | https://github.com/annotated-types/annotated-types |
 | attrs | 26.1.0 | MIT | https://github.com/python-attrs/attrs |
+| certifi | 2026.7.22 | Mozilla Public License 2.0 (MPL 2.0) | https://github.com/certifi/python-certifi |
+| cffi | 2.1.1 | MIT-0 | https://github.com/python-cffi/cffi |
+| charset-normalizer | 3.5.2 | MIT | https://github.com/jawah/charset_normalizer/blob/master/CHANGELOG.md |
+| colorama | 0.4.6 | BSD License | https://github.com/tartley/colorama |
 | comtypes | 1.4.17 | MIT | https://github.com/enthought/comtypes |
+| filelock | 4.1.0 | MIT | https://github.com/tox-dev/py-filelock |
 | frozenlist | 1.8.0 | Apache-2.0 | https://github.com/aio-libs/frozenlist |
+| google-crc32c | 1.9.0 | Apache-2.0 | https://github.com/googleapis/python-crc32c |
 | idna | 3.20 | BSD-3-Clause | https://github.com/kjd/idna |
+| moonshine-voice | 0.1.5 | MIT | https://github.com/moonshine-ai/moonshine |
 | mss | 10.2.0 | MIT License | https://github.com/BoboTiG/python-mss |
 | multidict | 7.1.0 | Apache-2.0 | https://github.com/aio-libs/multidict |
+| numpy | 2.5.4 | BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0 | https://github.com/numpy/numpy |
+| platformdirs | 4.13.3 | MIT | https://github.com/tox-dev/platformdirs |
 | propcache | 0.5.4 | Apache-2.0 | https://github.com/aio-libs/propcache |
 | psutil | 7.2.2 | BSD-3-Clause | https://github.com/giampaolo/psutil |
 | pycaw | 20260927 | MIT | https://github.com/AndreMiras/pycaw.git |
+| pycparser | 3.11 | BSD-3-Clause | https://github.com/eliben/pycparser |
 | pydantic | 2.14.1 | MIT | https://github.com/pydantic/pydantic |
 | pydantic-core | 2.50.1 | MIT | https://github.com/pydantic/pydantic |
 | pywin32 | 312 | Python Software Foundation License | https://github.com/mhammond/pywin32 |
 | pywinauto | 0.6.9 | BSD License | https://github.com/pywinauto/pywinauto |
+| requests | 2.34.2 | Apache Software License | https://github.com/psf/requests |
 | send2trash | 2.1.0 | BSD-3-Clause | https://github.com/arsenetar/send2trash.git |
 | six | 1.17.0 | MIT License | https://github.com/benjaminp/six |
+| sounddevice | 0.5.6 | MIT | https://github.com/spatialaudio/python-sounddevice/ |
 | tomlkit | 0.15.2 | MIT | https://github.com/python-poetry/tomlkit |
+| tqdm | 4.70.1 | MPL-2.0 AND MIT | https://github.com/tqdm/tqdm |
 | typing-extensions | 4.16.0 | PSF-2.0 | https://github.com/python/typing_extensions |
 | typing-inspection | 0.4.4 | MIT | https://github.com/pydantic/typing-inspection |
+| urllib3 | 2.8.0 | MIT | https://github.com/urllib3/urllib3/blob/main/CHANGES.rst |
 | websockets | 17.2 | BSD-3-Clause | https://github.com/python-websockets/websockets |
 | yarl | 1.25.1 | Apache-2.0 | https://github.com/aio-libs/yarl |
 
