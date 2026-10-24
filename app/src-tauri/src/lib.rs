@@ -19,6 +19,7 @@ pub mod settings_window;
 pub mod smoke;
 pub mod state;
 pub mod tray;
+pub mod voice;
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -68,6 +69,8 @@ pub fn specta_builder<R: Runtime>() -> tauri_specta::Builder<R> {
             commands::tool_answer,
             commands::action_undo,
             commands::context_capture,
+            commands::voice_start,
+            commands::voice_stop,
             commands::context_clear,
             commands::context_replace,
             commands::llm_status,
@@ -97,7 +100,9 @@ pub fn specta_builder<R: Runtime>() -> tauri_specta::Builder<R> {
             models::ModelsChanged,
             hotkey::HotkeyStatusChanged,
             hotkey::IslandToggleRequested,
-            pc::PcUpdate
+            hotkey::HotkeyReleased,
+            pc::PcUpdate,
+            voice::VoiceUpdate
         ])
 }
 
@@ -308,6 +313,17 @@ impl<R: Runtime> CoreObserver for AppObserver<R> {
                 && let Err(e) = pc::PcUpdate(update).emit(&self.app)
             {
                 tracing::warn!(error = %e, "emit PcUpdate failed");
+            }
+            return;
+        }
+        if matches!(
+            message,
+            Message::VoiceState(_) | Message::VoiceLevel(_) | Message::VoiceHeard(_)
+        ) {
+            if let Some(update) = voice::update(message)
+                && let Err(e) = voice::VoiceUpdate(update).emit(&self.app)
+            {
+                tracing::warn!(error = %e, "emit VoiceUpdate failed");
             }
             return;
         }

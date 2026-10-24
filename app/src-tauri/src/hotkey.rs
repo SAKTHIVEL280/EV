@@ -1,5 +1,8 @@
 //! Global shortcut that opens the island panel (docs/FEATURES.md F-004).
 
+use std::sync::Mutex;
+use std::time::Instant;
+
 use serde::Serialize;
 use specta::Type;
 use tauri::{AppHandle, Manager, Runtime};
@@ -31,6 +34,15 @@ pub struct HotkeyStatusChanged(pub HotkeyStatus);
 #[derive(Clone, Debug, Serialize, Type, tauri_specta::Event)]
 pub struct IslandToggleRequested;
 
+/// The shortcut was let go; `held_ms` since it was pressed. A long hold is
+/// push-to-talk (F-005): the island sends what was heard.
+#[derive(Clone, Debug, Serialize, Type, tauri_specta::Event)]
+pub struct HotkeyReleased {
+    pub held_ms: u32,
+}
+
+static PRESSED_AT: Mutex<Option<Instant>> = Mutex::new(None);
+
 /// Register `spec` (replacing any earlier shortcut), store and announce the result.
 pub fn apply<R: Runtime>(app: &AppHandle<R>, spec: &str) -> HotkeyStatus {
     let status = register(app, spec);
@@ -59,9 +71,18 @@ fn register<R: Runtime>(app: &AppHandle<R>, spec: &str) -> HotkeyStatus {
     let Ok(shortcut) = spec.parse::<Shortcut>() else {
         return status("invalid", Some(INVALID_TEXT));
     };
-    let result = shortcuts.on_shortcut(shortcut, |app, _shortcut, event| {
-        if event.state == ShortcutState::Pressed {
+    let result = shortcuts.on_shortcut(shortcut, |app, _shortcut, event| match event.state {
+        ShortcutState::Pressed => {
+            if let Ok(mut at) = PRESSED_AT.lock() {
+                *at = Some(Instant::now());
+            }
             request_toggle(app);
+        }
+        ShortcutState::Released => {
+            let pressed = PRESSED_AT.lock().ok().and_then(|mut at| at.take());
+            if let Some(pressed) = pressed {
+                announce_release(app, held_ms(pressed.elapsed().as_millis()));
+            }
         }
     });
     match result {
@@ -82,6 +103,18 @@ pub fn request_toggle<R: Runtime>(app: &AppHandle<R>) {
         && let Err(e) = IslandToggleRequested.emit_to(&window, window.label())
     {
         tracing::warn!(error = %e, "emit IslandToggleRequested failed");
+    }
+}
+
+fn held_ms(millis: u128) -> u32 {
+    u32::try_from(millis).unwrap_or(u32::MAX)
+}
+
+fn announce_release<R: Runtime>(app: &AppHandle<R>, held_ms: u32) {
+    if let Some(window) = app.get_webview_window(island::LABEL)
+        && let Err(e) = (HotkeyReleased { held_ms }).emit_to(&window, window.label())
+    {
+        tracing::warn!(error = %e, "emit HotkeyReleased failed");
     }
 }
 

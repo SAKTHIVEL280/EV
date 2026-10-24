@@ -53,6 +53,11 @@ def _probe(window_id: int) -> list[str]:
             )
         except Exception as exc:  # noqa: BLE001
             row += f" err={exc!r}"
+        if info.handle:
+            import ctypes
+
+            packed = ctypes.windll.user32.SendMessageW(info.handle, 0x00B0, 0, 0)
+            row += f" em_getsel={packed & 0xFFFF}-{(packed >> 16) & 0xFFFF}"
         out.append(row)
     return out
 

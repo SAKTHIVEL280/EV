@@ -15,12 +15,14 @@ use crate::core::CoreStatus;
 use crate::island::geometry::HitRect;
 use crate::island::{IslandState, Shape};
 use crate::models::ModelsState;
+use crate::protocol::generated::{VoiceStartPayloadSource, VoiceStopPayloadReason};
 use crate::protocol::{self, Message};
 use crate::settings::{SettingValue, SettingsState};
 use crate::settings_window;
 use crate::smoke;
 use crate::started_at;
 use crate::state::AppState;
+use crate::voice::{VoiceSource, VoiceStopReason};
 
 #[derive(Debug, Serialize, Type, thiserror::Error)]
 #[error("{message}")]
@@ -152,10 +154,12 @@ pub fn chat_send(
     state: State<'_, AppState>,
     text: String,
     effort: Option<Effort>,
+    spoken: bool,
 ) -> Result<String, CommandError> {
-    let message = protocol::chat_send(&text, effort.map(Into::into)).map_err(|_| CommandError {
-        message: "That message is too long.".into(),
-    })?;
+    let message =
+        protocol::chat_send(&text, effort.map(Into::into), spoken).map_err(|_| CommandError {
+            message: "That message is too long.".into(),
+        })?;
     let Message::ChatSend(send) = &message else {
         return Err(CommandError {
             message: "EV couldn't do that.".into(),
@@ -213,6 +217,38 @@ pub fn tool_answer(
 #[specta::specta]
 pub fn action_undo(state: State<'_, AppState>, action_id: Option<u32>) -> Result<(), CommandError> {
     send(&state, protocol::action_undo(action_id))
+}
+
+/// Open the mic and listen (F-008).
+///
+/// # Errors
+/// When core is not connected.
+#[tauri::command]
+#[specta::specta]
+pub fn voice_start(state: State<'_, AppState>, source: VoiceSource) -> Result<(), CommandError> {
+    let source = match source {
+        VoiceSource::Hotkey => VoiceStartPayloadSource::Hotkey,
+        VoiceSource::Button => VoiceStartPayloadSource::Button,
+        VoiceSource::PushToTalk => VoiceStartPayloadSource::PushToTalk,
+    };
+    send(&state, protocol::voice_start(source))
+}
+
+/// Stop listening and/or speaking (F-008).
+///
+/// # Errors
+/// When core is not connected.
+#[tauri::command]
+#[specta::specta]
+pub fn voice_stop(state: State<'_, AppState>, reason: VoiceStopReason) -> Result<(), CommandError> {
+    let reason = match reason {
+        VoiceStopReason::Typing => VoiceStopPayloadReason::Typing,
+        VoiceStopReason::Closed => VoiceStopPayloadReason::Closed,
+        VoiceStopReason::Button => VoiceStopPayloadReason::Button,
+        VoiceStopReason::Send => VoiceStopPayloadReason::Send,
+        VoiceStopReason::Silence => VoiceStopPayloadReason::Silence,
+    };
+    send(&state, protocol::voice_stop(reason))
 }
 
 /// Read the selection in the app the user was in, as the panel opens (F-201).

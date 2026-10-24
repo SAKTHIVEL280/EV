@@ -8,7 +8,7 @@ use serde::Serialize;
 use specta::Type;
 
 use crate::protocol::Message;
-use crate::protocol::generated::{Bytes, ModelEntry};
+use crate::protocol::generated::{Bytes, ModelEntry, VoicePackEntry};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Type)]
 pub struct ModelInfo {
@@ -28,12 +28,31 @@ pub struct ModelInfo {
     pub error: Option<String>,
 }
 
+/// One voice pack (F-010).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Type)]
+pub struct VoicePackInfo {
+    pub id: String,
+    pub name: String,
+    pub summary: String,
+    /// recognizer | speech
+    pub kind: String,
+    /// The setting value that uses it (`voice.recognizer` size, or kokoro).
+    pub option: String,
+    pub size_kb: u32,
+    /// available | partial | downloading | verifying | installed | failed
+    pub state: String,
+    pub received_kb: u32,
+    pub kb_per_second: u32,
+    pub error: Option<String>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Type)]
 pub struct ModelsState {
     pub models_dir: String,
     pub models: Vec<ModelInfo>,
     /// `.gguf` files in the models folder that are not catalog models (F-415).
     pub other_files: Vec<String>,
+    pub voice: Vec<VoicePackInfo>,
 }
 
 #[derive(Clone, Debug, Serialize, Type, tauri_specta::Event)]
@@ -59,6 +78,21 @@ fn info(entry: ModelEntry) -> ModelInfo {
     }
 }
 
+fn pack(entry: VoicePackEntry) -> VoicePackInfo {
+    VoicePackInfo {
+        id: entry.id.to_string(),
+        name: entry.name.to_string(),
+        summary: entry.summary.to_string(),
+        kind: entry.kind.to_string(),
+        option: entry.option.to_string(),
+        size_kb: kb(&entry.size_bytes),
+        state: entry.state.to_string(),
+        received_kb: kb(&entry.received_bytes),
+        kb_per_second: kb(&entry.bytes_per_second),
+        error: entry.error.map(|e| e.to_string()),
+    }
+}
+
 /// Convert a `models.state` message; `None` for anything else.
 #[must_use]
 pub fn update(message: Message) -> Option<ModelsState> {
@@ -72,6 +106,7 @@ pub fn update(message: Message) -> Option<ModelsState> {
                 .into_iter()
                 .map(|f| f.to_string())
                 .collect(),
+            voice: m.payload.voice.into_iter().map(pack).collect(),
         }),
         _ => None,
     }
@@ -110,6 +145,12 @@ mod tests {
             Some("Couldn't reach Hugging Face. Check the connection and try again.")
         );
         assert_eq!(state.other_files, ["my-finetune-Q4_K_M.gguf"]);
+        let voice = &state.voice[0];
+        assert_eq!(
+            (voice.id.as_str(), voice.kind.as_str(), voice.state.as_str()),
+            ("kokoro-en", "speech", "downloading")
+        );
+        assert_eq!(voice.size_kb, 118_387);
     }
 
     #[test]

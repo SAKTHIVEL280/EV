@@ -46,10 +46,11 @@ class ChatStore {
   }
 
   /** Send a message; returns its turn id, or null when it couldn't be sent.
-   *  `shown` is what the conversation displays (a quick action's label). */
-  async send(text: string, shown: string = text): Promise<string | null> {
+   *  `shown` is what the conversation displays (a quick action's label);
+   *  `spoken`: the user said it, so the reply is spoken too (F-008). */
+  async send(text: string, shown: string = text, spoken = false): Promise<string | null> {
     this.state = begin(this.state, shown);
-    const result = await commands.chatSend(text, null);
+    const result = await commands.chatSend(text, null, spoken);
     if (result.status === "ok") {
       this.state = sent(this.state, result.data);
       return result.data;

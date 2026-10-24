@@ -30,7 +30,7 @@ function model(changes: Partial<ModelInfo> = {}): ModelInfo {
 }
 
 function state(...models: ModelInfo[]): ModelsState {
-  return { models_dir: "/models", models, other_files: [] };
+  return { models_dir: "/models", models, other_files: [], voice: [] };
 }
 
 describe("model helpers", () => {

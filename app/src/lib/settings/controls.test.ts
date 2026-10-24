@@ -146,6 +146,7 @@ describe("model menu", () => {
       }),
     ],
     other_files: ["mine.gguf"],
+    voice: [],
   };
 
   it("lists installed models for the role first, then the user's files and None", () => {
@@ -169,7 +170,9 @@ describe("model menu", () => {
 
   it("knows when nothing is installed", () => {
     expect(anyModelInstalled(state)).toBe(true);
-    expect(anyModelInstalled({ models_dir: "/m", models: [], other_files: [] })).toBe(false);
+    expect(anyModelInstalled({ models_dir: "/m", models: [], other_files: [], voice: [] })).toBe(
+      false,
+    );
     expect(anyModelInstalled(null)).toBe(false);
   });
 });

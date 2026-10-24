@@ -302,14 +302,19 @@ def _selected_text(wrapper: Any) -> str:
     handle = wrapper.element_info.handle
     if not handle:
         return ""
+    # The reply packs start and end into one value (exact up to 65,535 characters);
+    # the out-parameters give the full range.
     start, end = wintypes.DWORD(), wintypes.DWORD()
-    user32.SendMessageW(handle, EM_GETSEL, ctypes.addressof(start), ctypes.addressof(end))
-    if end.value <= start.value:
+    packed = user32.SendMessageW(handle, EM_GETSEL, ctypes.addressof(start), ctypes.addressof(end))
+    first, last = start.value, end.value
+    if last <= first:
+        first, last = packed & 0xFFFF, (packed >> 16) & 0xFFFF
+    if last <= first:
         return ""
     length = user32.SendMessageW(handle, WM_GETTEXTLENGTH, 0, 0)
     buffer = ctypes.create_unicode_buffer(length + 1)
     user32.SendMessageW(handle, WM_GETTEXT, length + 1, ctypes.addressof(buffer))
-    return buffer.value[start.value : end.value].strip()
+    return buffer.value[first:last].strip()
 
 
 MAX_TEXT_READ: Final = 4_000

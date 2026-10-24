@@ -42,7 +42,7 @@ export const commands = {
 	 *  # Errors
 	 *  When core is not connected or the text exceeds the protocol limit.
 	 */
-	chatSend: (text: string, effort: "instant" | "normal" | "deep" | "max" | null) => typedError<string, CommandError>(__TAURI_INVOKE("chat_send", { text, effort })),
+	chatSend: (text: string, effort: "instant" | "normal" | "deep" | "max" | null, spoken: boolean) => typedError<string, CommandError>(__TAURI_INVOKE("chat_send", { text, effort, spoken })),
 	/**
 	 *  # Errors
 	 *  When core is not connected or `turn_id` is not a turn id.
@@ -85,6 +85,20 @@ export const commands = {
 	 *  When core is not connected.
 	 */
 	contextCapture: () => typedError<null, CommandError>(__TAURI_INVOKE("context_capture")),
+	/**
+	 *  Open the mic and listen (F-008).
+	 * 
+	 *  # Errors
+	 *  When core is not connected.
+	 */
+	voiceStart: (source: VoiceSource) => typedError<null, CommandError>(__TAURI_INVOKE("voice_start", { source })),
+	/**
+	 *  Stop listening and/or speaking (F-008).
+	 * 
+	 *  # Errors
+	 *  When core is not connected.
+	 */
+	voiceStop: (reason: VoiceStopReason) => typedError<null, CommandError>(__TAURI_INVOKE("voice_stop", { reason })),
 	/**
 	 *  The user removed the selection chip.
 	 * 
@@ -163,6 +177,7 @@ export const commands = {
 	models: ModelInfo[],
 	/**  `.gguf` files in the models folder that are not catalog models (F-415). */
 	other_files: string[],
+	voice: VoicePackInfo[],
 } | null>("models_state"),
 	/**
 	 *  Ask core for the model list; the answer arrives as `ModelsChanged`.
@@ -195,6 +210,7 @@ export const commands = {
 export const events = {
 	chatUpdate: makeEvent<ChatUpdate>("chat-update"),
 	coreStatusChanged: makeEvent<CoreStatusChanged>("core-status-changed"),
+	hotkeyReleased: makeEvent<HotkeyReleased>("hotkey-released"),
 	hotkeyStatusChanged: makeEvent<HotkeyStatusChanged>("hotkey-status-changed"),
 	islandPointer: makeEvent<IslandPointer>("island-pointer"),
 	islandToggleRequested: makeEvent<IslandToggleRequested>("island-toggle-requested"),
@@ -204,6 +220,7 @@ export const events = {
 	pcUpdate: makeEvent<PcUpdate>("pc-update"),
 	settingRejected: makeEvent<SettingRejected>("setting-rejected"),
 	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
+	voiceUpdate: makeEvent<VoiceUpdate>("voice-update"),
 };
 
 /* Types */
@@ -252,6 +269,14 @@ export type HitRect = {
 	y: number,
 	width: number,
 	height: number,
+};
+
+/**
+ *  The shortcut was let go; `held_ms` since it was pressed. A long hold is
+ *  push-to-talk (F-005): the island sends what was heard.
+ */
+export type HotkeyReleased = {
+	held_ms: number,
 };
 
 export type HotkeyStatus = {
@@ -312,6 +337,7 @@ export type ModelsState = {
 	models: ModelInfo[],
 	/**  `.gguf` files in the models folder that are not catalog models (F-415). */
 	other_files: string[],
+	voice: VoicePackInfo[],
 };
 
 export type ModuleInfo = {
@@ -383,6 +409,43 @@ export type SettingsState = {
 	items: SettingItem[],
 	warnings: ConfigWarning[],
 };
+
+/**  One voice pack (F-010). */
+export type VoicePackInfo = {
+	id: string,
+	name: string,
+	summary: string,
+	/**  recognizer | speech */
+	kind: string,
+	/**  The setting value that uses it (`voice.recognizer` size, or kokoro). */
+	option: string,
+	size_kb: number,
+	/**  available | partial | downloading | verifying | installed | failed */
+	state: string,
+	received_kb: number,
+	kb_per_second: number,
+	error: string | null,
+};
+
+/**  Where a listening request came from. */
+export type VoiceSource = "hotkey" | "button" | "push_to_talk";
+
+/**  Why the app stops voice (see `voice.stop` in the protocol). */
+export type VoiceStopReason = "typing" | "closed" | "button" | "send" | "silence";
+
+export type VoiceUpdate = VoiceUpdateKind;
+
+export type VoiceUpdateKind = { kind: "state"; 
+/**  The microphone is open: the island shows the mic indicator. */
+mic: boolean; speaking: boolean; 
+/**  Why voice stopped or couldn't start, in plain words. */
+message: string | null; 
+/**  `not_installed`, `no_mic`, `mic_blocked`, `no_speaker`, `failed`, `no_speech` or `off`. */
+code: string | null } | 
+/**  Mic level 0..1, about 15 times a second while the mic is open. */
+{ kind: "level"; level: number | null } | 
+/**  Words recognized so far; `is_final` once the user stopped talking. */
+{ kind: "heard"; text: string; is_final: boolean };
 
 /* Tauri Specta runtime */
 async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {

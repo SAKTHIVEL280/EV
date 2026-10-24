@@ -131,6 +131,11 @@ messages! {
     ContextClear(ContextClearMessage) = "context.clear",
     ContextReplace(ContextReplaceMessage) = "context.replace",
     ContextReplaced(ContextReplacedMessage) = "context.replaced",
+    VoiceStart(VoiceStartMessage) = "voice.start",
+    VoiceStop(VoiceStopMessage) = "voice.stop",
+    VoiceState(VoiceStateMessage) = "voice.state",
+    VoiceLevel(VoiceLevelMessage) = "voice.level",
+    VoiceHeard(VoiceHeardMessage) = "voice.heard",
 }
 
 /// Who sends a message type.
@@ -170,7 +175,9 @@ impl Message {
             | Self::ActionUndo(_)
             | Self::ContextCapture(_)
             | Self::ContextClear(_)
-            | Self::ContextReplace(_) => Direction::ToCore,
+            | Self::ContextReplace(_)
+            | Self::VoiceStart(_)
+            | Self::VoiceStop(_) => Direction::ToCore,
             Self::ChatStarted(_)
             | Self::ChatDelta(_)
             | Self::ChatTool(_)
@@ -187,7 +194,10 @@ impl Message {
             | Self::TimerFired(_)
             | Self::FocusChanged(_)
             | Self::ContextCaptured(_)
-            | Self::ContextReplaced(_) => Direction::FromCore,
+            | Self::ContextReplaced(_)
+            | Self::VoiceState(_)
+            | Self::VoiceLevel(_)
+            | Self::VoiceHeard(_) => Direction::FromCore,
         }
     }
 }
@@ -264,7 +274,7 @@ pub fn shutdown(reason: ShutdownPayloadReason) -> Result<Message, AppError> {
 
 /// # Errors
 /// When the OS random source fails or the text exceeds the schema limit.
-pub fn chat_send(text: &str, effort: Option<Effort>) -> Result<Message, AppError> {
+pub fn chat_send(text: &str, effort: Option<Effort>, spoken: bool) -> Result<Message, AppError> {
     let text = text
         .parse()
         .map_err(|e: generated::error::ConversionError| {
@@ -272,7 +282,12 @@ pub fn chat_send(text: &str, effort: Option<Effort>) -> Result<Message, AppError
         })?;
     Ok(Message::ChatSend(generated::ChatSendMessage {
         id: id()?,
-        payload: ChatSendPayload { effort, text },
+        payload: ChatSendPayload {
+            effort,
+            text,
+            // Omitted for typed messages, so older cores see the same payload.
+            spoken: spoken.then_some(true),
+        },
         reply_to: None,
         type_: "chat.send".into(),
         v: version(),
@@ -394,6 +409,34 @@ pub fn context_replace(text: &str) -> Result<Message, AppError> {
         payload: generated::ContextReplacePayload { text },
         reply_to: None,
         type_: "context.replace".into(),
+        v: version(),
+    }))
+}
+
+/// Open the mic (F-008).
+///
+/// # Errors
+/// When the OS random source fails.
+pub fn voice_start(source: generated::VoiceStartPayloadSource) -> Result<Message, AppError> {
+    Ok(Message::VoiceStart(generated::VoiceStartMessage {
+        id: id()?,
+        payload: generated::VoiceStartPayload { source },
+        reply_to: None,
+        type_: "voice.start".into(),
+        v: version(),
+    }))
+}
+
+/// Stop listening and/or speaking (F-008).
+///
+/// # Errors
+/// When the OS random source fails.
+pub fn voice_stop(reason: generated::VoiceStopPayloadReason) -> Result<Message, AppError> {
+    Ok(Message::VoiceStop(generated::VoiceStopMessage {
+        id: id()?,
+        payload: generated::VoiceStopPayload { reason },
+        reply_to: None,
+        type_: "voice.stop".into(),
         v: version(),
     }))
 }

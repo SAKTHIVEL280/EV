@@ -249,7 +249,7 @@ mod tests {
             assert!(Instant::now() < deadline, "core never became ready");
             sleep(Duration::from_millis(20)).await;
         }
-        link.send(crate::protocol::chat_send("What time is it?", None).unwrap())
+        link.send(crate::protocol::chat_send("What time is it?", None, false).unwrap())
             .unwrap();
         while !rec
             .messages
