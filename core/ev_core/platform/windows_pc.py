@@ -286,12 +286,26 @@ class _Snapshot:
     wrappers: dict[int, Any]
 
 
+MAX_TEXT_READ: Final = 4_000
+
+
 def _com_thread_init() -> None:
     # Multithreaded, as pywinauto and UI Automation expect. Set before anything
     # else runs on the thread: a library that initialises COM first (comtypes
     # and pywin32 do, in the thread that first imports them) would fix the
     # thread as single-threaded for good. comtypes is imported at module load.
     comtypes.CoInitializeEx(comtypes.COINIT_MULTITHREADED)
+
+
+def _text_of(wrapper: Any) -> str:
+    """The text inside an edit or document control. ``window_text()`` gives the
+    control's UIA name ("Text Editor" in Notepad), so read the Value pattern,
+    then the Text pattern's document range."""
+    with contextlib.suppress(Exception):
+        return str(wrapper.iface_value.CurrentValue or "")
+    with contextlib.suppress(Exception):
+        return str(wrapper.iface_text.DocumentRange.GetText(MAX_TEXT_READ) or "")
+    return ""
 
 
 _COM_POOL: Final = ThreadPoolExecutor(
@@ -659,9 +673,8 @@ class WindowsPcControl(PcControl):
                     continue
                 element_id = len(elements) + 1
                 value = ""
-                with contextlib.suppress(Exception):
-                    if info.control_type in ("Edit", "Document", "ComboBox"):
-                        value = str(wrapper.window_text() or "")[:200]
+                if info.control_type in ("Edit", "Document", "ComboBox"):
+                    value = _text_of(wrapper)[:200]
                 elements.append(
                     UiElement(
                         element_id,
