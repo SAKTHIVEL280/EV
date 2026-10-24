@@ -394,3 +394,15 @@ async def test_engines_unload_when_idle(tmp_path: Path) -> None:
     now[0] = 61.0
     await rig.until(lambda: not rig.tts.loaded)
     await rig.module.stop()
+
+
+async def test_an_engine_failure_closes_the_mic_and_voice_keeps_working(rig: Rig) -> None:
+    await rig.publish(VoiceStartRequested("hotkey"))
+    rig.stt.fail_next = VoiceError("Couldn't understand that. Try again.", "boom")
+    rig.mic.push(QUIET)
+    await rig.until(lambda: rig.last_state().code == "failed")
+    assert not rig.mic.open
+    assert rig.last_state().message == "Couldn't understand that. Try again."
+    # The next listen works.
+    await rig.utterance("open notepad")
+    assert [h.text for h in rig.of(VoiceHeard) if h.final] == ["open notepad"]

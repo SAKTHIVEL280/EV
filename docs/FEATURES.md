@@ -31,12 +31,12 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 | F-002 | Rule router (Instant commands) | 1 | built (Linux-verified) |
 | F-003 | Effort levels (setting + voice) | 1 | built (Linux-verified) |
 | F-004 | Hotkey `Ctrl+Space` with IME conflict detection | 2 | built (Windows check pending) |
-| F-005 | Push-to-talk | 4 (beta 2 C) | spec written |
-| F-006 | Barge-in | 4 (beta 2 C) | spec written |
+| F-005 | Push-to-talk | 4 (beta 2 C) | built (Linux e2e with a virtual mic; Windows check pending) |
+| F-006 | Barge-in | 4 (beta 2 C) | built (Linux e2e with a virtual mic; Windows check pending) |
 | F-007 | Wake word (Hey / Yo / Bro / Hello EV) | 4 (beta 2 C) | spec written |
-| F-008 | Voice mode: listen, then spoken replies | 4 (beta 2 C) | spec written |
-| F-009 | Earcons (wake, done, error) | 4 (beta 2 C) | spec written |
-| F-010 | Voice downloads (speech recognition, voice) | 4 (beta 2 C) | spec written |
+| F-008 | Voice mode: listen, then spoken replies | 4 (beta 2 C) | built (Linux e2e with a virtual mic; Windows check pending) |
+| F-009 | Earcons (wake, done, error) | 4 (beta 2 C) | built (Linux e2e with a virtual mic; Windows check pending) |
+| F-010 | Voice downloads (speech recognition, voice) | 4 (beta 2 C) | built (Linux e2e with a virtual mic; Windows check pending) |
 
 ### PC
 | ID | Feature | Phase | Status |
@@ -509,7 +509,7 @@ Shared by every PC tool:
 - Tests: policy table (risk × setting × untrusted); timeout; protocol fixtures; island state.
 
 ### F-008 Voice mode: listen, then spoken replies
-- Phase / status: 4 (beta 2 C) / spec written 2026-10-24, before the code. User decisions of
+- Phase / status: 4 (beta 2 C) / spec written 2026-10-24; built 2026-10-24, Linux end to end through a virtual mic, Windows check pending, before the code. User decisions of
   2026-10-17 (decisions.md "Voice mode").
 - Behavior: the hotkey (F-004) opens the panel already listening: the earcon plays, the island
   shows a live level and the words as they are recognized. When the user stops talking (end of
@@ -551,7 +551,7 @@ Shared by every PC tool:
   voice files are present; manual Windows check with a real mic.
 
 ### F-005 Push-to-talk
-- Phase / status: 4 (beta 2 C) / spec written 2026-10-24.
+- Phase / status: 4 (beta 2 C) / spec written 2026-10-24; built 2026-10-24, Linux end to end through a virtual mic, Windows check pending.
 - Behavior: holding the hotkey longer than 400 ms is push-to-talk: EV listens while it is held
   and sends what was said on release (no end-of-speech wait). A short press is the normal
   toggle (F-008).
@@ -559,7 +559,7 @@ Shared by every PC tool:
 - Tests: Rust press/release timing rule; voice module "end now" path.
 
 ### F-006 Barge-in
-- Phase / status: 4 (beta 2 C) / spec written 2026-10-24.
+- Phase / status: 4 (beta 2 C) / spec written 2026-10-24; built 2026-10-24, Linux end to end through a virtual mic, Windows check pending.
 - Behavior: while EV speaks, the mic stays open (spoken turns only). When the user starts
   talking, speech stops within 100 ms and EV listens; what they say becomes the next request
   (which cancels the old reply). The hotkey does the same.
@@ -571,7 +571,7 @@ Shared by every PC tool:
 - Tests: fake speaker and mic: speech during playback stops it, echo-level audio does not.
 
 ### F-009 Earcons
-- Phase / status: 4 (beta 2 C) / spec written 2026-10-24.
+- Phase / status: 4 (beta 2 C) / spec written 2026-10-24; built 2026-10-24, Linux end to end through a virtual mic, Windows check pending.
 - Behavior: three short sounds, generated in code (no audio files): wake/listening (two soft
   rising tones, 120 ms), done (one soft falling tone, 140 ms; plays when the mic closes after a
   request was taken), error (two low soft pulses, 200 ms). No jingles.
@@ -581,7 +581,7 @@ Shared by every PC tool:
 - Tests: generated length, peak level and fade-in/out (no clicks); DND rule.
 
 ### F-010 Voice downloads
-- Phase / status: 4 (beta 2 C) / spec written 2026-10-24.
+- Phase / status: 4 (beta 2 C) / spec written 2026-10-24; built 2026-10-24, Linux end to end through a virtual mic, Windows check pending.
 - Behavior: voice files are not in the installer. Settings → Voice lists two packs: "Speech
   recognition" (Moonshine small streaming, 143 MB; tiny 45 MB) and "Voice" (Kokoro, about
   110 MB with the G2P files, plus 0.5 MB per voice). Download / Cancel / progress like models

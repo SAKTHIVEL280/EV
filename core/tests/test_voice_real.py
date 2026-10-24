@@ -60,3 +60,20 @@ def test_missing_folder_is_not_installed(tmp_path: Path) -> None:
     with pytest.raises(VoiceError) as caught:
         MoonshineStt().open(tmp_path / "moonshine-small-streaming-en")
     assert caught.value.user_message == NOT_INSTALLED
+
+
+@needs_models
+def test_audio_after_finish_is_ignored() -> None:
+    """Push-to-talk release can overtake the last queued chunks (found in the e2e test)."""
+    import numpy as np
+
+    from ev_core.voice.moonshine import MoonshineStt
+
+    stt = MoonshineStt()
+    session = stt.open(Path(str(FOLDER)).expanduser() / RECOGNIZER_FOLDERS["tiny"])
+    session.feed(np.zeros(800, dtype=np.float32))
+    session.finish()
+    assert session.feed(np.zeros(800, dtype=np.float32)) == []
+    assert session.finish() == []
+    session.close()
+    stt.unload()

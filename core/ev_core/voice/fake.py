@@ -50,6 +50,9 @@ class FakeSession(SttSession):
         self.closed = False
 
     def feed(self, samples: Samples) -> list[LineHeard]:
+        if self._engine.fail_next is not None:
+            error, self._engine.fail_next = self._engine.fail_next, None
+            raise error
         self.fed += samples.size
         if self._engine.script:
             return self._engine.script.pop(0)
@@ -70,6 +73,8 @@ class FakeStt(SttEngine):
         self.on_finish: list[LineHeard] = []
         self.sessions: list[FakeSession] = []
         self.loaded = False
+        self.fail_next: VoiceError | None = None
+        """The next feed raises this (an engine failure)."""
 
     def open(self, model_dir: Path) -> SttSession:
         self.loaded = True

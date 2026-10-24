@@ -49,6 +49,9 @@ class _Session(SttSession):
     def __init__(self, stream: Any) -> None:
         self._stream = stream
         self._heard: list[LineHeard] = []
+        self._done = False
+        """Finished or closed: audio still queued for this session is dropped
+        (push-to-talk release can overtake the last chunks)."""
         stream.add_listener(self._on_event)
         stream.start()
 
@@ -68,16 +71,28 @@ class _Session(SttSession):
         return heard
 
     def feed(self, samples: Samples) -> list[LineHeard]:
-        self._stream.add_audio(samples.tolist(), MIC_RATE)
+        if self._done:
+            return []
+        try:
+            self._stream.add_audio(samples.tolist(), MIC_RATE)
+        except Exception as exc:
+            raise VoiceError("Couldn't understand that. Try again.", repr(exc)) from exc
         return self._take()
 
     def finish(self) -> list[LineHeard]:
-        self._stream.stop()
+        if self._done:
+            return []
+        self._done = True
+        try:
+            self._stream.stop()
+        except Exception as exc:
+            raise VoiceError("Couldn't understand that. Try again.", repr(exc)) from exc
         heard = self._take()
         # Lines still open when audio stopped come back as complete.
         return [LineHeard(h.line_id, h.text, True) for h in heard]
 
     def close(self) -> None:
+        self._done = True
         self._stream.close()
 
 

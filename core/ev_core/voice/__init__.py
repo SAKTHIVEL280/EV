@@ -72,6 +72,7 @@ logger = logging.getLogger(__name__)
 
 ACKNOWLEDGEMENT: Final = "Okay, on it."
 NO_SPEECH: Final = "Didn't hear anything."
+FAILED: Final = "Voice stopped working. Details are in the log."
 VOICE_OFF: Final = "Voice is off. Turn it on in Settings → Voice."
 
 RECOGNIZER_FOLDERS: Final = {
@@ -303,7 +304,7 @@ class VoiceModule(Module):
             return
         asked = self._clock()
         await self._listen(follow_up=False)
-        if self._mode is MicMode.LISTENING:
+        if self._listening is not None:
             logger.info(
                 "voice listening",
                 extra={
@@ -424,7 +425,13 @@ class VoiceModule(Module):
         listening = self._listening
         if listening is None:
             return
-        heard = await self._in_stt(listening.session.finish)
+        try:
+            heard = await self._in_stt(listening.session.finish)
+        except VoiceError as exc:
+            logger.warning("voice failed", extra={"fields": {"detail": exc.detail}})
+            heard = []
+        if self._listening is not listening:
+            return  # the ticker already sent it
         self._take(listening, heard)
         await self._finish_utterance(listening)
 
@@ -480,9 +487,20 @@ class VoiceModule(Module):
                 samples = await asyncio.wait_for(self._audio.get(), self._t.tick_s)
             except TimeoutError:
                 samples = None
-            if samples is not None and self._mode is not MicMode.CLOSED:
-                await self._on_chunk(samples)
-            await self._check()
+            try:
+                if samples is not None and self._mode is not MicMode.CLOSED:
+                    await self._on_chunk(samples)
+                await self._check()
+            except VoiceError as exc:
+                logger.warning("voice failed", extra={"fields": {"detail": exc.detail}})
+                await self._close_mic()
+                self._earcon(Earcon.ERROR)
+                self._publish_state(exc.user_message, "failed")
+            except Exception:
+                # One bad step must not stop voice for the rest of the session.
+                logger.exception("voice step failed")
+                await self._close_mic()
+                self._publish_state(FAILED, "failed")
         self._publish_state()
 
     async def _check(self) -> None:
@@ -621,6 +639,12 @@ class VoiceModule(Module):
                 logger.warning("speech failed", extra={"fields": {"detail": exc.detail}})
                 self._reply = None
                 self._publish_state(exc.user_message, _code_for(exc.user_message))
+                continue
+            except Exception:
+                # A bad sentence must not stop speech for the rest of the session.
+                logger.exception("speech step failed")
+                self._reply = None
+                self._publish_state(FAILED, "failed")
                 continue
             finally:
                 self._synthesizing = False
