@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Any, Final
 from uuid import UUID
 
+import comtypes
 import psutil
 
 from ev_core.interfaces.pc import (
@@ -286,11 +287,10 @@ class _Snapshot:
 
 
 def _com_thread_init() -> None:
-    import comtypes
-
     # Multithreaded, as pywinauto and UI Automation expect. Set before anything
-    # else runs on the thread: a library that initialises COM first (pywin32
-    # does on import) would fix the thread as single-threaded for good.
+    # else runs on the thread: a library that initialises COM first (comtypes
+    # and pywin32 do, in the thread that first imports them) would fix the
+    # thread as single-threaded for good. comtypes is imported at module load.
     comtypes.CoInitializeEx(comtypes.COINIT_MULTITHREADED)
 
 
