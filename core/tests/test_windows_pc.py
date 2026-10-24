@@ -68,8 +68,10 @@ async def test_type_into_notepad_and_read_it_back(
     # Selecting it makes it "this" (F-201).
     await pc.focus(window.id)
     await pc.ui_keys(window.id, "ctrl+a")
+    front = (await pc.windows())[0]
+    assert front.id == window.id, f"front-most window is {front}"
     selection = await pc.selection()
-    assert selection is not None
+    assert selection is not None, f"no selection; editor holds {text!r}"
     assert "hello EV" in selection.text
 
 
