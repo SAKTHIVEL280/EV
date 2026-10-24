@@ -34,6 +34,31 @@ async def _notepad(pc: WindowsPcControl) -> tuple[WindowInfo, subprocess.Popen[b
     pytest.fail("Notepad didn't open")
 
 
+def _probe(window_id: int) -> list[str]:
+    """Temporary: what the selection read sees (remove once the CI check passes)."""
+    import comtypes
+    from pywinauto import Desktop
+
+    comtypes.CoInitializeEx(comtypes.COINIT_MULTITHREADED)
+    out = []
+    for w in Desktop(backend="uia").window(handle=window_id).descendants():
+        info = w.element_info
+        if info.control_type not in ("Edit", "Document"):
+            continue
+        row = (
+            f"{info.control_type}/{info.class_name}/h={info.handle}/focus={info.has_keyboard_focus}"
+        )
+        try:
+            ranges = w.iface_text.GetSelection()
+            row += f" n={ranges.Length} " + repr(
+                [ranges.GetElement(i).GetText(-1) for i in range(ranges.Length)]
+            )
+        except Exception as exc:  # noqa: BLE001
+            row += f" err={exc!r}"
+        out.append(row)
+    return out
+
+
 @pytest.fixture
 async def notepad() -> AsyncIterator[tuple[WindowsPcControl, WindowInfo]]:
     pc = WindowsPcControl()
@@ -71,7 +96,9 @@ async def test_type_into_notepad_and_read_it_back(
     front = (await pc.windows())[0]
     assert front.id == window.id, f"front-most window is {front}"
     selection = await pc.selection()
-    assert selection is not None, f"no selection; editor holds {text!r}"
+    assert selection is not None, (
+        f"no selection; probe: {await asyncio.to_thread(_probe, window.id)}"
+    )
     assert "hello EV" in selection.text
 
 
