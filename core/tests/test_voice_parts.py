@@ -9,7 +9,7 @@ from ev_core.voice.text import SentenceSplitter, speakable
 
 
 def split(*deltas: str) -> list[str]:
-    splitter = SentenceSplitter()
+    splitter = SentenceSplitter(first_clause=False)
     out: list[str] = []
     for delta in deltas:
         out += splitter.add(delta)
@@ -17,11 +17,19 @@ def split(*deltas: str) -> list[str]:
 
 
 def test_sentences_come_out_as_soon_as_they_end() -> None:
-    splitter = SentenceSplitter()
+    splitter = SentenceSplitter(first_clause=False)
     assert splitter.add("Okay, opening Note") == []
     assert splitter.add("pad. It should") == ["Okay, opening Notepad."]
     assert splitter.add(" be up now! Anything else") == ["It should be up now!"]
     assert splitter.flush() == ["Anything else"]
+
+
+def test_the_first_clause_is_spoken_before_its_sentence_ends() -> None:
+    splitter = SentenceSplitter()
+    assert splitter.add("Sure, I can") == ["Sure,"]
+    # After the first piece, only whole sentences.
+    assert splitter.add(" help, gladly. Next") == ["I can help, gladly."]
+    assert splitter.flush() == ["Next"]
 
 
 @pytest.mark.parametrize(

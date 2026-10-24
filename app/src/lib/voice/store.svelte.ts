@@ -9,6 +9,8 @@ import { IDLE, isPushToTalk, type VoiceState } from "./voice";
 
 class VoiceStore {
   state = $state<VoiceState>({ ...IDLE });
+  /** Mic level 0..1, kept apart: it changes 15 times a second (only the meter reads it). */
+  level = $state(0);
   private started = false;
 
   get listening(): boolean {
@@ -26,15 +28,15 @@ class VoiceStore {
             ...this.state,
             mic: update.mic,
             speaking: update.speaking,
-            level: update.mic ? this.state.level : 0,
             heard: update.mic ? this.state.heard : "",
             message: update.message,
             code: update.code,
           };
+          if (!update.mic) this.level = 0;
           break;
         case "level":
           // A float can arrive as null (NaN on the Rust side).
-          this.state = { ...this.state, level: update.level ?? 0 };
+          this.level = update.level ?? 0;
           break;
         case "heard":
           if (update.is_final) {

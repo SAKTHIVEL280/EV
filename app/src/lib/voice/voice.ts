@@ -11,8 +11,6 @@ export interface VoiceState {
   speaking: boolean;
   /** Words recognized so far (live captions). */
   heard: string;
-  /** Mic level 0..1. */
-  level: number;
   /** Why voice stopped or couldn't start. */
   message: string | null;
   code: string | null;
@@ -22,7 +20,6 @@ export const IDLE: VoiceState = {
   mic: false,
   speaking: false,
   heard: "",
-  level: 0,
   message: null,
   code: null,
 };

@@ -204,6 +204,7 @@ class VoiceModule(Module):
         self._ticker: asyncio.Task[None] | None = None
         self._speaker_task: asyncio.Task[None] | None = None
         self._idle_task: asyncio.Task[None] | None = None
+        self._prepare_task: asyncio.Task[None] | None = None
 
     # --- module lifecycle
     async def start(self, ctx: ModuleContext) -> None:
@@ -220,11 +221,12 @@ class VoiceModule(Module):
         ctx.bus.subscribe(ConfigChanged, self._on_config)
         self._speaker_task = asyncio.create_task(self._speak_loop())
         self._idle_task = asyncio.create_task(self._idle_loop())
+        self._prepare_task = asyncio.create_task(self._prepare())
 
     async def stop(self) -> None:
         await self._close_mic()
         self._stop_speech()
-        for task in (self._ticker, self._speaker_task, self._idle_task):
+        for task in (self._ticker, self._speaker_task, self._idle_task, self._prepare_task):
             if task is not None:
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
@@ -233,6 +235,20 @@ class VoiceModule(Module):
         await self._unload()
         self._stt_pool.shutdown(wait=False)
         self._tts_pool.shutdown(wait=False)
+
+    async def _prepare(self) -> None:
+        if not self._settings.enabled:
+            return
+        started = self._clock()
+        try:
+            await asyncio.to_thread(self._mic.prepare)
+        except VoiceError as exc:
+            # Reported when the user tries to listen; nothing to show now.
+            logger.warning("audio not ready", extra={"fields": {"detail": exc.detail}})
+            return
+        logger.info(
+            "audio ready", extra={"fields": {"ms": round((self._clock() - started) * 1000)}}
+        )
 
     # --- paths
     def _recognizer_dir(self) -> Path:
@@ -285,8 +301,18 @@ class VoiceModule(Module):
             self._stop_speech()
         if self._mode is MicMode.LISTENING:
             return
+        asked = self._clock()
         await self._listen(follow_up=False)
-        logger.info("voice listening", extra={"fields": {"source": event.source}})
+        if self._mode is MicMode.LISTENING:
+            logger.info(
+                "voice listening",
+                extra={
+                    "fields": {
+                        "source": event.source,
+                        "ms": round((self._clock() - asked) * 1000),
+                    }
+                },
+            )
 
     async def _on_stop(self, event: VoiceStopRequested) -> None:
         match event.reason:
@@ -314,6 +340,8 @@ class VoiceModule(Module):
             self._publish_state(NOT_INSTALLED, "not_installed")
             return
         try:
+            if self._prepare_task is not None:
+                await self._prepare_task  # the first listen right after startup
             session = await self._in_stt(lambda: self._stt.open(folder))
             self._loaded["stt"] = True
             if self._mode is MicMode.CLOSED:

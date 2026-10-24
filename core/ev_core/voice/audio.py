@@ -55,6 +55,10 @@ class SoundDeviceInput(AudioInput):
     def __init__(self) -> None:
         self._stream: Any = None
 
+    def prepare(self) -> None:
+        # Importing sounddevice initialises PortAudio, which probes every device.
+        _sd()
+
     def start(self, on_audio: Callable[[Samples], None]) -> None:
         sd = _sd()
         try:

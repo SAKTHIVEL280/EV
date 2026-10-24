@@ -13,6 +13,9 @@ _ABBREVIATIONS: Final = frozenset(
 )
 # A sentence ends at . ! ? (plus closing quotes/brackets) followed by space, or at a newline.
 _BOUNDARY: Final = re.compile(r"[.!?]+[\"')\]]*(?=\s)|\n+")
+# Only for the first piece of a reply: a clause can be spoken before its
+# sentence ends ("Sure, ..."), so the first words come out sooner.
+_CLAUSE: Final = re.compile(r"[.!?]+[\"')\]]*(?=\s)|\n+|[,;:](?=\s)")
 _CODE_BLOCK: Final = re.compile(r"```.*?(```|$)", re.DOTALL)
 _LINK: Final = re.compile(r"\[([^\]]+)\]\([^)]*\)")
 _URL: Final = re.compile(r"https?://\S+")
@@ -35,15 +38,19 @@ def speakable(text: str) -> str:
 
 
 class SentenceSplitter:
-    def __init__(self) -> None:
+    def __init__(self, *, first_clause: bool = True) -> None:
         self._buffer = ""
+        self._first = first_clause
 
     def add(self, delta: str) -> list[str]:
         """Add streamed text; returns the sentences it completed."""
         self._buffer += delta
         out: list[str] = []
         start = 0
-        for match in _BOUNDARY.finditer(self._buffer):
+        pattern = _CLAUSE if self._first else _BOUNDARY
+        for match in pattern.finditer(self._buffer):
+            if out and pattern is _CLAUSE:
+                break  # only the very first piece may be a clause
             end = match.end()
             piece = self._buffer[start:end]
             if (
@@ -58,7 +65,12 @@ class SentenceSplitter:
                 continue
             out.append(spoken)
             start = end
+        if out:
+            self._first = False
         self._buffer = self._buffer[start:]
+        if out and pattern is _CLAUSE:
+            # The rest of the buffer splits by sentences.
+            out += self.add("")
         return out
 
     def flush(self) -> list[str]:

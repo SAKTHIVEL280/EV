@@ -396,7 +396,7 @@
       <button class="voice-open" type="button" onclick={openPanel} aria-label="Open EV">
         {#if voice.state.mic}
           <span class="meter" aria-hidden="true">
-            {#each bars(voice.state.level) as height, i (i)}
+            {#each bars(voice.level) as height, i (i)}
               <span class="bar" style:transform={`scaleY(${String(height)})`}></span>
             {/each}
           </span>

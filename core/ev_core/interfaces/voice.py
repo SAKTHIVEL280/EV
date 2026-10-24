@@ -68,6 +68,10 @@ class TtsEngine(ABC):
 
 
 class AudioInput(ABC):
+    def prepare(self) -> None:  # noqa: B027 -- optional hook, nothing to do by default
+        """Slow one-time setup, run in the background at startup so the first
+        listen is quick (PortAudio's first initialisation takes ~1.6 s)."""
+
     @abstractmethod
     def start(self, on_audio: Callable[[Samples], None]) -> None:
         """Open the microphone; ``on_audio`` gets 16 kHz chunks on an audio thread."""

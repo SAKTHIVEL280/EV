@@ -387,3 +387,22 @@ facts (Tamil films, IPL 2025), 5 common facts, 3 help requests.
   before any words; after the reply EV listens 5 s for a follow-up. Recognizer noise words alone
   ("you", "um") are never sent. Noise while EV is still thinking opens a listening session but
   keeps the reply unless real words follow.
+- **Voice end to end on Linux (2026-10-24).** Through a virtual PipeWire microphone
+  (`PIPEWIRE_NODE=ev_test_mic`, Kokoro-made speech played into a null sink), in the nested X
+  display: mic button → "Listening" → live words ("What?") → "What time is it?" sent as a spoken
+  message → router answer spoken → 5 s follow-up → mic closed. A model question ("What is the
+  capital of France?") answered and spoken. Measured (busy dev machine, load average 3.3):
+  start → listening 292 ms with a cold recognizer load, 9 ms warm; first spoken audio 2,325 ms
+  (first token 1,154 ms, reply done 1,748 ms, Kokoro ~0.5 s) against the 2 s budget.
+- **PortAudio startup cost:** the first `import sounddevice` initialises PortAudio and probes
+  every device: 1.6 s here, which delayed the first listen. The voice module now does it in the
+  background at startup; opening the mic afterwards takes 12–81 ms.
+- **First clause first:** the first piece of a spoken reply can be a clause ("Sure,") so speech
+  starts before the first sentence ends; after it, whole sentences.
+- **Why first tokens are slower than the 0.42 s recorded in Phase 1:** each turn re-processes
+  46–70 prompt tokens (the new message, the previous user message whose stored text has no time
+  stamp, and the previous reply, which the chat template renders differently from what was
+  generated), at only 44–66 tokens/s for such small batches on this machine. Keeping the stamp in
+  history cut 70 → 55 tokens (~0.25 s). Not adopted yet: it reverses the "plain history" decision
+  and needs the golden and honesty benchmarks first. Stage H (performance tuning) takes it up,
+  with thread count and batch settings, on an idle machine.
