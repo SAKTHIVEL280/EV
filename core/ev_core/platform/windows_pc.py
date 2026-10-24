@@ -9,7 +9,7 @@
   API through Windows PowerShell 5.1, which ships with Windows.
 - Screenshots: mss. Recycle Bin: send2trash. UI Automation: pywinauto (uia).
 
-Blocking calls run in worker threads; COM is initialised per thread.
+Blocking calls run in worker threads; COM is initialised per thread (multithreaded).
 """
 
 import sys
@@ -287,7 +287,9 @@ def _in_thread[T](work: Callable[[], T]) -> "asyncio.Future[T]":
     def run() -> T:
         import comtypes
 
-        comtypes.CoInitialize()
+        # Multithreaded, as pywinauto and UI Automation expect: pywinauto
+        # probes for it on import and warns when a thread is already STA.
+        comtypes.CoInitializeEx(comtypes.COINIT_MULTITHREADED)
         try:
             return work()
         finally:
