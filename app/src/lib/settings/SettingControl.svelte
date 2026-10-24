@@ -16,7 +16,7 @@
     sliderText,
     sliderValues,
   } from "./controls";
-  import { itemId, parseInput } from "./settings";
+  import { choiceLabel, itemId, parseInput } from "./settings";
 
   interface Props {
     item: SettingItem;
@@ -114,6 +114,21 @@
   >
     <span class="knob"></span>
   </button>
+{:else if item.kind === "choice" && item.widget === "menu"}
+  <div class="model">
+    <select
+      aria-labelledby={labelId}
+      {disabled}
+      value={String(item.value)}
+      onchange={(event) => {
+        apply(event.currentTarget.value);
+      }}
+    >
+      {#each item.options as option (option)}
+        <option value={option}>{choiceLabel(item, option)}</option>
+      {/each}
+    </select>
+  </div>
 {:else if item.kind === "choice"}
   <div class="segmented" role="radiogroup" aria-labelledby={labelId}>
     {#each item.options as option (option)}
@@ -126,7 +141,7 @@
           apply(option);
         }}
       >
-        {option}
+        {choiceLabel(item, option)}
       </button>
     {/each}
   </div>

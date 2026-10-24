@@ -391,6 +391,8 @@ export type SettingItem = {
 	role: string | null,
 	/**  For `widget = slider`: the values the slider stops at. */
 	steps: number[],
+	/**  For choices: display names in the order of `options` (empty: show the options). */
+	labels: string[],
 };
 
 export type SettingRejected = {

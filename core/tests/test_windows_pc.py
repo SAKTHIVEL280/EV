@@ -34,32 +34,30 @@ async def _notepad(pc: WindowsPcControl) -> tuple[WindowInfo, subprocess.Popen[b
     pytest.fail("Notepad didn't open")
 
 
-def _probe(window_id: int) -> list[str]:
-    """Temporary: what the selection read sees (remove once the CI check passes)."""
-    import comtypes
-    from pywinauto import Desktop
+def _select_all(window_id: int) -> bool:
+    """Select all of Notepad's text with EM_SETSEL. Keystrokes don't reach the
+    editor on the headless CI desktop (Ctrl+A left the caret at the end)."""
+    import ctypes
 
-    comtypes.CoInitializeEx(comtypes.COINIT_MULTITHREADED)
-    out = []
-    for w in Desktop(backend="uia").window(handle=window_id).descendants():
-        info = w.element_info
-        if info.control_type not in ("Edit", "Document"):
-            continue
-        row = f"{info.control_type}/{info.class_name}/h={info.handle}"
-        try:
-            ranges = w.iface_text.GetSelection()
-            row += f" n={ranges.Length} " + repr(
-                [ranges.GetElement(i).GetText(-1) for i in range(ranges.Length)]
-            )
-        except Exception as exc:  # noqa: BLE001
-            row += f" err={exc!r}"
-        if info.handle:
-            import ctypes
-
-            packed = ctypes.windll.user32.SendMessageW(info.handle, 0x00B0, 0, 0)
-            row += f" em_getsel={packed & 0xFFFF}-{(packed >> 16) & 0xFFFF}"
-        out.append(row)
-    return out
+    user32 = ctypes.windll.user32
+    user32.FindWindowExW.restype = ctypes.c_void_p
+    user32.FindWindowExW.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        ctypes.c_wchar_p,
+        ctypes.c_void_p,
+    ]
+    editor = user32.FindWindowExW(window_id, None, "Edit", None)
+    if not editor:
+        return False
+    user32.SendMessageW.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_uint,
+        ctypes.c_size_t,
+        ctypes.c_ssize_t,
+    ]
+    user32.SendMessageW(editor, 0x00B1, 0, -1)  # EM_SETSEL: everything
+    return True
 
 
 @pytest.fixture
@@ -95,13 +93,12 @@ async def test_type_into_notepad_and_read_it_back(
     assert "hello EV (test) 100%" in text
     # Selecting it makes it "this" (F-201).
     await pc.focus(window.id)
-    await pc.ui_keys(window.id, "ctrl+a")
+    if not await asyncio.to_thread(_select_all, window.id):
+        await pc.ui_keys(window.id, "ctrl+a")  # the newer Notepad has no Edit child
     front = (await pc.windows())[0]
     assert front.id == window.id, f"front-most window is {front}"
     selection = await pc.selection()
-    assert selection is not None, (
-        f"no selection; probe: {await asyncio.to_thread(_probe, window.id)}"
-    )
+    assert selection is not None
     assert "hello EV" in selection.text
 
 

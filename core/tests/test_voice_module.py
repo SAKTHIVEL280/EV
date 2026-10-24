@@ -176,8 +176,7 @@ async def test_spoken_turn_is_spoken_then_a_follow_up_is_heard(rig: Rig) -> None
     assert rig.tts.spoken == ["Opening Notepad.", "It is open now."]
     rig.speaker.finish()
     # Follow-up: a new listening session, without the wake earcon.
-    await rig.until(lambda: len(rig.stt.sessions) == 2)
-    assert not rig.last_state().speaking
+    await rig.until(lambda: len(rig.stt.sessions) == 2 and not rig.last_state().speaking)
     played = len(rig.speaker.played)
     # Nobody speaks: the mic closes quietly.
     await rig.until(lambda: not rig.mic.open)
@@ -301,8 +300,9 @@ async def test_noise_before_the_reply_starts_keeps_the_reply(rig: Rig) -> None:
 
 async def test_nothing_said_closes_the_mic_with_a_message(rig: Rig) -> None:
     await rig.publish(VoiceStartRequested("hotkey"))
-    await rig.until(lambda: not rig.mic.open)
-    assert rig.last_state().message == NO_SPEECH
+    # The fake mic closes a moment before the state goes out: wait for the state.
+    await rig.until(lambda: rig.last_state().message == NO_SPEECH)
+    assert not rig.mic.open
     assert rig.last_state().code == "no_speech"
     assert not any(h.final for h in rig.of(VoiceHeard))
 

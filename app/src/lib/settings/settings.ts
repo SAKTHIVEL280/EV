@@ -129,6 +129,12 @@ export function isDefault(item: SettingItem): boolean {
   return item.value === item.default;
 }
 
+/** A choice's display name: the schema's label, or the value with a capital first letter. */
+export function choiceLabel(item: SettingItem, option: string): string {
+  const label = item.labels[item.options.indexOf(option)];
+  return label ?? option.charAt(0).toUpperCase() + option.slice(1);
+}
+
 export function displayValue(item: SettingItem, value: SettingValue): string {
   if (item.kind === "boolean") return value === true ? "On" : "Off";
   if (item.widget === "model" && value === "") return "None";
@@ -136,9 +142,7 @@ export function displayValue(item: SettingItem, value: SettingValue): string {
   if (item.widget === "shortcut" && typeof value === "string") return shortcutLabel(value);
   if (item.widget === "slider" && typeof value === "number") return sliderText(item, value);
   if (item.kind === "text" && value === "") return "Empty";
-  if (item.kind === "choice" && typeof value === "string") {
-    return value.charAt(0).toUpperCase() + value.slice(1);
-  }
+  if (item.kind === "choice" && typeof value === "string") return choiceLabel(item, value);
   if (item.kind === "integer" && item.unit) return `${String(value)} ${item.unit}`;
   return String(value);
 }

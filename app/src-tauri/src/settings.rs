@@ -63,6 +63,8 @@ pub struct SettingItem {
     pub role: Option<String>,
     /// For `widget = slider`: the values the slider stops at.
     pub steps: Vec<i32>,
+    /// For choices: display names in the order of `options` (empty: show the options).
+    pub labels: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Type)]
@@ -120,6 +122,7 @@ pub fn update(message: Message) -> Option<Update> {
                     widget: i.widget.map(|w| w.to_string()),
                     role: i.role.map(|r| r.to_string()),
                     steps: i.steps.into_iter().map(clamp).collect(),
+                    labels: i.labels.into_iter().map(|l| l.to_string()).collect(),
                 })
                 .collect(),
             warnings: m

@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import type { SettingItem, SettingsState } from "../bindings";
-import { SECTIONS, displayValue, groupsFor, isDefault, itemsFor, parseInput } from "./settings";
+import {
+  SECTIONS,
+  choiceLabel,
+  displayValue,
+  groupsFor,
+  isDefault,
+  itemsFor,
+  parseInput,
+} from "./settings";
 
 function item(overrides: Partial<SettingItem>): SettingItem {
   return {
@@ -20,9 +28,27 @@ function item(overrides: Partial<SettingItem>): SettingItem {
     widget: null,
     role: null,
     steps: [],
+    labels: [],
     ...overrides,
   };
 }
+
+describe("choice labels", () => {
+  const voice = item({
+    kind: "choice",
+    options: ["when_spoken", "always"],
+    labels: ["When I speak", "Always"],
+  });
+
+  it("uses the schema's label", () => {
+    expect(choiceLabel(voice, "when_spoken")).toBe("When I speak");
+    expect(displayValue(voice, "always")).toBe("Always");
+  });
+
+  it("capitalizes the value when there are no labels", () => {
+    expect(choiceLabel(item({ kind: "choice", options: ["deep"] }), "deep")).toBe("Deep");
+  });
+});
 
 describe("settings", () => {
   it("has the 13 sections of CLAUDE.md §6.5 in order", () => {

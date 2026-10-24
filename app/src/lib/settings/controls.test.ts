@@ -35,6 +35,7 @@ function item(over: Partial<SettingItem>): SettingItem {
     widget: "slider",
     role: null,
     steps: [],
+    labels: [],
     ...over,
   };
 }
