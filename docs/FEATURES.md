@@ -31,9 +31,12 @@ Spec status: `index` (listed, no spec yet) · `draft` · `approved` · `built` �
 | F-002 | Rule router (Instant commands) | 1 | built (Linux-verified) |
 | F-003 | Effort levels (setting + voice) | 1 | built (Linux-verified) |
 | F-004 | Hotkey `Ctrl+Space` with IME conflict detection | 2 | built (Windows check pending) |
-| F-005 | Push-to-talk | 4 | index |
-| F-006 | Barge-in | 4 | index |
-| F-007 | Wake word (Hey / Yo / Bro / Hello EV) | 4 | index |
+| F-005 | Push-to-talk | 4 (beta 2 C) | spec written |
+| F-006 | Barge-in | 4 (beta 2 C) | spec written |
+| F-007 | Wake word (Hey / Yo / Bro / Hello EV) | 4 (beta 2 C) | spec written |
+| F-008 | Voice mode: listen, then spoken replies | 4 (beta 2 C) | spec written |
+| F-009 | Earcons (wake, done, error) | 4 (beta 2 C) | spec written |
+| F-010 | Voice downloads (speech recognition, voice) | 4 (beta 2 C) | spec written |
 
 ### PC
 | ID | Feature | Phase | Status |
@@ -504,3 +507,102 @@ Shared by every PC tool:
   (`permissions.<tool>`); `dangerous` tools offer only Ask / Block.
 - Protocol: `tool.confirm` (core → app) and `tool.answer` (app → core), additive.
 - Tests: policy table (risk × setting × untrusted); timeout; protocol fixtures; island state.
+
+### F-008 Voice mode: listen, then spoken replies
+- Phase / status: 4 (beta 2 C) / spec written 2026-10-24, before the code. User decisions of
+  2026-10-17 (decisions.md "Voice mode").
+- Behavior: the hotkey (F-004) opens the panel already listening: the earcon plays, the island
+  shows a live level and the words as they are recognized. When the user stops talking (end of
+  speech detected by Moonshine's built-in voice activity detection), the words are sent as a chat
+  message, exactly as if typed, marked as spoken. Typing a character in the message box switches
+  to text: the mic turns off and nothing is spoken for that request.
+  A spoken request gets a spoken reply: the reply is spoken sentence by sentence as it streams
+  (first sentence as soon as it is complete). If the turn starts a tool before saying anything,
+  EV first says "Okay, on it." so the user knows it heard. Typed requests get text only.
+  After a spoken reply EV listens for a follow-up for 5 s (`voice.follow_up`); no speech → the
+  mic closes. No speech within 8 s of opening → the mic closes and the panel says "Didn't hear
+  anything."
+- Panel: a mic button next to the message box shows and toggles listening; while listening the
+  box shows the live words. The island shows `listening` (level) and `speaking` shapes when the
+  panel is closed (follow-up, wake word), with the mic indicator always visible while the mic is
+  open (CLAUDE.md §8).
+- Effort level: the request's (F-003).
+- Permissions & risk: the mic opens only on the hotkey, the mic button, a follow-up window, or
+  the wake word (F-007). Audio is never stored or sent anywhere; only the recognized text is kept
+  as chat history.
+- Engines: speech recognition Moonshine v2 streaming, small (default) or tiny
+  (`voice.recognizer`); speech Kokoro through moonshine-voice (decisions.md 2026-10-24).
+  Both load on first use and unload with the language model's idle timer.
+- Settings ([voice], Voice section): `enabled` (on), `speak_replies` (when I speak · always ·
+  never), `voice` (Kokoro voices; default Heart), `speed` (70–150 %, 100), `volume` (0–100, 80),
+  `recognizer` (small · tiny), `follow_up` (on).
+- Edge cases: voice not downloaded → the panel says "Voice isn't installed. Download it in
+  Settings → Voice." with a button that opens it; no microphone → "No microphone found.";
+  mic in use or blocked by Windows privacy settings → "EV can't use the microphone. Check
+  Windows Settings → Privacy → Microphone."; a new request while speaking stops the speech;
+  closing the panel stops listening but not speaking; the hotkey while speaking stops speaking
+  and listens (barge-in by key).
+- Failure messages: as above, plus "Couldn't start voice. Details are in the log."
+- Performance: Normal first spoken word ≤ 2 s (input received → first audio played); recognition
+  final ≤ 300 ms after end of speech is detected.
+- Tests: voice module with fake mic, recognizer, synthesizer and speaker (listen → chat request
+  marked spoken, sentence splitting, acknowledgement, follow-up and silence timeouts, typing
+  stops the mic, unload); real-engine test (synthesize a sentence, recognize it back) when the
+  voice files are present; manual Windows check with a real mic.
+
+### F-005 Push-to-talk
+- Phase / status: 4 (beta 2 C) / spec written 2026-10-24.
+- Behavior: holding the hotkey longer than 400 ms is push-to-talk: EV listens while it is held
+  and sends what was said on release (no end-of-speech wait). A short press is the normal
+  toggle (F-008).
+- Settings: the hotkey itself. Edge cases: released before any speech → nothing is sent.
+- Tests: Rust press/release timing rule; voice module "end now" path.
+
+### F-006 Barge-in
+- Phase / status: 4 (beta 2 C) / spec written 2026-10-24.
+- Behavior: while EV speaks, the mic stays open (spoken turns only). When the user starts
+  talking, speech stops within 100 ms and EV listens; what they say becomes the next request
+  (which cancels the old reply). The hotkey does the same.
+- Echo guard: without echo cancellation, EV's own voice reaches the mic through laptop
+  speakers. Speech only counts as barge-in when the mic level is clearly above the echo level
+  measured during the current reply (ratio `voice.barge_in` sensitivity, internal default 2.5x).
+  With headphones the echo level is near zero, so any speech counts.
+- Performance: voice activity detected → audio output stopped ≤ 100 ms.
+- Tests: fake speaker and mic: speech during playback stops it, echo-level audio does not.
+
+### F-009 Earcons
+- Phase / status: 4 (beta 2 C) / spec written 2026-10-24.
+- Behavior: three short sounds, generated in code (no audio files): wake/listening (two soft
+  rising tones, 120 ms), done (one soft falling tone, 140 ms; plays when the mic closes after a
+  request was taken), error (two low soft pulses, 200 ms). No jingles.
+- Settings: `voice.earcons_volume` (0–100, 50; 0 = off). Silent when Windows Do Not Disturb /
+  Focus is on.
+- Performance: wake detection or hotkey → earcon start ≤ 250 ms.
+- Tests: generated length, peak level and fade-in/out (no clicks); DND rule.
+
+### F-010 Voice downloads
+- Phase / status: 4 (beta 2 C) / spec written 2026-10-24.
+- Behavior: voice files are not in the installer. Settings → Voice lists two packs: "Speech
+  recognition" (Moonshine small streaming, 143 MB; tiny 45 MB) and "Voice" (Kokoro, about
+  110 MB with the G2P files, plus 0.5 MB per voice). Download / Cancel / progress like models
+  (F-403): pinned URLs on download.moonshine.ai, SHA-256 per file, resume. Files land in
+  `models/voice/` inside the models folder. First-run setup (F-401) downloads them later.
+- Edge cases: offline → "Couldn't reach the download server. Try again later."; a changed file
+  on the server fails its SHA-256 → "The download was damaged. Try again." (nothing installed).
+- Tests: catalog validation (hosts, hashes), multi-file download with a fake server, partial
+  pack not reported installed.
+
+### F-007 Wake word
+- Phase / status: 4 (beta 2 C) / spec written 2026-10-24.
+- Behavior: with `voice.wake_word` on, EV listens for its wake phrase ("Hey EV" default; Yo EV,
+  Bro EV, Hello EV) with a small always-on detector (openWakeWord-style: shared mel-spectrogram
+  and speech-embedding models plus one small classifier per phrase, trained for EV from
+  synthetic speech). Detection → earcon → listening as with the hotkey, with the island showing
+  the listening shape (no focus taken; the panel stays closed unless the user opens it).
+- Settings: `voice.wake_word` (on), `voice.wake_phrase`, `voice.wake_sensitivity` (low · normal ·
+  high). Pauses on battery when `battery` setting says so (F-406), in privacy mode (F-405), and
+  while a fullscreen app runs.
+- Performance: idle CPU (wake word only) ≤ 3 % total; detection → chime ≤ 250 ms.
+- Tests: detector on generated positive and negative clips (recall and false accepts per hour
+  recorded in PERFORMANCE.md); module tests with a fake detector.
+
